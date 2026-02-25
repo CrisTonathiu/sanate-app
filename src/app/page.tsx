@@ -1,3 +1,5 @@
+import ClientPage from './client';
+
 export default function Home() {
-    return <div className='overflow-hidden'>Home</div>;
+    return <ClientPage />;
 }

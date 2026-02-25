@@ -21,12 +21,20 @@ const sidebarItems = [
     {
         title: 'Inicio',
         icon: <LayoutDashboard className='size-4' />,
-        isActive: true
+        isActive: true,
+        url: '/'
+    },
+    {
+        title: 'Usuarios',
+        icon: <Users className='size-4' />,
+        items: [
+            {title: 'Lista de Usuarios', url: '/usuarios'},
+            {title: 'Agregar Usuario', url: '/usuarios/nuevo'}
+        ]
     },
     {
         title: 'Pacientes',
         icon: <Users className='size-4' />,
-        badge: '5',
         items: [
             {title: 'Lista de Pacientes', url: '/pacientes'},
             {title: 'Agregar Paciente', url: '/pacientes/nuevo'}
@@ -42,7 +50,8 @@ const sidebarItems = [
     },
     {
         title: 'Recetas',
-        icon: <FileHeart className='size-4' />
+        icon: <FileHeart className='size-4' />,
+        url: '/recetas'
     }
 ];
 
@@ -80,38 +89,48 @@ export default function DesktopSidebar({sidebarOpen}: DesktopSidebarProps) {
                     <div className='space-y-1'>
                         {sidebarItems.map(item => (
                             <div key={item.title} className='mb-1'>
-                                <button
-                                    className={cn(
-                                        'flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium',
-                                        item.isActive
-                                            ? 'bg-primary/10 text-primary'
-                                            : 'hover:bg-muted'
-                                    )}
-                                    onClick={() =>
-                                        item.items && toggleExpanded(item.title)
-                                    }>
-                                    <div className='flex items-center gap-3'>
-                                        {item.icon}
-                                        <span>{item.title}</span>
-                                    </div>
-                                    {item.badge && (
-                                        <Badge
-                                            variant='outline'
-                                            className='ml-auto rounded-full px-2 py-0.5 text-xs'>
-                                            {item.badge}
-                                        </Badge>
-                                    )}
-                                    {item.items && (
-                                        <ChevronDown
-                                            className={cn(
-                                                'ml-2 h-4 w-4 transition-transform',
-                                                expandedItems[item.title]
-                                                    ? 'rotate-180'
-                                                    : ''
-                                            )}
-                                        />
-                                    )}
-                                </button>
+                                {item.url && !item.items ? (
+                                    <a
+                                        href={item.url}
+                                        className={cn(
+                                            'flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium',
+                                            item.isActive
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'hover:bg-muted'
+                                        )}>
+                                        <div className='flex items-center gap-3'>
+                                            {item.icon}
+                                            <span>{item.title}</span>
+                                        </div>
+                                    </a>
+                                ) : (
+                                    <button
+                                        className={cn(
+                                            'flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm font-medium',
+                                            item.isActive
+                                                ? 'bg-primary/10 text-primary'
+                                                : 'hover:bg-muted'
+                                        )}
+                                        onClick={() =>
+                                            item.items &&
+                                            toggleExpanded(item.title)
+                                        }>
+                                        <div className='flex items-center gap-3'>
+                                            {item.icon}
+                                            <span>{item.title}</span>
+                                        </div>
+                                        {item.items && (
+                                            <ChevronDown
+                                                className={cn(
+                                                    'ml-2 h-4 w-4 transition-transform',
+                                                    expandedItems[item.title]
+                                                        ? 'rotate-180'
+                                                        : ''
+                                                )}
+                                            />
+                                        )}
+                                    </button>
+                                )}
 
                                 {item.items && expandedItems[item.title] && (
                                     <div className='mt-1 ml-6 space-y-1 border-l pl-3'>
