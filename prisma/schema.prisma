@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  NUTRITIONIST
+  PATIENT
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  firstName       String
+  lastName        String
+  phone           String?
+  whatsappNumber  String?
+  role            UserRole  @default(PATIENT)
+
+  // Multi-tenant (si habrá varias nutriólogas)
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+
+  // Relaciones
+  nutritionistPatients  Patient[]      @relation("NutritionistPatients")
+  patientProfile        Patient?       @relation("UserPatient")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  lastLoginAt DateTime?
+  isActive    Boolean @default(true)
+
+  @@index([role])
+}
+
+model Patient {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation("UserPatient", fields: [userId], references: [id])
+
+  nutritionistId  String
+  nutritionist    User     @relation("NutritionistPatients", fields: [nutritionistId], references: [id])
+
+  birthDate       DateTime?
+  gender          String?
+  height          Float?
+  weight          Float?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Organización a la que pertenecen los usuarios (nutriólogas y pacientes) para SaaS futuro.
+model Organization {
+  id        String  @id @default(cuid())
+  name      String
+  users     User[]
+
+  createdAt DateTime @default(now())
+}
