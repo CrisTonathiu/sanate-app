@@ -1,4 +1,7 @@
-import {Bell, Menu, PanelLeft} from 'lucide-react';
+'use client';
+
+import {LogOut, Menu, PanelLeft} from 'lucide-react';
+import {useRouter} from 'next/navigation';
 import {Button} from '../ui/button';
 import {Avatar, AvatarFallback, AvatarImage} from '../ui/avatar';
 import {
@@ -21,6 +24,21 @@ export default function Header({
     sidebarOpen,
     notifications
 }: HeaderProps) {
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        try {
+            const res = await fetch('/api/auth/logout', {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                router.push('/login');
+            }
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
     return (
         <header className='sticky top-0 z-10 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur'>
             <Button
@@ -46,16 +64,12 @@ export default function Header({
                                 <Button
                                     variant='ghost'
                                     size='icon'
-                                    className='rounded-2xl relative'>
-                                    <Bell className='h-5 w-5' />
-                                    {notifications > 0 && (
-                                        <span className='absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white'>
-                                            {notifications}
-                                        </span>
-                                    )}
+                                    className='rounded-2xl relative group'
+                                    onClick={handleLogout}>
+                                    <LogOut className='h-5 w-5 group-hover:text-red-600 transition-colors' />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Notificaciones</TooltipContent>
+                            <TooltipContent>Salir</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
 
