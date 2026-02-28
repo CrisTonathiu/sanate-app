@@ -14,10 +14,11 @@ import {Star} from 'lucide-react';
 
 export interface QuickAccessAction {
     label: string;
-    href: string;
+    href?: string;
     description: string;
     icon: React.ReactNode;
     cta: string;
+    onClick?: () => void;
 }
 
 interface QuickAccessCardProps {
@@ -65,10 +66,14 @@ export default function QuickAccessCard({
                             <CardFooter>
                                 <Button
                                     variant='secondary'
-                                    className='w-full rounded-2xl'
-                                    onClick={() =>
-                                        (window.location.href = action.href)
-                                    }>
+                                    className='w-full rounded-2xl cursor-pointer'
+                                    onClick={() => {
+                                        if (action.onClick) {
+                                            action.onClick();
+                                        } else if (action.href) {
+                                            window.location.href = action.href;
+                                        }
+                                    }}>
                                     {action.cta}
                                 </Button>
                             </CardFooter>

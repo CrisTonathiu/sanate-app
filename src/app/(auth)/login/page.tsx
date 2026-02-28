@@ -336,7 +336,7 @@ export default function LoginPage() {
                             <Button
                                 type='submit'
                                 disabled={loginMutation.isPending}
-                                className='relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
+                                className='relative h-12 w-full overflow-hidden rounded-xl text-sm font-semibold transition-all duration-200'>
                                 <AnimatePresence mode='wait'>
                                     {loginMutation.isPending ? (
                                         <motion.div
@@ -346,7 +346,7 @@ export default function LoginPage() {
                                             exit={{opacity: 0, y: -10}}
                                             className='flex items-center gap-2'>
                                             <Loader2 className='h-4 w-4 animate-spin' />
-                                            Signing in...
+                                            Iniciando sesión...
                                         </motion.div>
                                     ) : (
                                         <motion.div
@@ -355,7 +355,7 @@ export default function LoginPage() {
                                             animate={{opacity: 1, y: 0}}
                                             exit={{opacity: 0, y: -10}}
                                             className='flex items-center gap-2'>
-                                            Sign in
+                                            Iniciar Sesión
                                             <ArrowRight className='h-4 w-4' />
                                         </motion.div>
                                     )}

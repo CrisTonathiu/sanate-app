@@ -18,7 +18,12 @@ export default function ClientPage() {
         lastActivity: user.lastLoginAt
             ? new Date(user.lastLoginAt).toLocaleDateString('es-MX')
             : 'Nunca',
-        actions: <Button size={'sm'}>Ver perfil</Button>
+        tipo:
+            user.role === 'NUTRITIONIST'
+                ? 'Nutriólogo'
+                : user.role === 'PATIENT'
+                  ? 'Paciente'
+                  : 'Administrador'
     }));
 
     return (
@@ -36,7 +41,7 @@ export default function ClientPage() {
                     {key: 'name', label: 'Nombre'},
                     {key: 'status', label: 'Estado'},
                     {key: 'lastActivity', label: 'Ultima actividad'},
-                    {key: 'actions', label: 'Acciones'}
+                    {key: 'tipo', label: 'Tipo'}
                 ]}
                 rows={rows}
                 isLoading={isPending}
