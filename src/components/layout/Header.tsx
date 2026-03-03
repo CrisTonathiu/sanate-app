@@ -35,9 +35,7 @@ export default function Header({
             if (res.ok) {
                 router.push('/login');
             }
-        } catch (error) {
-            console.error('Logout failed:', error);
-        }
+        } catch {}
     };
     return (
         <header className='sticky top-0 z-10 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur'>

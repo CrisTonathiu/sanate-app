@@ -1,5 +1,6 @@
 'use client';
 
+import {useRouter} from 'next/navigation';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import Table from '@/components/widgets/Table';
@@ -7,6 +8,7 @@ import {useGetPatients} from '@/hooks/use-patients';
 import {Search} from 'lucide-react';
 
 export default function ClientPage() {
+    const router = useRouter();
     const {data: patients, isPending} = useGetPatients();
 
     const rows = (patients ?? []).map(patient => ({
@@ -18,12 +20,18 @@ export default function ClientPage() {
         lastActivity: patient.lastLoginAt
             ? new Date(patient.lastLoginAt).toLocaleDateString('es-MX')
             : 'Nunca',
-        actions: <Button size={'sm'}>Ver perfil</Button>
+        actions: (
+            <Button
+                size={'sm'}
+                onClick={() => router.push(`/pacientes/${patient.id}`)}>
+                Ver perfil
+            </Button>
+        )
     }));
     return (
         <>
             <div className='relative w-full md:w-auto mt-3 md:mt-0'>
-                <Search className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                <Search className='absolute left-3 top-2.5 h-4 w-4 text-muted-foreground' />
                 <Input
                     type='search'
                     placeholder='Buscar por nombre o email'

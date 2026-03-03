@@ -27,18 +27,12 @@ const sidebarItems = [
     {
         title: 'Usuarios',
         icon: <Users className='size-4' />,
-        items: [
-            {title: 'Lista de Usuarios', url: '/usuarios'},
-            {title: 'Agregar Usuario', url: '/usuarios/nuevo'}
-        ]
+        items: [{title: 'Lista de Usuarios', url: '/usuarios'}]
     },
     {
         title: 'Pacientes',
         icon: <Users className='size-4' />,
-        items: [
-            {title: 'Lista de Pacientes', url: '/pacientes'},
-            {title: 'Agregar Paciente', url: '/pacientes/nuevo'}
-        ]
+        items: [{title: 'Lista de Pacientes', url: '/pacientes'}]
     },
     {
         title: 'Dietas',
