@@ -1,6 +1,7 @@
 'use client';
 
 import {useState} from 'react';
+import {useForm} from 'react-hook-form';
 import {motion, AnimatePresence} from 'framer-motion';
 import {UserPlus, Loader2, Ruler, Weight, Cake} from 'lucide-react';
 import {
@@ -28,22 +29,11 @@ interface NewPatientForm {
     lastName: string;
     email: string;
     phone: string;
-    weight: number;
+    initialWeight: number;
     height: number;
     gender: 'MALE' | 'FEMALE' | 'OTHER';
-    birthday: string;
+    birthDate: string;
 }
-
-const INITIAL_FORM: NewPatientForm = {
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    weight: 0,
-    height: 0,
-    gender: 'MALE',
-    birthday: ''
-};
 
 const containerVariants = {
     hidden: {opacity: 0},
@@ -82,29 +72,39 @@ export default function AddPatientDialog({
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
-    const [form, setForm] = useState<NewPatientForm>(INITIAL_FORM);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const {register, watch, handleSubmit, reset, formState} =
+        useForm<NewPatientForm>({
+            defaultValues: {
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                initialWeight: 0,
+                height: 0,
+                gender: 'MALE',
+                birthDate: ''
+            }
+        });
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     const {mutateAsync: createPatientAsync} = useCreatePatient();
+    const genderValue = watch('gender');
 
-    const updateField = (field: keyof NewPatientForm, value: string) => {
-        setForm(prev => ({...prev, [field]: value}));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const onSubmit = async (data: NewPatientForm) => {
         setIsSubmitting(true);
-        // Simulate API call
-        await createPatientAsync(form);
-        setIsSubmitting(false);
-        setForm(INITIAL_FORM);
-        onOpenChange(false);
+        try {
+            await createPatientAsync(data);
+            reset();
+            onOpenChange(false);
+        } catch {
+            setIsSubmitting(false);
+        }
     };
 
     const handleClose = (value: boolean) => {
         if (!isSubmitting) {
             onOpenChange(value);
-            if (!value) setForm(INITIAL_FORM);
+            if (!value) reset();
         }
     };
 
@@ -136,7 +136,9 @@ export default function AddPatientDialog({
                 <Separator className='bg-border/50' />
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className='px-6 pb-6 pt-4'>
+                <form
+                    onSubmit={handleSubmit(onSubmit)}
+                    className='px-6 pb-6 pt-4'>
                     <AnimatePresence mode='wait'>
                         <motion.div
                             key='form-fields'
@@ -149,13 +151,9 @@ export default function AddPatientDialog({
                                 <FormField label='Nombre'>
                                     <Input
                                         placeholder='ej. Willie'
-                                        value={form.firstName}
-                                        onChange={e =>
-                                            updateField(
-                                                'firstName',
-                                                e.target.value
-                                            )
-                                        }
+                                        {...register('firstName', {
+                                            required: true
+                                        })}
                                         className={inputStyles}
                                         required
                                         disabled={isSubmitting}
@@ -164,13 +162,9 @@ export default function AddPatientDialog({
                                 <FormField label='Apellido'>
                                     <Input
                                         placeholder='ej. Jennie'
-                                        value={form.lastName}
-                                        onChange={e =>
-                                            updateField(
-                                                'lastName',
-                                                e.target.value
-                                            )
-                                        }
+                                        {...register('lastName', {
+                                            required: true
+                                        })}
                                         className={inputStyles}
                                         required
                                         disabled={isSubmitting}
@@ -184,10 +178,7 @@ export default function AddPatientDialog({
                                     <Input
                                         type='email'
                                         placeholder='paciente@email.com'
-                                        value={form.email}
-                                        onChange={e =>
-                                            updateField('email', e.target.value)
-                                        }
+                                        {...register('email', {required: true})}
                                         className={inputStyles}
                                         required
                                         disabled={isSubmitting}
@@ -197,10 +188,7 @@ export default function AddPatientDialog({
                                     <Input
                                         type='tel'
                                         placeholder='(555) 123-4567'
-                                        value={form.phone}
-                                        onChange={e =>
-                                            updateField('phone', e.target.value)
-                                        }
+                                        {...register('phone', {required: true})}
                                         className={inputStyles}
                                         required
                                         disabled={isSubmitting}
@@ -215,13 +203,9 @@ export default function AddPatientDialog({
                                         <Input
                                             type='number'
                                             placeholder='72'
-                                            value={form.weight}
-                                            onChange={e =>
-                                                updateField(
-                                                    'weight',
-                                                    e.target.value
-                                                )
-                                            }
+                                            {...register('initialWeight', {
+                                                valueAsNumber: true
+                                            })}
                                             className={`${inputStyles} pr-9`}
                                             min={0}
                                             disabled={isSubmitting}
@@ -234,13 +218,9 @@ export default function AddPatientDialog({
                                         <Input
                                             type='number'
                                             placeholder='175'
-                                            value={form.height}
-                                            onChange={e =>
-                                                updateField(
-                                                    'height',
-                                                    e.target.value
-                                                )
-                                            }
+                                            {...register('height', {
+                                                valueAsNumber: true
+                                            })}
                                             className={`${inputStyles} pr-9`}
                                             min={0}
                                             disabled={isSubmitting}
@@ -250,27 +230,35 @@ export default function AddPatientDialog({
                                 </FormField>
                                 <FormField label='Género'>
                                     <Select
-                                        value={form.gender}
-                                        onValueChange={v =>
-                                            updateField('gender', v)
-                                        }
+                                        value={genderValue}
+                                        onValueChange={v => {
+                                            const input =
+                                                document.querySelector(
+                                                    'input[name="gender"]'
+                                                ) as HTMLInputElement;
+                                            if (input) input.value = v;
+                                        }}
                                         disabled={isSubmitting}>
                                         <SelectTrigger
                                             className={`${inputStyles} rounded-xl`}>
                                             <SelectValue placeholder='Seleccionar' />
                                         </SelectTrigger>
                                         <SelectContent className='rounded-xl border-border bg-popover'>
-                                            <SelectItem value='male'>
+                                            <SelectItem value='MALE'>
                                                 Masculino
                                             </SelectItem>
-                                            <SelectItem value='female'>
+                                            <SelectItem value='FEMALE'>
                                                 Femenino
                                             </SelectItem>
-                                            <SelectItem value='other'>
+                                            <SelectItem value='OTHER'>
                                                 Otro
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <input
+                                        {...register('gender')}
+                                        type='hidden'
+                                    />
                                 </FormField>
                             </div>
 
@@ -279,13 +267,9 @@ export default function AddPatientDialog({
                                 <div className='relative'>
                                     <Input
                                         type='date'
-                                        value={form.birthday}
-                                        onChange={e =>
-                                            updateField(
-                                                'birthday',
-                                                e.target.value
-                                            )
-                                        }
+                                        {...register('birthDate', {
+                                            required: true
+                                        })}
                                         className={`${inputStyles} pr-9`}
                                         required
                                         disabled={isSubmitting}

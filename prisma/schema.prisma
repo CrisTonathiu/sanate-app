@@ -13,6 +13,18 @@ enum UserRole {
   PATIENT
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum AllergySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  SEVERE
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -48,12 +60,85 @@ model Patient {
   nutritionist    User     @relation("NutritionistPatients", fields: [nutritionistId], references: [id])
 
   birthDate       DateTime?
-  gender          String?
+  gender          Gender @default(MALE)
   height          Float?
-  weight          Float?
+  initialWeight   Float?
+
+  vitals          PatientVital[]
+  conditions      PatientCondition[]
+  allergies       PatientAllergy[]
+  notes           PatientNote[]
+  consultations   Consultation[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model PatientVital {
+  id                       String   @id @default(cuid())
+  patientId                String
+  patient                  Patient  @relation(fields: [patientId], references: [id])
+
+  weightKg                 Float?
+  bodyFatPercentage        Float?
+  muscleMassKg             Float?
+
+  bloodPressureSystolic    Int?
+  bloodPressureDiastolic   Int?
+  heartRate                Int?
+
+  glucoseMgDl              Float?
+  cholesterolMgDl          Float?
+
+  recordedAt               DateTime @default(now())
+}
+
+model PatientCondition {
+  id         String   @id @default(cuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id])
+
+  name       String   // "Diabetes Type 2", "Hypertension"
+  diagnosedAt DateTime?
+  notes      String?
+
+  createdAt  DateTime @default(now())
+}
+
+model PatientAllergy {
+  id         String   @id @default(uuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id])
+
+  allergen   String   // "Peanuts", "Lactose", "Seafood"
+  severity   AllergySeverity?
+  notes      String?
+
+  createdAt  DateTime @default(now())
+}
+
+model PatientNote {
+  id         String   @id @default(uuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [id])
+
+  title      String?
+  content    String
+
+  createdAt  DateTime @default(now())
+}
+
+model Consultation {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+
+  reason      String?
+  diagnosis   String?
+  treatment   String?
+  followUpAt  DateTime?
+
+  createdAt   DateTime @default(now())
 }
 
 // Organización a la que pertenecen los usuarios (nutriólogas y pacientes) para SaaS futuro.
