@@ -25,6 +25,13 @@ enum AllergySeverity {
   SEVERE
 }
 
+enum MealType {
+  BREAKFAST
+  SNACK
+  LUNCH
+  DINNER
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -41,6 +48,7 @@ model User {
   // Relaciones
   nutritionistPatients  Patient[]      @relation("NutritionistPatients")
   patientProfile        Patient?       @relation("UserPatient")
+  consultations         Consultation[]
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -69,6 +77,7 @@ model Patient {
   allergies       PatientAllergy[]
   notes           PatientNote[]
   consultations   Consultation[]
+  protocols       Protocol[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -93,24 +102,42 @@ model PatientVital {
   recordedAt               DateTime @default(now())
 }
 
+model Condition {
+  id    String @id @default(cuid())
+  name  String @unique
+
+  patients PatientCondition[]
+}
+
 model PatientCondition {
-  id         String   @id @default(cuid())
-  patientId  String
-  patient    Patient  @relation(fields: [patientId], references: [id])
+  id          String   @id @default(cuid())
+  patientId   String
+  conditionId String
 
-  name       String   // "Diabetes Type 2", "Hypertension"
+  patient     Patient   @relation(fields: [patientId], references: [id])
+  condition   Condition @relation(fields: [conditionId], references: [id])
+
   diagnosedAt DateTime?
-  notes      String?
+  notes       String?
 
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model Allergen {
+  id   String @id @default(cuid())
+  name String @unique
+
+  patients PatientAllergy[]
 }
 
 model PatientAllergy {
-  id         String   @id @default(uuid())
+  id         String   @id @default(cuid())
   patientId  String
-  patient    Patient  @relation(fields: [patientId], references: [id])
+  allergenId String
 
-  allergen   String   // "Peanuts", "Lactose", "Seafood"
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  allergen   Allergen @relation(fields: [allergenId], references: [id])
+
   severity   AllergySeverity?
   notes      String?
 
@@ -118,7 +145,7 @@ model PatientAllergy {
 }
 
 model PatientNote {
-  id         String   @id @default(uuid())
+  id         String   @id @default(cuid())
   patientId  String
   patient    Patient  @relation(fields: [patientId], references: [id])
 
@@ -128,15 +155,121 @@ model PatientNote {
   createdAt  DateTime @default(now())
 }
 
+model Recipe {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  instructions String
+
+  mealType    MealType
+
+  ingredients RecipeIngredient[]
+  protocolMeals ProtocolMeal[]
+
+  createdAt   DateTime @default(now())
+}
+
+model Ingredient {
+  id   String @id @default(cuid())
+  name String @unique
+
+  recipes RecipeIngredient[]
+  baseEquivalents       IngredientEquivalent[] @relation("IngredientBase")
+  equivalentIngredients IngredientEquivalent[] @relation("IngredientEquivalent")
+}
+
+model RecipeIngredient {
+  id           String @id @default(cuid())
+
+  recipeId     String
+  ingredientId String
+
+  quantity     Float?
+  unit         String?
+
+  recipe       Recipe     @relation(fields: [recipeId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+}
+
+model IngredientEquivalent {
+  id String @id @default(cuid())
+
+  ingredientId String
+  equivalentId String
+
+  ingredient Ingredient @relation("IngredientBase", fields: [ingredientId], references: [id])
+  equivalent Ingredient @relation("IngredientEquivalent", fields: [equivalentId], references: [id])
+}
+
+model ProtocolWeek {
+  id         String @id @default(cuid())
+  protocolId String
+  weekNumber Int
+
+  protocol Protocol @relation(fields: [protocolId], references: [id])
+
+  days ProtocolDay[]
+}
+
+model ProtocolDay {
+  id       String @id @default(cuid())
+  weekId   String
+  dayIndex Int
+
+  week ProtocolWeek @relation(fields: [weekId], references: [id])
+
+  meals ProtocolMeal[]
+}
+
+model ProtocolMeal {
+  id String @id @default(cuid())
+
+  dayId String
+  mealType MealType
+
+  recipeId String?
+
+  day ProtocolDay @relation(fields: [dayId], references: [id])
+  recipe Recipe? @relation(fields: [recipeId], references: [id])
+}
+
+model Protocol {
+  id String @id @default(cuid())
+
+  title String
+
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+
+  consultationId String?
+  consultation   Consultation? @relation(fields: [consultationId], references: [id])
+
+  isTemplate Boolean @default(false)
+
+  weekCount Int
+  weeks ProtocolWeek[]
+
+  createdAt DateTime @default(now())
+}
+
 model Consultation {
-  id          String   @id @default(uuid())
+  id          String   @id @default(cuid())
+
   patientId   String
   patient     Patient  @relation(fields: [patientId], references: [id])
+
+  nutritionistId String
+  nutritionist   User @relation(fields: [nutritionistId], references: [id])
 
   reason      String?
   diagnosis   String?
   treatment   String?
+
+  notes       String?
+
   followUpAt  DateTime?
+
+  protocols   Protocol[]
 
   createdAt   DateTime @default(now())
 }
