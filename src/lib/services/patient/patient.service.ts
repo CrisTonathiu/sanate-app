@@ -3,11 +3,10 @@
 import {
     CreatePatientInput,
     createPatientSchema
-} from '../validations/patient.schema';
+} from '../../validations/patient.schema';
 import {ZodError} from 'zod';
-import {prisma} from '../prisma';
-import {fi} from 'zod/locales';
-import {PatientProfileDTO} from '../dto/PatientDTO';
+import {prisma} from '../../prisma';
+import {PatientProfileDTO} from '../../dto/PatientDTO';
 
 export async function createPatient(
     input: CreatePatientInput,

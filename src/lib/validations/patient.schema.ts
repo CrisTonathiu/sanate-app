@@ -16,3 +16,18 @@ export const createPatientSchema = z.object({
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
+
+export const patientIdSchema = z.string().cuid('Invalid patient ID');
+
+export type PatientIdInput = z.infer<typeof patientIdSchema>;
+
+export const createPatientAllergySchema = z.object({
+    patientId: patientIdSchema,
+    allergyId: z.string().min(1, 'Allergy ID is required'),
+    severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'SEVERE']).optional(),
+    notes: z.string().optional()
+});
+
+export type CreatePatientAllergyInput = z.infer<
+    typeof createPatientAllergySchema
+>;
