@@ -1,5 +1,8 @@
 import {requireRole} from '@/lib/auth/requireRole';
-import {createPatient, getPatients} from '@/lib/services/patient.service';
+import {
+    createPatient,
+    getPatients
+} from '@/lib/services/patient/patient.service';
 
 export async function POST(req: Request) {
     const currentUser = await requireRole('ADMIN');

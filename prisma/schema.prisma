@@ -126,8 +126,11 @@ model PatientCondition {
 model Allergen {
   id   String @id @default(cuid())
   name String @unique
+  description String?
 
   patients PatientAllergy[]
+  
+  createdAt  DateTime @default(now())
 }
 
 model PatientAllergy {
