@@ -31,3 +31,14 @@ export const createPatientAllergySchema = z.object({
 export type CreatePatientAllergyInput = z.infer<
     typeof createPatientAllergySchema
 >;
+
+export const createPatientConditionSchema = z.object({
+    patientId: patientIdSchema,
+    conditionId: z.string().min(1, 'Condition ID is required'),
+    diagnosedAt: z.string().optional(),
+    notes: z.string().optional()
+});
+
+export type CreatePatientConditionInput = z.infer<
+    typeof createPatientConditionSchema
+>;

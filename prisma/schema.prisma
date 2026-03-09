@@ -105,8 +105,11 @@ model PatientVital {
 model Condition {
   id    String @id @default(cuid())
   name  String @unique
+  description String?
 
   patients PatientCondition[]
+
+  createdAt  DateTime @default(now())
 }
 
 model PatientCondition {

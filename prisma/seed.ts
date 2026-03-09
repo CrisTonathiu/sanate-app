@@ -133,6 +133,135 @@ async function main() {
         });
     }
 
+    const conditions = [
+        {
+            name: 'Diabetes tipo 1',
+            description:
+                'Enfermedad autoinmune que afecta la producción de insulina'
+        },
+        {
+            name: 'Diabetes tipo 2',
+            description:
+                'Resistencia a la insulina y niveles elevados de glucosa'
+        },
+        {
+            name: 'Prediabetes',
+            description:
+                'Niveles de glucosa elevados pero no lo suficiente para diagnóstico de diabetes'
+        },
+
+        {name: 'Hipertensión', description: 'Presión arterial elevada'},
+        {name: 'Hipotensión', description: 'Presión arterial baja'},
+
+        {
+            name: 'Obesidad',
+            description: 'Exceso de grasa corporal que afecta la salud'
+        },
+        {
+            name: 'Sobrepeso',
+            description:
+                'Peso corporal superior al recomendado para la estatura'
+        },
+
+        {
+            name: 'Dislipidemia',
+            description: 'Niveles anormales de colesterol o triglicéridos'
+        },
+        {name: 'Colesterol alto', description: 'Elevación del colesterol LDL'},
+        {
+            name: 'Triglicéridos altos',
+            description: 'Elevación de triglicéridos en sangre'
+        },
+
+        {
+            name: 'Síndrome metabólico',
+            description:
+                'Conjunto de condiciones que aumentan el riesgo cardiovascular'
+        },
+
+        {
+            name: 'Enfermedad renal crónica',
+            description: 'Deterioro progresivo de la función renal'
+        },
+        {
+            name: 'Insuficiencia renal',
+            description: 'Pérdida significativa de la función renal'
+        },
+
+        {
+            name: 'Hígado graso',
+            description: 'Acumulación de grasa en el hígado'
+        },
+        {
+            name: 'Enfermedad hepática',
+            description: 'Alteraciones en la función del hígado'
+        },
+
+        {
+            name: 'Síndrome de intestino irritable',
+            description: 'Trastorno gastrointestinal funcional'
+        },
+        {
+            name: 'Enfermedad celíaca',
+            description: 'Respuesta inmunitaria al gluten'
+        },
+        {
+            name: 'Intolerancia al gluten',
+            description: 'Sensibilidad al gluten sin ser enfermedad celíaca'
+        },
+        {
+            name: 'Intolerancia a la lactosa',
+            description: 'Dificultad para digerir lactosa'
+        },
+
+        {
+            name: 'Gastritis',
+            description: 'Inflamación del revestimiento del estómago'
+        },
+        {
+            name: 'Reflujo gastroesofágico',
+            description: 'Ácido estomacal que regresa al esófago'
+        },
+
+        {
+            name: 'Anemia',
+            description: 'Disminución de glóbulos rojos o hemoglobina'
+        },
+        {
+            name: 'Deficiencia de hierro',
+            description: 'Bajos niveles de hierro en el organismo'
+        },
+
+        {
+            name: 'Hipotiroidismo',
+            description: 'Producción insuficiente de hormonas tiroideas'
+        },
+        {
+            name: 'Hipertiroidismo',
+            description: 'Producción excesiva de hormonas tiroideas'
+        },
+
+        {
+            name: 'Síndrome de ovario poliquístico',
+            description:
+                'Trastorno hormonal que afecta a mujeres en edad reproductiva'
+        },
+
+        {name: 'Osteoporosis', description: 'Disminución de la densidad ósea'},
+        {name: 'Artritis', description: 'Inflamación de las articulaciones'},
+
+        {
+            name: 'Alergias alimentarias',
+            description: 'Reacción del sistema inmunológico a ciertos alimentos'
+        }
+    ];
+
+    for (const condition of conditions) {
+        await prisma.condition.create({
+            data: condition
+        });
+    }
+
     console.log('✅ Seeded successfully!');
 }
 

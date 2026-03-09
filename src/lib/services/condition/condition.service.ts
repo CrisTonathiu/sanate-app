@@ -1,20 +1,20 @@
 'use server';
 
 import {
-    AllergyIdInput,
-    allergyIdSchema,
-    CreateAllergyInput,
-    createAllergySchema,
-    UpdateAllergyInput,
-    updateAllergySchema
-} from '../../validations/allergy.schema';
+    ConditionIdInput,
+    conditionIdSchema,
+    CreateConditionInput,
+    createConditionSchema,
+    UpdateConditionInput,
+    updateConditionSchema
+} from '@/lib/validations/condition.schema';
 import {ZodError} from 'zod';
 import {prisma} from '../../prisma';
 
-export async function getAllAllergies() {
+export async function getAllConditions() {
     try {
-        const allergies = await prisma.allergen.findMany();
-        return {success: true, data: allergies};
+        const conditions = await prisma.condition.findMany();
+        return {success: true, data: conditions};
     } catch (error) {
         return {
             success: false,
@@ -24,14 +24,13 @@ export async function getAllAllergies() {
     }
 }
 
-export async function createAllergy(input: CreateAllergyInput) {
+export async function createCondition(input: CreateConditionInput) {
     try {
-        const validatedInput = createAllergySchema.parse(input);
+        const validatedInput = createConditionSchema.parse(input);
 
-        const result = await prisma.allergen.create({
+        const result = await prisma.condition.create({
             data: {
-                name: validatedInput.name,
-                description: validatedInput.description
+                name: validatedInput.name
             }
         });
 
@@ -48,11 +47,11 @@ export async function createAllergy(input: CreateAllergyInput) {
     }
 }
 
-export async function updateAllergy(input: UpdateAllergyInput) {
+export async function updateCondition(input: UpdateConditionInput) {
     try {
-        const validatedInput = updateAllergySchema.parse(input);
+        const validatedInput = updateConditionSchema.parse(input);
 
-        const result = await prisma.allergen.update({
+        const result = await prisma.condition.update({
             where: {
                 id: validatedInput.id
             },
@@ -75,11 +74,11 @@ export async function updateAllergy(input: UpdateAllergyInput) {
     }
 }
 
-export async function deleteAllergy(input: AllergyIdInput) {
+export async function deleteCondition(input: ConditionIdInput) {
     try {
-        const validatedInput = allergyIdSchema.parse(input);
+        const validatedInput = conditionIdSchema.parse(input);
 
-        const result = await prisma.allergen.delete({
+        const result = await prisma.condition.delete({
             where: {
                 id: validatedInput
             }
