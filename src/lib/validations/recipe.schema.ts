@@ -8,3 +8,7 @@ export const createRecipeSchema = z.object({
 });
 
 export type CreateRecipeInput = z.infer<typeof createRecipeSchema>;
+
+export const recipeIdSchema = z.string().cuid();
+
+export type RecipeIdInput = z.infer<typeof recipeIdSchema>;
