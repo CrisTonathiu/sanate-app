@@ -196,6 +196,8 @@ model RecipeIngredient {
 
   recipe       Recipe     @relation(fields: [recipeId], references: [id])
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([recipeId, ingredientId])
 }
 
 model IngredientEquivalent {
