@@ -32,6 +32,12 @@ enum MealType {
   DINNER
 }
 
+enum ProtocolStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -246,17 +252,27 @@ model Protocol {
   id String @id @default(cuid())
 
   title String
+  weekCount Int
 
   patientId String?
   patient   Patient? @relation(fields: [patientId], references: [id])
 
+  status ProtocolStatus @default(ACTIVE)
+  
+  weeksPlan ProtocolWeek[]
+  revisions ProtocolRevision[]
+
+  createdAt DateTime @default(now())
+}
+
+model ProtocolRevision {
+  id String @id @default(cuid())
+
+  protocolId String
+  protocol   Protocol @relation(fields: [protocolId], references: [id])
+
   consultationId String?
   consultation   Consultation? @relation(fields: [consultationId], references: [id])
-
-  isTemplate Boolean @default(false)
-
-  weekCount Int
-  weeks ProtocolWeek[]
 
   createdAt DateTime @default(now())
 }
@@ -273,12 +289,10 @@ model Consultation {
   reason      String?
   diagnosis   String?
   treatment   String?
-
   notes       String?
 
   followUpAt  DateTime?
-
-  protocols   Protocol[]
+  revisions   ProtocolRevision[]
 
   createdAt   DateTime @default(now())
 }
