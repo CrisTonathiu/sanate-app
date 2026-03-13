@@ -1,6 +1,10 @@
 'use client';
 
-import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
+import {
+    PatientAllergyDTO,
+    PatientConditionDTO,
+    PatientProfileDTO
+} from '@/lib/dto/PatientDTO';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useRouter} from 'next/navigation';
 
@@ -82,6 +86,86 @@ export function useGetPatientProfile(patientId?: string) {
             return rawData.data as PatientProfileDTO;
         },
         staleTime: 1000 * 60 * 5 // 5 minutes
+    });
+}
+
+export function useGetPatientAllergies(patientId?: string) {
+    return useQuery<PatientAllergyDTO[]>({
+        queryKey: ['patientAllergies', patientId],
+        enabled: !!patientId,
+        queryFn: async () => {
+            const res = await fetch(`/api/patients/${patientId}/allergies`, {
+                credentials: 'include'
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(
+                    error?.message || 'Failed to fetch patient allergies'
+                );
+            }
+
+            const rawData = await res.json();
+            const rows = rawData?.data ?? [];
+
+            return rows.map(
+                (row: {
+                    allergenId?: string;
+                    severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'SEVERE';
+                    notes?: string | null;
+                    allergen?: {
+                        id?: string;
+                        name?: string;
+                    };
+                }) => ({
+                    id: row.allergen?.id || row.allergenId,
+                    allergen: row.allergen?.name || 'Sin nombre',
+                    severity: row.severity,
+                    notes: row.notes || undefined
+                })
+            ) as PatientAllergyDTO[];
+        },
+        staleTime: 1000 * 60 * 5
+    });
+}
+
+export function useGetPatientConditions(patientId?: string) {
+    return useQuery<PatientConditionDTO[]>({
+        queryKey: ['patientConditions', patientId],
+        enabled: !!patientId,
+        queryFn: async () => {
+            const res = await fetch(`/api/patients/${patientId}/conditions`, {
+                credentials: 'include'
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(
+                    error?.message || 'Failed to fetch patient conditions'
+                );
+            }
+
+            const rawData = await res.json();
+            const rows = rawData?.data ?? [];
+
+            return rows.map(
+                (row: {
+                    conditionId?: string;
+                    diagnosedAt?: string | null;
+                    notes?: string | null;
+                    condition?: {
+                        id?: string;
+                        name?: string;
+                    };
+                }) => ({
+                    id: row.condition?.id || row.conditionId,
+                    name: row.condition?.name || 'Sin nombre',
+                    diagnosedAt: row.diagnosedAt || undefined,
+                    notes: row.notes || undefined
+                })
+            ) as PatientConditionDTO[];
+        },
+        staleTime: 1000 * 60 * 5
     });
 }
 

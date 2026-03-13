@@ -3,7 +3,7 @@
 import {useState} from 'react';
 import {useRouter} from 'next/navigation';
 import {motion, AnimatePresence} from 'framer-motion';
-import {ChevronRight, Cog, MoreVertical, Pencil, Trash2} from 'lucide-react';
+import {Cog, MoreVertical, Pencil, Trash2} from 'lucide-react';
 import {useGetPatientProfile} from '@/hooks/use-patients';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
 import {Button} from '@/components/ui/button';
@@ -19,6 +19,7 @@ import MedicalRecordsTab from '@/components/widgets/profile-details/MedicalRecor
 import ProfileDetailsLoader from '@/components/loaders/ProfileDetailsLoader';
 import {PatientEditForm} from '@/components/forms/PatientEditForm';
 import DeletePatientDialog from '@/components/widgets/DeletePatientDialog';
+import PatientBreadcrumb from '@/components/widgets/profile-details/PatientBreadcrumb';
 import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
 
 interface ClientPageProps {
@@ -91,23 +92,8 @@ export default function ClientPage({patientId}: ClientPageProps) {
 
     return (
         <div className='relative mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8'>
-            {/* Breadcrumb */}
-            <motion.nav
-                initial={{opacity: 0, y: -10}}
-                animate={{opacity: 1, y: 0}}
-                transition={{duration: 0.4}}
-                aria-label='breadcrumb'
-                className='mb-6 flex items-center gap-2 text-sm'>
-                <button
-                    onClick={() => router.push('/pacientes')}
-                    className='text-muted-foreground transition-colors hover:text-foreground'>
-                    Lista de pacientes
-                </button>
-                <ChevronRight className='h-3.5 w-3.5 text-muted-foreground/50' />
-                <span className='font-medium text-primary'>
-                    {patient.firstName} {patient.lastName}
-                </span>
-            </motion.nav>
+            {/* Patient Breadcrumb */}
+            <PatientBreadcrumb patientId={patientId} />
 
             {/* Patient Header */}
             <motion.div
@@ -149,10 +135,18 @@ export default function ClientPage({patientId}: ClientPageProps) {
 
                 {/* Action Buttons */}
                 <div className='flex items-center gap-2'>
-                    <Button className='h-10 rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
+                    <Button
+                        onClick={() =>
+                            router.push(`/pacientes/${patientId}/protocolo`)
+                        }
+                        className='h-10 rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
+                        <Pencil className='mr-2 h-4 w-4' />
+                        Crear Protocolo
+                    </Button>
+                    {/* <Button className='h-10 rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
                         <Pencil className='mr-2 h-4 w-4' />
                         Agendar Consulta
-                    </Button>
+                    </Button> */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button

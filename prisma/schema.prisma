@@ -39,181 +39,172 @@ enum ProtocolStatus {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  firstName       String
-  lastName        String
-  phone           String?
-  whatsappNumber  String?
-  role            UserRole  @default(PATIENT)
+  id             String   @id @default(cuid())
+  email          String   @unique
+  firstName      String
+  lastName       String
+  phone          String?
+  whatsappNumber String?
+  role           UserRole @default(PATIENT)
 
   // Multi-tenant (si habrá varias nutriólogas)
-  organizationId  String?
-  organization    Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
   // Relaciones
-  nutritionistPatients  Patient[]      @relation("NutritionistPatients")
-  patientProfile        Patient?       @relation("UserPatient")
-  consultations         Consultation[]
+  nutritionistPatients Patient[]      @relation("NutritionistPatients")
+  patientProfile       Patient?       @relation("UserPatient")
+  consultations        Consultation[]
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
   lastLoginAt DateTime?
-  isActive    Boolean @default(true)
+  isActive    Boolean   @default(true)
 
   @@index([role])
 }
 
 model Patient {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation("UserPatient", fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation("UserPatient", fields: [userId], references: [id])
 
-  nutritionistId  String
-  nutritionist    User     @relation("NutritionistPatients", fields: [nutritionistId], references: [id])
+  nutritionistId String
+  nutritionist   User   @relation("NutritionistPatients", fields: [nutritionistId], references: [id])
 
-  birthDate       DateTime?
-  gender          Gender @default(MALE)
-  height          Float?
-  initialWeight   Float?
+  birthDate     DateTime?
+  gender        Gender    @default(MALE)
+  height        Float?
+  initialWeight Float?
 
-  vitals          PatientVital[]
-  conditions      PatientCondition[]
-  allergies       PatientAllergy[]
-  notes           PatientNote[]
-  consultations   Consultation[]
-  protocols       Protocol[]
+  vitals        PatientVital[]
+  conditions    PatientCondition[]
+  allergies     PatientAllergy[]
+  notes         PatientNote[]
+  consultations Consultation[]
+  protocols     Protocol[]
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PatientVital {
-  id                       String   @id @default(cuid())
-  patientId                String
-  patient                  Patient  @relation(fields: [patientId], references: [id])
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
 
-  weightKg                 Float?
-  bodyFatPercentage        Float?
-  muscleMassKg             Float?
+  weightKg          Float?
+  bodyFatPercentage Float?
+  muscleMassKg      Float?
 
-  bloodPressureSystolic    Int?
-  bloodPressureDiastolic   Int?
-  heartRate                Int?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  heartRate              Int?
 
-  glucoseMgDl              Float?
-  cholesterolMgDl          Float?
+  glucoseMgDl     Float?
+  cholesterolMgDl Float?
 
-  recordedAt               DateTime @default(now())
+  recordedAt DateTime @default(now())
 }
 
 model Condition {
-  id    String @id @default(cuid())
-  name  String @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
   description String?
 
   patients PatientCondition[]
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model PatientCondition {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   patientId   String
   conditionId String
 
-  patient     Patient   @relation(fields: [patientId], references: [id])
-  condition   Condition @relation(fields: [conditionId], references: [id])
+  patient   Patient   @relation(fields: [patientId], references: [id])
+  condition Condition @relation(fields: [conditionId], references: [id])
 
   diagnosedAt DateTime?
   notes       String?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Allergen {
-  id   String @id @default(cuid())
-  name String @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
   description String?
 
   patients PatientAllergy[]
-  
-  createdAt  DateTime @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 model PatientAllergy {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   patientId  String
   allergenId String
 
-  patient    Patient  @relation(fields: [patientId], references: [id])
-  allergen   Allergen @relation(fields: [allergenId], references: [id])
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  allergen Allergen @relation(fields: [allergenId], references: [id])
 
-  severity   AllergySeverity?
-  notes      String?
+  severity AllergySeverity?
+  notes    String?
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model PatientNote {
-  id         String   @id @default(cuid())
-  patientId  String
-  patient    Patient  @relation(fields: [patientId], references: [id])
+  id        String  @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
 
-  title      String?
-  content    String
+  title   String?
+  content String
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Recipe {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
+  id           String  @id @default(cuid())
+  title        String
+  description  String?
   instructions String
 
-  mealType    MealType
+  mealType MealType
 
-  ingredients RecipeIngredient[]
+  ingredients   RecipeIngredient[]
   protocolMeals ProtocolMeal[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Ingredient {
-  id   String @id @default(cuid())
-  name String @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
   description String?
 
+  foodId String?
+  food   Food?   @relation(fields: [foodId], references: [id])
+
   recipes RecipeIngredient[]
-  baseEquivalents       IngredientEquivalent[] @relation("IngredientBase")
-  equivalentIngredients IngredientEquivalent[] @relation("IngredientEquivalent")
 }
 
 model RecipeIngredient {
-  id           String @id @default(cuid())
+  id String @id @default(cuid())
 
   recipeId     String
   ingredientId String
 
-  quantity     Float?
-  unit         String?
+  quantity Float?
+  unit     String?
 
-  recipe       Recipe     @relation(fields: [recipeId], references: [id])
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  recipe     Recipe     @relation(fields: [recipeId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@unique([recipeId, ingredientId])
-}
-
-model IngredientEquivalent {
-  id String @id @default(cuid())
-
-  ingredientId String
-  equivalentId String
-
-  ingredient Ingredient @relation("IngredientBase", fields: [ingredientId], references: [id])
-  equivalent Ingredient @relation("IngredientEquivalent", fields: [equivalentId], references: [id])
 }
 
 model ProtocolWeek {
@@ -239,26 +230,26 @@ model ProtocolDay {
 model ProtocolMeal {
   id String @id @default(cuid())
 
-  dayId String
+  dayId    String
   mealType MealType
 
   recipeId String?
 
-  day ProtocolDay @relation(fields: [dayId], references: [id])
-  recipe Recipe? @relation(fields: [recipeId], references: [id])
+  day    ProtocolDay @relation(fields: [dayId], references: [id])
+  recipe Recipe?     @relation(fields: [recipeId], references: [id])
 }
 
 model Protocol {
   id String @id @default(cuid())
 
-  title String
+  title     String
   weekCount Int
 
   patientId String?
   patient   Patient? @relation(fields: [patientId], references: [id])
 
   status ProtocolStatus @default(ACTIVE)
-  
+
   weeksPlan ProtocolWeek[]
   revisions ProtocolRevision[]
 
@@ -278,30 +269,70 @@ model ProtocolRevision {
 }
 
 model Consultation {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  patientId   String
-  patient     Patient  @relation(fields: [patientId], references: [id])
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
 
   nutritionistId String
-  nutritionist   User @relation(fields: [nutritionistId], references: [id])
+  nutritionist   User   @relation(fields: [nutritionistId], references: [id])
 
-  reason      String?
-  diagnosis   String?
-  treatment   String?
-  notes       String?
+  reason    String?
+  diagnosis String?
+  treatment String?
+  notes     String?
 
-  followUpAt  DateTime?
-  revisions   ProtocolRevision[]
+  followUpAt DateTime?
+  revisions  ProtocolRevision[]
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+// This would be like "1 equivalencia de arroz = 30g", para facilitar la creación de recetas y protocolos sin tener que calcular cada vez las equivalencias.
+model Food {
+  id   String @id @default(cuid())
+  name String
+
+  groupId String
+  group   FoodGroup @relation(fields: [groupId], references: [id])
+
+  gramsPerEquivalent Float?
+
+  ingredients Ingredient[]
+}
+
+// This would be like "Vegetales", "Frutas", "Cereales", etc. to categorizar los alimentos y facilitar la búsqueda.
+model FoodGroup {
+  id   String @id @default(cuid())
+  name String
+
+  carbs    Float?
+  protein  Float?
+  fat      Float?
+  calories Float?
+
+  foods Food[]
+}
+
+model ProtocolFoodGroup {
+  id String @id @default(cuid())
+
+  protocolId String
+  groupId    String
+
+  totalEquivalents Float
+
+  breakfast Float
+  snack     Float
+  lunch     Float
+  dinner    Float
 }
 
 // Organización a la que pertenecen los usuarios (nutriólogas y pacientes) para SaaS futuro.
 model Organization {
-  id        String  @id @default(cuid())
-  name      String
-  users     User[]
+  id    String @id @default(cuid())
+  name  String
+  users User[]
 
   createdAt DateTime @default(now())
 }
