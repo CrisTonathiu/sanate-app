@@ -16,6 +16,16 @@ interface PatientSummaryCardProps {
     conditions: PatientConditionDTO[];
 }
 
+function getGenderLabel(gender: PatientSummaryCardProps['gender']): string {
+    const labels = {
+        MALE: 'Masculino',
+        FEMALE: 'Femenino',
+        OTHER: 'Otro'
+    } as const;
+
+    return labels[gender];
+}
+
 export default function PatientSummaryCard({
     name,
     age,
@@ -25,6 +35,8 @@ export default function PatientSummaryCard({
     allergies,
     conditions
 }: PatientSummaryCardProps) {
+    const genderLabel = getGenderLabel(gender);
+
     return (
         <motion.div
             initial={{opacity: 0, y: 10}}
@@ -47,7 +59,7 @@ export default function PatientSummaryCard({
                     <div className='flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground'>
                         <span className='flex items-center gap-1.5'>
                             <User className='h-4 w-4' />
-                            {age} años, {gender}
+                            {age} años, {genderLabel}
                         </span>
                         <span className='flex items-center gap-1.5'>
                             <Ruler className='h-4 w-4' />
