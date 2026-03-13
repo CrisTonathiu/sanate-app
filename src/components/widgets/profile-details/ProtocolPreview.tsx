@@ -85,7 +85,7 @@ export default function ProtocolPreview({
                                     <div className='flex flex-col gap-1'>
                                         <span className='text-xs text-muted-foreground flex items-center gap-1'>
                                             <Apple className='h-3 w-3' />
-                                            Merienda
+                                            Colación
                                         </span>
                                         <span className='text-xs font-medium text-foreground'>
                                             {day.snack.recipeName}
@@ -93,7 +93,7 @@ export default function ProtocolPreview({
                                     </div>
                                     <div className='flex flex-col gap-1'>
                                         <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Sun className='h-3 w-3' /> Almuerzo
+                                            <Sun className='h-3 w-3' /> Comida
                                         </span>
                                         <span className='text-xs font-medium text-foreground'>
                                             {day.lunch.recipeName}
@@ -117,28 +117,22 @@ export default function ProtocolPreview({
             {/* Conditional footer actions based on mode */}
             {isFirstConsultation ? (
                 <div className='flex flex-col sm:flex-row gap-3'>
-                    <Button
+                    {/* <Button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className='flex-1 h-12 rounded-xl bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold shadow-lg shadow-primary/25'>
+                        className='flex-1 h-12 rounded-xl text-primary-foreground font-semibold shadow-lg shadow-primary/25'>
                         {isSaving ? (
                             <Loader2 className='mr-2 h-5 w-5 animate-spin' />
                         ) : (
                             <Save className='mr-2 h-5 w-5' />
                         )}
                         Guardar protocolo
-                    </Button>
+                    </Button> */}
                     <Button
                         variant='outline'
                         className='flex-1 h-12 rounded-xl'>
                         <FileDown className='mr-2 h-5 w-5' />
                         Guardar como plantilla
-                    </Button>
-                    <Button
-                        variant='secondary'
-                        className='flex-1 h-12 rounded-xl'>
-                        <UserPlus className='mr-2 h-5 w-5' />
-                        Asignar a paciente
                     </Button>
                 </div>
             ) : (

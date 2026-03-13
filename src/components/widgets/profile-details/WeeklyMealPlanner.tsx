@@ -44,13 +44,13 @@ export default function WeeklyMealPlanner({
                             <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
                                 <span className='flex items-center gap-1.5'>
                                     <Apple className='h-3.5 w-3.5' />
-                                    Merienda
+                                    Colación
                                 </span>
                             </th>
                             <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
                                 <span className='flex items-center gap-1.5'>
                                     <Sun className='h-3.5 w-3.5' />
-                                    Almuerzo
+                                    Comida
                                 </span>
                             </th>
                             <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
