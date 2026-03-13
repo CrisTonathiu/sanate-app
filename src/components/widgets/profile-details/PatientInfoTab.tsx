@@ -5,6 +5,7 @@ import {motion} from 'framer-motion';
 import DataGrid from '../DataGrid';
 import SectionHeading from '../SectionHeading';
 import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
+import {getAgeFromDateString} from '@/lib/utils';
 
 interface PatientInfoTabProps {
     patient: PatientProfileDTO;
@@ -41,6 +42,8 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
     if (!patient) {
         return <div>Paciente no encontrado</div>;
     }
+    const patientAge = getAgeFromDateString(patient.birthDate);
+
     const PATIENT_DATA = [
         {
             label: 'Nombre Completo',
@@ -52,28 +55,7 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
         },
         {
             label: 'Edad',
-            value: patient.birthDate
-                ? (() => {
-                      const dateParts = patient.birthDate.split(/[-T\s]/);
-                      const birthYear = parseInt(dateParts[0]);
-                      const birthMonth = parseInt(dateParts[1]) - 1;
-                      const birthDay = parseInt(dateParts[2]);
-
-                      const today = new Date();
-                      let age = today.getFullYear() - birthYear;
-
-                      // Adjust if birthday hasn't occurred this year yet
-                      if (
-                          today.getMonth() < birthMonth ||
-                          (today.getMonth() === birthMonth &&
-                              today.getDate() < birthDay)
-                      ) {
-                          age--;
-                      }
-
-                      return `${age} años`;
-                  })()
-                : 'N/A'
+            value: patientAge !== null ? `${patientAge} años` : 'N/A'
         },
         {label: 'Correo Electrónico', value: patient.email || 'N/A'},
         {label: 'Teléfono', value: patient.phone || 'N/A'}
