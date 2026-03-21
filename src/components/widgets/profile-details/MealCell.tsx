@@ -11,15 +11,23 @@ export default function MealCell({
     onEdit
 }: {
     meal: MealSlot;
-    mealType: 'breakfast' | 'snack' | 'lunch' | 'dinner';
+    mealType:
+        | 'smoothie'
+        | 'breakfast'
+        | 'snack'
+        | 'lunch'
+        | 'dinner'
+        | 'drinks';
     onReplace: () => void;
     onEdit: () => void;
 }) {
     const mealIcons = {
+        smoothie: Coffee,
         breakfast: Coffee,
         snack: Apple,
         lunch: Sun,
-        dinner: Moon
+        dinner: Moon,
+        drinks: Coffee
     };
     const Icon = mealIcons[mealType];
 

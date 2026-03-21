@@ -5,7 +5,6 @@ import {
 } from '@/lib/services/ingredient/ingredient.service';
 
 export async function GET(_request: Request) {
-    await requireRole('ADMIN');
     const ingredients = await getAllIngredients();
     return Response.json(ingredients, {
         status: ingredients.success ? 200 : 400

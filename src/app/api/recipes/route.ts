@@ -15,11 +15,13 @@ export async function GET(_request: Request) {
 export async function POST(request: Request) {
     await requireRole('ADMIN');
     const body = await request.json();
+    console.log('Received recipe data:', body);
     const result = await createRecipe({
         title: body.title,
-        description: body.description,
-        instructions: body.instructions,
-        mealType: body.mealType
+        mealType: body.mealType,
+        ingredients: body.ingredients,
+        extraIngredients: body.extraIngredients,
+        steps: body.steps
     });
     return Response.json(result, {status: result.success ? 200 : 400});
 }

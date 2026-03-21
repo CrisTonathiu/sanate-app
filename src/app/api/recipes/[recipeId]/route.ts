@@ -25,9 +25,9 @@ export async function PUT(
     const body = await request.json();
     const result = await updateRecipe(recipeId, {
         title: body.title,
-        description: body.description,
-        instructions: body.instructions,
-        mealType: body.mealType
+        mealType: body.mealType,
+        extraIngredients: body.extraIngredients,
+        steps: body.steps
     });
     return Response.json(result, {status: result.success ? 200 : 400});
 }

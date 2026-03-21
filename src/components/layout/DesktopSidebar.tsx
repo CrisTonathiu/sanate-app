@@ -12,6 +12,7 @@ import {ScrollArea} from '../ui/scroll-area';
 import {Badge} from '../ui/badge';
 import {useState} from 'react';
 import {Avatar, AvatarFallback, AvatarImage} from '../ui/avatar';
+import {usePrefetchFoods} from '@/hooks/use-foods';
 
 interface DesktopSidebarProps {
     sidebarOpen: boolean;
@@ -45,11 +46,16 @@ const sidebarItems = [
     {
         title: 'Recetas',
         icon: <FileHeart className='size-4' />,
-        url: '/recetas'
+        items: [
+            {title: 'Mis Recetas', url: '/recetas'},
+            {title: 'Crear Receta', url: '/recetas/nuevo'}
+        ]
     }
 ];
 
 export default function DesktopSidebar({sidebarOpen}: DesktopSidebarProps) {
+    const prefetchFoods = usePrefetchFoods();
+
     const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(
         {}
     );
@@ -132,6 +138,22 @@ export default function DesktopSidebar({sidebarOpen}: DesktopSidebarProps) {
                                             <a
                                                 key={subItem.title}
                                                 href={subItem.url}
+                                                onMouseEnter={() => {
+                                                    if (
+                                                        subItem.url ===
+                                                        '/recetas/nuevo'
+                                                    ) {
+                                                        prefetchFoods();
+                                                    }
+                                                }}
+                                                onFocus={() => {
+                                                    if (
+                                                        subItem.url ===
+                                                        '/recetas/nuevo'
+                                                    ) {
+                                                        prefetchFoods();
+                                                    }
+                                                }}
                                                 className='flex items-center justify-between rounded-2xl px-3 py-2 text-sm hover:bg-muted'>
                                                 {subItem.title}
                                                 {subItem.badge && (
