@@ -10,16 +10,24 @@ export interface MealSlot {
 export interface Recipe {
     id: string;
     title: string;
-    description: string;
-    mealType: 'breakfast' | 'snack' | 'lunch' | 'dinner' | 'any';
+    mealType:
+        | 'smoothie'
+        | 'breakfast'
+        | 'snack'
+        | 'lunch'
+        | 'dinner'
+        | 'drinks'
+        | 'any';
     calories: number;
     protein: number;
 }
 
 export interface DayMeals {
     day: string;
+    smoothie: MealSlot;
     breakfast: MealSlot;
     snack: MealSlot;
     lunch: MealSlot;
     dinner: MealSlot;
+    drinks: MealSlot;
 }

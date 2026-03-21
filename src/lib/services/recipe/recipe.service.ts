@@ -11,7 +11,21 @@ import {ZodError} from 'zod';
 
 export async function getAllRecipes() {
     try {
-        const recipes = await prisma.recipe.findMany();
+        const recipes = await prisma.recipe.findMany({
+            include: {
+                ingredients: {
+                    include: {
+                        ingredient: true
+                    }
+                },
+                extraIngredients: true,
+                steps: {
+                    orderBy: {
+                        stepNumber: 'asc'
+                    }
+                }
+            }
+        });
         return {
             success: true,
             message: 'Recetas obtenidas exitosamente',
@@ -30,7 +44,20 @@ export async function getRecipeById(recipeId: RecipeIdInput) {
     try {
         const validatedRecipeId = recipeIdSchema.parse(recipeId);
         const recipe = await prisma.recipe.findUnique({
-            where: {id: validatedRecipeId}
+            where: {id: validatedRecipeId},
+            include: {
+                ingredients: {
+                    include: {
+                        ingredient: true
+                    }
+                },
+                extraIngredients: true,
+                steps: {
+                    orderBy: {
+                        stepNumber: 'asc'
+                    }
+                }
+            }
         });
         if (!recipe) {
             return {
@@ -62,15 +89,59 @@ export async function getRecipeById(recipeId: RecipeIdInput) {
 export async function createRecipe(input: CreateRecipeInput) {
     try {
         const validatedInput = createRecipeSchema.parse(input);
+        const recipe = await prisma.$transaction(async tx => {
+            // 1. Crear receta
+            const newRecipe = await tx.recipe.create({
+                data: {
+                    title: validatedInput.title,
+                    mealType: validatedInput.mealType
+                }
+            });
 
-        const recipe = await prisma.recipe.create({
-            data: {
-                title: validatedInput.title,
-                description: validatedInput.description,
-                instructions: validatedInput.instructions,
-                mealType: validatedInput.mealType
+            // 2. Procesar ingredientes
+            for (const item of validatedInput.ingredients) {
+                // 🔹 Upsert ingredient (evita duplicados)
+                const ingredient = await tx.ingredient.upsert({
+                    where: {name: item.foodId},
+                    update: {},
+                    create: {name: item.foodId}
+                });
+
+                // 🔹 Crear relación con gramos
+                await tx.recipeIngredient.create({
+                    data: {
+                        recipeId: newRecipe.id,
+                        ingredientId: ingredient.id,
+                        grams: item.grams
+                    }
+                });
             }
+
+            // 3. Procesar extra ingredientes
+            if ((validatedInput.extraIngredients ?? []).length > 0) {
+                await tx.recipeExtraIngredient.createMany({
+                    data: (validatedInput.extraIngredients ?? []).map(item => ({
+                        recipeId: newRecipe.id,
+                        name: item.name
+                    }))
+                });
+            }
+
+            // 4. Procesar pasos
+            if ((validatedInput.steps ?? []).length > 0) {
+                await tx.recipeStep.createMany({
+                    data: (validatedInput.steps ?? []).map((step, index) => ({
+                        recipeId: newRecipe.id,
+                        stepNumber: index + 1,
+                        instruction: step.instruction
+                    }))
+                });
+            }
+
+            return newRecipe;
         });
+
+        // 2. Procesar ingredientes
         return {
             success: true,
             message: 'Receta creada exitosamente',
@@ -78,6 +149,7 @@ export async function createRecipe(input: CreateRecipeInput) {
         };
     } catch (error) {
         if (error instanceof ZodError) {
+            console.error('Validation error:', error);
             return {
                 success: false,
                 message: 'Error de validación',
@@ -100,14 +172,47 @@ export async function updateRecipe(
         const validatedInput = createRecipeSchema.partial().parse(input);
         const validatedRecipeId = recipeIdSchema.parse(recipeId);
 
-        const recipe = await prisma.recipe.update({
-            where: {id: validatedRecipeId},
-            data: {
-                title: validatedInput.title,
-                description: validatedInput.description,
-                instructions: validatedInput.instructions,
-                mealType: validatedInput.mealType
+        const recipe = await prisma.$transaction(async tx => {
+            const updatedRecipe = await tx.recipe.update({
+                where: {id: validatedRecipeId},
+                data: {
+                    title: validatedInput.title,
+                    mealType: validatedInput.mealType
+                }
+            });
+
+            if (validatedInput.extraIngredients !== undefined) {
+                await tx.recipeExtraIngredient.deleteMany({
+                    where: {recipeId: validatedRecipeId}
+                });
+
+                if (validatedInput.extraIngredients.length > 0) {
+                    await tx.recipeExtraIngredient.createMany({
+                        data: validatedInput.extraIngredients.map(item => ({
+                            recipeId: validatedRecipeId,
+                            name: item.name
+                        }))
+                    });
+                }
             }
+
+            if (validatedInput.steps !== undefined) {
+                await tx.recipeStep.deleteMany({
+                    where: {recipeId: validatedRecipeId}
+                });
+
+                if (validatedInput.steps.length > 0) {
+                    await tx.recipeStep.createMany({
+                        data: validatedInput.steps.map((step, index) => ({
+                            recipeId: validatedRecipeId,
+                            stepNumber: index + 1,
+                            instruction: step.instruction
+                        }))
+                    });
+                }
+            }
+
+            return updatedRecipe;
         });
         return {
             success: true,

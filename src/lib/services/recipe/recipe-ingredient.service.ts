@@ -39,8 +39,7 @@ export async function addIngredientToRecipe(
             data: {
                 recipeId: validatedInput.recipeId,
                 ingredientId: validatedInput.ingredientId,
-                quantity: validatedInput.quantity,
-                unit: validatedInput.unit
+                grams: validatedInput.grams
             }
         });
 

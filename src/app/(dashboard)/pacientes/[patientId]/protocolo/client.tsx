@@ -30,6 +30,14 @@ interface ClientPageProps {
 const INITIAL_WEEK_PLAN: DayMeals[] = [
     {
         day: 'Lunes',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '1',
             recipeName: 'Avena con frutos rojos',
@@ -61,10 +69,26 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200&h=150&fit=crop',
             calories: 450,
             protein: 38
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     },
     {
         day: 'Martes',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '2',
             recipeName: 'Parfait de yogur griego',
@@ -96,10 +120,26 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=200&h=150&fit=crop',
             calories: 520,
             protein: 32
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     },
     {
         day: 'Miércoles',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '3',
             recipeName: 'Tostada de aguacate',
@@ -131,10 +171,26 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=200&h=150&fit=crop',
             calories: 380,
             protein: 28
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     },
     {
         day: 'Jueves',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '4',
             recipeName: 'Bowl de batido',
@@ -166,10 +222,26 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200&h=150&fit=crop',
             calories: 450,
             protein: 38
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     },
     {
         day: 'Viernes',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '1',
             recipeName: 'Avena con frutos rojos',
@@ -201,10 +273,26 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=200&h=150&fit=crop',
             calories: 520,
             protein: 32
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     },
     {
         day: 'Sábado',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '2',
             recipeName: 'Parfait de yogur griego',
@@ -236,10 +324,26 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=200&h=150&fit=crop',
             calories: 380,
             protein: 28
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     },
     {
         day: 'Domingo',
+        smoothie: {
+            id: '0',
+            recipeName: 'Smoothie de frutas',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 150,
+            protein: 5
+        },
         breakfast: {
             id: '3',
             recipeName: 'Tostada de aguacate',
@@ -271,6 +375,14 @@ const INITIAL_WEEK_PLAN: DayMeals[] = [
                 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200&h=150&fit=crop',
             calories: 450,
             protein: 38
+        },
+        drinks: {
+            id: '14',
+            recipeName: 'Agua con limón',
+            imageUrl:
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
+            calories: 0,
+            protein: 0
         }
     }
 ];
@@ -292,14 +404,26 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const [selectedDayMeal, setSelectedDayMeal] = useState<{
         day: string;
-        mealType: 'breakfast' | 'snack' | 'lunch' | 'dinner';
+        mealType:
+            | 'smoothie'
+            | 'breakfast'
+            | 'snack'
+            | 'lunch'
+            | 'dinner'
+            | 'drinks';
     } | null>(null);
 
     const maxStep = isFirstConsultation ? 5 : 3;
 
     const handleOpenRecipeModal = (
         day: string,
-        mealType: 'breakfast' | 'snack' | 'lunch' | 'dinner'
+        mealType:
+            | 'smoothie'
+            | 'breakfast'
+            | 'snack'
+            | 'lunch'
+            | 'dinner'
+            | 'drinks'
     ) => {
         setSelectedDayMeal({day, mealType});
         setRecipeModalOpen(true);

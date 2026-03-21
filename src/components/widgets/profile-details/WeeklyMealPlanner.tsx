@@ -8,7 +8,13 @@ interface WeeklyMealPlannerProps {
     weekPlan: DayMeals[];
     onOpenRecipeModal: (
         day: string,
-        mealType: 'breakfast' | 'snack' | 'lunch' | 'dinner'
+        mealType:
+            | 'smoothie'
+            | 'breakfast'
+            | 'snack'
+            | 'lunch'
+            | 'dinner'
+            | 'drinks'
     ) => void;
 }
 
@@ -38,6 +44,12 @@ export default function WeeklyMealPlanner({
                             <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
                                 <span className='flex items-center gap-1.5'>
                                     <Coffee className='h-3.5 w-3.5' />
+                                    Batido
+                                </span>
+                            </th>
+                            <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
+                                <span className='flex items-center gap-1.5'>
+                                    <Coffee className='h-3.5 w-3.5' />
                                     Desayuno
                                 </span>
                             </th>
@@ -58,6 +70,10 @@ export default function WeeklyMealPlanner({
                                     <Moon className='h-3.5 w-3.5' />
                                     Cena
                                 </span>
+                                <span className='flex items-center gap-1.5'>
+                                    <Moon className='h-3.5 w-3.5' />
+                                    Bebida
+                                </span>
                             </th>
                         </tr>
                     </thead>
@@ -75,6 +91,19 @@ export default function WeeklyMealPlanner({
                                     <span className='text-sm font-semibold text-foreground'>
                                         {day.day}
                                     </span>
+                                </td>
+                                <td className='px-2 py-2'>
+                                    <MealCell
+                                        meal={day.smoothie}
+                                        mealType='smoothie'
+                                        onReplace={() =>
+                                            onOpenRecipeModal(
+                                                day.day,
+                                                'smoothie'
+                                            )
+                                        }
+                                        onEdit={() => {}}
+                                    />
                                 </td>
                                 <td className='px-2 py-2'>
                                     <MealCell
@@ -115,6 +144,16 @@ export default function WeeklyMealPlanner({
                                         mealType='dinner'
                                         onReplace={() =>
                                             onOpenRecipeModal(day.day, 'dinner')
+                                        }
+                                        onEdit={() => {}}
+                                    />
+                                </td>
+                                <td className='px-2 py-2'>
+                                    <MealCell
+                                        meal={day.drinks}
+                                        mealType='drinks'
+                                        onReplace={() =>
+                                            onOpenRecipeModal(day.day, 'drinks')
                                         }
                                         onEdit={() => {}}
                                     />

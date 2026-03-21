@@ -26,10 +26,12 @@ enum AllergySeverity {
 }
 
 enum MealType {
+  SMOOTHIE
   BREAKFAST
   SNACK
   LUNCH
   DINNER
+  DRINKS
 }
 
 enum ProtocolStatus {
@@ -170,15 +172,41 @@ model PatientNote {
 model Recipe {
   id           String  @id @default(cuid())
   title        String
-  description  String?
-  instructions String
 
   mealType MealType
 
   ingredients   RecipeIngredient[]
+  extraIngredients RecipeExtraIngredient[]
+  steps RecipeStep[]
   protocolMeals ProtocolMeal[]
 
   createdAt DateTime @default(now())
+}
+
+model RecipeStep {
+  id String @id @default(cuid())
+
+  recipeId String
+  stepNumber Int
+  instruction String
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, stepNumber])
+  @@index([recipeId])
+}
+
+model RecipeExtraIngredient {
+  id String @id @default(cuid())
+
+  recipeId String
+  name String
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([recipeId])
 }
 
 model Ingredient {
@@ -198,8 +226,7 @@ model RecipeIngredient {
   recipeId     String
   ingredientId String
 
-  quantity Float?
-  unit     String?
+  grams Float
 
   recipe     Recipe     @relation(fields: [recipeId], references: [id])
   ingredient Ingredient @relation(fields: [ingredientId], references: [id])
@@ -296,9 +323,41 @@ model Food {
   groupId String
   group   FoodGroup @relation(fields: [groupId], references: [id])
 
-  gramsPerEquivalent Float?
+  // 🔥 macros por 100g (estándar nutrición)
+  proteinPer100g Float?
+  carbsPer100g   Float?
+  fatPer100g     Float?
+  caloriesPer100g Float?
+
+  // opcional
+  density Float? // útil para líquidos
+
+  equivalents FoodEquivalent[]
+  equivalentIn FoodEquivalent[] @relation("EquivalentFood")
 
   ingredients Ingredient[]
+
+  createdAt DateTime @default(now())
+}
+
+model FoodEquivalent {
+  id String @id @default(cuid())
+
+  foodId String
+  food   Food @relation(fields: [foodId], references: [id])
+
+  equivalentFoodId String
+  equivalentFood   Food @relation("EquivalentFood", fields: [equivalentFoodId], references: [id])
+
+  // 🔥 cantidad equivalente
+  grams Float
+
+  // opcional: para UI
+  displayText String? // "10 camarones" o "1 lata"
+
+  createdAt DateTime @default(now())
+
+  @@index([foodId])
 }
 
 // This would be like "Vegetales", "Frutas", "Cereales", etc. to categorizar los alimentos y facilitar la búsqueda.
@@ -306,10 +365,7 @@ model FoodGroup {
   id   String @id @default(cuid())
   name String
 
-  carbs    Float?
-  protein  Float?
-  fat      Float?
-  calories Float?
+  isFree Boolean @default(false)
 
   foods Food[]
 }
