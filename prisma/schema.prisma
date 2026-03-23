@@ -172,6 +172,7 @@ model PatientNote {
 model Recipe {
   id           String  @id @default(cuid())
   title        String
+  imageUrl     String?
 
   mealType MealType
 

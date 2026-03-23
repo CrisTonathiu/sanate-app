@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     console.log('Received recipe data:', body);
     const result = await createRecipe({
         title: body.title,
+        imageUrl: body.imageUrl,
         mealType: body.mealType,
         ingredients: body.ingredients,
         extraIngredients: body.extraIngredients,

@@ -14,24 +14,19 @@ export interface Food {
 export const FOODS_QUERY_KEY = ['foods'] as const;
 
 async function fetchFoods(): Promise<Food[]> {
-    console.log('[foods] Fetching /api/foods...');
     const res = await fetch('/api/foods');
-    console.log('[foods] Response status:', res.status);
 
     if (!res.ok) {
         throw new Error('Failed to fetch foods');
     }
 
     const resData = await res.json();
-    console.log('[foods] Raw payload:', resData);
 
     if (Array.isArray(resData)) {
-        console.log('[foods] Parsed list length:', resData.length);
         return resData;
     }
 
     const parsed = Array.isArray(resData?.data) ? resData.data : [];
-    console.log('[foods] Parsed list length:', parsed.length);
     return parsed;
 }
 

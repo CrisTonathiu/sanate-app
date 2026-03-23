@@ -11,16 +11,12 @@ export interface Ingredient {
 export const INGREDIENTS_QUERY_KEY = ['ingredients'] as const;
 
 async function fetchIngredients(): Promise<Ingredient[]> {
-    console.log('[ingredients] Fetching /api/ingredients...');
     const res = await fetch('/api/ingredients');
-    console.log('[ingredients] Response status:', res.status);
     if (!res.ok) throw new Error('Failed to fetch ingredients');
 
     const resData = await res.json();
-    console.log('[ingredients] Raw payload:', resData);
     if (Array.isArray(resData)) return resData;
     const parsed = Array.isArray(resData?.data) ? resData.data : [];
-    console.log('[ingredients] Parsed list length:', parsed.length);
     return parsed;
 }
 

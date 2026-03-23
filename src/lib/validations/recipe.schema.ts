@@ -3,11 +3,12 @@ import {MealType} from '@prisma/client';
 
 export const createRecipeSchema = z.object({
     title: z.string(),
+    imageUrl: z.string().url().optional(),
     mealType: z.nativeEnum(MealType),
     ingredients: z.array(
         z.object({
             foodId: z.string(),
-            grams: z.number()
+            grams: z.number().optional().default(0)
         })
     ),
     extraIngredients: z
