@@ -94,6 +94,7 @@ export async function createRecipe(input: CreateRecipeInput) {
             const newRecipe = await tx.recipe.create({
                 data: {
                     title: validatedInput.title,
+                    imageUrl: validatedInput.imageUrl,
                     mealType: validatedInput.mealType
                 }
             });
@@ -149,7 +150,6 @@ export async function createRecipe(input: CreateRecipeInput) {
         };
     } catch (error) {
         if (error instanceof ZodError) {
-            console.error('Validation error:', error);
             return {
                 success: false,
                 message: 'Error de validación',
@@ -177,9 +177,32 @@ export async function updateRecipe(
                 where: {id: validatedRecipeId},
                 data: {
                     title: validatedInput.title,
+                    imageUrl: validatedInput.imageUrl,
                     mealType: validatedInput.mealType
                 }
             });
+
+            if (validatedInput.ingredients !== undefined) {
+                await tx.recipeIngredient.deleteMany({
+                    where: {recipeId: validatedRecipeId}
+                });
+
+                for (const item of validatedInput.ingredients) {
+                    const ingredient = await tx.ingredient.upsert({
+                        where: {name: item.foodId},
+                        update: {},
+                        create: {name: item.foodId}
+                    });
+
+                    await tx.recipeIngredient.create({
+                        data: {
+                            recipeId: validatedRecipeId,
+                            ingredientId: ingredient.id,
+                            grams: item.grams
+                        }
+                    });
+                }
+            }
 
             if (validatedInput.extraIngredients !== undefined) {
                 await tx.recipeExtraIngredient.deleteMany({
@@ -238,9 +261,30 @@ export async function updateRecipe(
 export async function deleteRecipe(input: RecipeIdInput) {
     try {
         const validatedInput = recipeIdSchema.parse(input);
-        await prisma.recipe.delete({
-            where: {id: validatedInput}
+        await prisma.$transaction(async tx => {
+            await tx.recipeIngredient.deleteMany({
+                where: {recipeId: validatedInput}
+            });
+
+            await tx.recipeExtraIngredient.deleteMany({
+                where: {recipeId: validatedInput}
+            });
+
+            await tx.recipeStep.deleteMany({
+                where: {recipeId: validatedInput}
+            });
+
+            // Keep protocol meal slots but detach the deleted recipe reference.
+            await tx.protocolMeal.updateMany({
+                where: {recipeId: validatedInput},
+                data: {recipeId: null}
+            });
+
+            await tx.recipe.delete({
+                where: {id: validatedInput}
+            });
         });
+
         return {
             success: true,
             message: 'Receta eliminada exitosamente'

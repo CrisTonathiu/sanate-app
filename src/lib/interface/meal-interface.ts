@@ -10,6 +10,7 @@ export interface MealSlot {
 export interface Recipe {
     id: string;
     title: string;
+    imageUrl?: string;
     mealType:
         | 'smoothie'
         | 'breakfast'
