@@ -14,7 +14,7 @@ export type IngredientIdInput = z.infer<typeof ingredientIdSchema>;
 export const createRecipeIngredientSchema = z.object({
     recipeId: z.string().cuid('Invalid recipe ID'),
     ingredientId: z.string().cuid('Invalid ingredient ID'),
-    grams: z.number().positive('Grams must be a positive number')
+    grams: z.number().positive().optional()
 });
 
 export type CreateRecipeIngredientInput = z.infer<

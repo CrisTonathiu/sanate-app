@@ -16,11 +16,15 @@ interface WeeklyMealPlannerProps {
             | 'dinner'
             | 'drinks'
     ) => void;
+    includeSmoothie?: boolean;
+    includeDrinks?: boolean;
 }
 
 export default function WeeklyMealPlanner({
     weekPlan,
-    onOpenRecipeModal
+    onOpenRecipeModal,
+    includeSmoothie = false,
+    includeDrinks = false
 }: WeeklyMealPlannerProps) {
     return (
         <motion.div
@@ -41,12 +45,14 @@ export default function WeeklyMealPlanner({
                             <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24'>
                                 Dia
                             </th>
-                            <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                <span className='flex items-center gap-1.5'>
-                                    <Coffee className='h-3.5 w-3.5' />
-                                    Batido
-                                </span>
-                            </th>
+                            {includeSmoothie && (
+                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
+                                    <span className='flex items-center gap-1.5'>
+                                        <Coffee className='h-3.5 w-3.5' />
+                                        Batido
+                                    </span>
+                                </th>
+                            )}
                             <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
                                 <span className='flex items-center gap-1.5'>
                                     <Coffee className='h-3.5 w-3.5' />
@@ -70,11 +76,15 @@ export default function WeeklyMealPlanner({
                                     <Moon className='h-3.5 w-3.5' />
                                     Cena
                                 </span>
-                                <span className='flex items-center gap-1.5'>
-                                    <Moon className='h-3.5 w-3.5' />
-                                    Bebida
-                                </span>
                             </th>
+                            {includeDrinks && (
+                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
+                                    <span className='flex items-center gap-1.5'>
+                                        <Moon className='h-3.5 w-3.5' />
+                                        Bebida
+                                    </span>
+                                </th>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
@@ -92,19 +102,21 @@ export default function WeeklyMealPlanner({
                                         {day.day}
                                     </span>
                                 </td>
-                                <td className='px-2 py-2'>
-                                    <MealCell
-                                        meal={day.smoothie}
-                                        mealType='smoothie'
-                                        onReplace={() =>
-                                            onOpenRecipeModal(
-                                                day.day,
-                                                'smoothie'
-                                            )
-                                        }
-                                        onEdit={() => {}}
-                                    />
-                                </td>
+                                {includeSmoothie && (
+                                    <td className='px-2 py-2'>
+                                        <MealCell
+                                            meal={day.smoothie}
+                                            mealType='smoothie'
+                                            onReplace={() =>
+                                                onOpenRecipeModal(
+                                                    day.day,
+                                                    'smoothie'
+                                                )
+                                            }
+                                            onEdit={() => {}}
+                                        />
+                                    </td>
+                                )}
                                 <td className='px-2 py-2'>
                                     <MealCell
                                         meal={day.breakfast}
@@ -148,16 +160,18 @@ export default function WeeklyMealPlanner({
                                         onEdit={() => {}}
                                     />
                                 </td>
-                                <td className='px-2 py-2'>
-                                    <MealCell
-                                        meal={day.drinks}
-                                        mealType='drinks'
-                                        onReplace={() =>
-                                            onOpenRecipeModal(day.day, 'drinks')
-                                        }
-                                        onEdit={() => {}}
-                                    />
-                                </td>
+                                {includeDrinks && (
+                                    <td className='px-2 py-2'>
+                                        <MealCell
+                                            meal={day.drinks}
+                                            mealType='drinks'
+                                            onReplace={() =>
+                                                onOpenRecipeModal(day.day, 'drinks')
+                                            }
+                                            onEdit={() => {}}
+                                        />
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>

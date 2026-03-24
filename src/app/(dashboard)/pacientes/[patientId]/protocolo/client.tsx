@@ -17,7 +17,9 @@ import PatientSummaryCard from '@/components/widgets/profile-details/PatientSumm
 import {getAgeFromDateString} from '@/lib/utils';
 import ConsultationInputs from '@/components/widgets/profile-details/ConsultationInputs';
 import {Check, ChevronLeft, ChevronRight} from 'lucide-react';
-import ProtocolConfigCard from '@/components/widgets/profile-details/ProtocolConfigCard';
+import ProtocolConfigCard, {
+    GeneratePlanPayload
+} from '@/components/widgets/profile-details/ProtocolConfigCard';
 import {DayMeals} from '@/lib/interface/meal-interface';
 import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPlanner';
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
@@ -398,6 +400,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [recipeModalOpen, setRecipeModalOpen] = useState<boolean>(false);
+    const [includeSmoothie, setIncludeSmoothie] = useState<boolean>(false);
+    const [includeDrinks, setIncludeDrinks] = useState<boolean>(false);
 
     const [weekPlan, setWeekPlan] = useState<DayMeals[]>(INITIAL_WEEK_PLAN);
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
@@ -465,6 +469,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         <WeeklyMealPlanner
                             weekPlan={weekPlan}
                             onOpenRecipeModal={handleOpenRecipeModal}
+                            includeSmoothie={includeSmoothie}
+                            includeDrinks={includeDrinks}
                         />
                     );
                 case 4:
@@ -515,12 +521,47 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
-    const handleGeneratePlan = () => {
+    const handleGeneratePlan = async (payload: GeneratePlanPayload) => {
         setIsGenerating(true);
-        setTimeout(() => {
-            setIsGenerating(false);
+        setIncludeSmoothie(payload.includeSmoothie ?? false);
+        setIncludeDrinks(payload.includeDrinks ?? false);
+
+        try {
+            const response = await fetch(
+                `/api/patients/${patientId}/protocols/generate`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result?.success) {
+                throw new Error(
+                    result?.message || 'No se pudo generar el plan semanal'
+                );
+            }
+
+            const generatedWeekPlan = result?.data?.weekPlan as DayMeals[];
+            if (!generatedWeekPlan || generatedWeekPlan.length === 0) {
+                throw new Error('El servidor no devolvió un plan válido');
+            }
+
+            setWeekPlan(generatedWeekPlan);
             setCurrentStep(3);
-        }, 2000);
+        } catch (error) {
+            window.alert(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo generar el plan semanal'
+            );
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     if (isPending || isPendingAllergies || isPendingConditions) {

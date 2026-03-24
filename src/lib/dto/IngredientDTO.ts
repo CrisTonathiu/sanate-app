@@ -1,8 +1,8 @@
 export interface IngredientDTO {
     id: string;
+    foodId?: string;
     name: string;
     quantity?: number;
-    grams?: number;
     unit?: string;
     caloriesPer100g: number;
     carbohydratesPer100g: number;
@@ -18,18 +18,15 @@ export interface ExtraIngredientDTO {
 export interface RecipeIngredientDTO {
     recipeId: string;
     ingredientId: string;
-    grams: number;
     ingredient: IngredientDTO;
 }
 
 export interface CreateRecipeIngredientDTO {
     recipeId: string;
     ingredientId: string;
-    grams: number;
 }
 
 export interface UpdateRecipeIngredientDTO {
     recipeId: string;
     ingredientId: string;
-    grams?: number;
 }

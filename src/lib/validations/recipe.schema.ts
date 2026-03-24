@@ -7,8 +7,8 @@ export const createRecipeSchema = z.object({
     mealType: z.nativeEnum(MealType),
     ingredients: z.array(
         z.object({
-            foodId: z.string(),
-            grams: z.number().optional().default(0)
+            foodId: z.string().cuid('Invalid food ID'),
+            grams: z.number().positive().optional()
         })
     ),
     extraIngredients: z

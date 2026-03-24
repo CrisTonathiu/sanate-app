@@ -18,9 +18,13 @@ interface RecipeApiResponse {
         imageUrl?: string | null;
         mealType: string;
         ingredients: Array<{
-            grams: number;
+            grams?: number;
             ingredient: {
+                foodId?: string | null;
                 name: string;
+                food?: {
+                    id: string;
+                } | null;
             };
         }>;
         extraIngredients: Array<{
@@ -64,7 +68,10 @@ export default function EditRecipeClient({recipeId}: EditRecipeClientProps) {
                     imageUrl: body.data.imageUrl ?? null,
                     mealType: body.data.mealType,
                     ingredients: body.data.ingredients.map(item => ({
-                        foodId: item.ingredient.name,
+                        foodId:
+                            item.ingredient.food?.id ||
+                            item.ingredient.foodId ||
+                            item.ingredient.name,
                         grams: item.grams
                     })),
                     extraIngredients: body.data.extraIngredients.map(item => ({
