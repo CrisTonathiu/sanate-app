@@ -76,13 +76,21 @@ export default function MealCell({
                 <span className='text-sm font-medium text-foreground line-clamp-1'>
                     {meal.recipeName}
                 </span>
-                {(meal.calories || meal.protein) && (
+                {(meal.calories || meal.protein || meal.carbs || meal.fat) && (
                     <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                         {meal.calories && <span>{meal.calories} kcal</span>}
                         {meal.calories && meal.protein && (
                             <span className='text-muted-foreground/40'>|</span>
                         )}
                         {meal.protein && <span>{meal.protein}g proteína</span>}
+                        {meal.protein && meal.carbs && (
+                            <span className='text-muted-foreground/40'>|</span>
+                        )}
+                        {meal.carbs && <span>{meal.carbs}g carbs</span>}
+                        {meal.carbs && meal.fat && (
+                            <span className='text-muted-foreground/40'>|</span>
+                        )}
+                        {meal.fat && <span>{meal.fat}g grasa</span>}
                     </div>
                 )}
             </div>

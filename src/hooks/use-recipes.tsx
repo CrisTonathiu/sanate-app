@@ -4,11 +4,16 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 
 export interface RecipeIngredient {
     id: string;
-    grams: number;
+    grams?: number;
     ingredientId: string;
     ingredient?: {
         id: string;
         name: string;
+        foodId?: string | null;
+        food?: {
+            id: string;
+            name: string;
+        } | null;
     };
 }
 

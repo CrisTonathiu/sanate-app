@@ -115,15 +115,13 @@ export function RecipeForm(props: RecipeFormProps) {
         const totals = ingredients.reduce(
             (acc, ing) => {
                 const gramsUsed = (() => {
-                    if (ing.grams && (ing.grams as number) > 0)
-                        return ing.grams as number;
                     if (
                         ing.unit === 'g' &&
                         ing.quantity &&
                         (ing.quantity as number) > 0
                     )
                         return ing.quantity as number;
-                    return 0;
+                    return 100;
                 })();
                 const factor = gramsUsed / 100;
                 return {
@@ -153,15 +151,16 @@ export function RecipeForm(props: RecipeFormProps) {
                 (initialData.ingredients || []).map(item => {
                     const matchedFood = allFoods.find(
                         food =>
+                            food.id === item.foodId ||
                             food.name.toLowerCase() ===
-                            item.foodId.toLowerCase()
+                                item.foodId.toLowerCase()
                     );
 
                     return {
                         id: generateId(),
-                        name: item.foodId,
-                        quantity: item.grams,
-                        grams: item.grams,
+                        foodId: matchedFood?.id,
+                        name: matchedFood?.name ?? item.foodId,
+                        quantity: item.grams ?? 100,
                         unit: 'g',
                         caloriesPer100g: matchedFood?.caloriesPer100g ?? 0,
                         carbohydratesPer100g: matchedFood?.carbsPer100g ?? 0,
@@ -209,7 +208,7 @@ export function RecipeForm(props: RecipeFormProps) {
                 })
             );
         }
-    }, [initialData, mode]);
+    }, [initialData, mode, allFoods]);
 
     // Current form state for dirty checking
     const getCurrentFormState = useCallback(() => {
@@ -341,9 +340,10 @@ export function RecipeForm(props: RecipeFormProps) {
             ...ingredients,
             {
                 id: generateId(),
+                foodId: undefined,
                 name: '',
-                quantity: 0,
-                grams: 0,
+                quantity: 100,
+                unit: 'g',
                 caloriesPer100g: 0,
                 carbohydratesPer100g: 0,
                 proteinPer100g: 0,
@@ -366,10 +366,13 @@ export function RecipeForm(props: RecipeFormProps) {
                         f => f.name.toLowerCase() === value.toLowerCase()
                     );
                     if (food) {
+                        updated.foodId = food.id;
                         updated.caloriesPer100g = food.caloriesPer100g ?? 0;
                         updated.carbohydratesPer100g = food.carbsPer100g ?? 0;
                         updated.proteinPer100g = food.proteinPer100g ?? 0;
                         updated.fatPer100g = food.fatPer100g ?? 0;
+                    } else {
+                        updated.foodId = undefined;
                     }
                 }
                 return updated;
@@ -388,6 +391,7 @@ export function RecipeForm(props: RecipeFormProps) {
                 ing.id === id
                     ? {
                           ...ing,
+                          foodId: food?.id,
                           name: foodName,
                           caloriesPer100g: food?.caloriesPer100g ?? 0,
                           carbohydratesPer100g: food?.carbsPer100g ?? 0,
@@ -457,10 +461,15 @@ export function RecipeForm(props: RecipeFormProps) {
         }
 
         const payloadIngredients = ingredients
-            .filter(ing => ing.name.trim())
+            .filter(ing => ing.foodId)
             .map(ing => ({
-                foodId: ing.name.trim(),
-                grams: Number(ing.grams) || 0
+                foodId: ing.foodId as string,
+                grams:
+                    ing.unit === 'g' &&
+                    typeof ing.quantity === 'number' &&
+                    ing.quantity > 0
+                        ? ing.quantity
+                        : 100
             }));
 
         if (payloadIngredients.length === 0) {

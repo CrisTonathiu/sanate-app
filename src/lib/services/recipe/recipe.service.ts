@@ -15,7 +15,11 @@ export async function getAllRecipes() {
             include: {
                 ingredients: {
                     include: {
-                        ingredient: true
+                        ingredient: {
+                            include: {
+                                food: true
+                            }
+                        }
                     }
                 },
                 extraIngredients: true,
@@ -48,7 +52,11 @@ export async function getRecipeById(recipeId: RecipeIdInput) {
             include: {
                 ingredients: {
                     include: {
-                        ingredient: true
+                        ingredient: {
+                            include: {
+                                food: true
+                            }
+                        }
                     }
                 },
                 extraIngredients: true,
@@ -101,19 +109,32 @@ export async function createRecipe(input: CreateRecipeInput) {
 
             // 2. Procesar ingredientes
             for (const item of validatedInput.ingredients) {
-                // 🔹 Upsert ingredient (evita duplicados)
-                const ingredient = await tx.ingredient.upsert({
-                    where: {name: item.foodId},
-                    update: {},
-                    create: {name: item.foodId}
+                const food = await tx.food.findUnique({
+                    where: {id: item.foodId}
                 });
 
-                // 🔹 Crear relación con gramos
+                if (!food) {
+                    throw new Error('Alimento no encontrado');
+                }
+
+                // Reuse ingredient by display name while keeping the food relation synced.
+                const ingredient = await tx.ingredient.upsert({
+                    where: {name: food.name},
+                    update: {foodId: food.id},
+                    create: {
+                        name: food.name,
+                        foodId: food.id
+                    }
+                });
+
+                const baseGrams =
+                    item.grams && item.grams > 0 ? item.grams : 100;
+
                 await tx.recipeIngredient.create({
                     data: {
                         recipeId: newRecipe.id,
                         ingredientId: ingredient.id,
-                        grams: item.grams
+                        grams: baseGrams
                     }
                 });
             }
@@ -188,17 +209,31 @@ export async function updateRecipe(
                 });
 
                 for (const item of validatedInput.ingredients) {
-                    const ingredient = await tx.ingredient.upsert({
-                        where: {name: item.foodId},
-                        update: {},
-                        create: {name: item.foodId}
+                    const food = await tx.food.findUnique({
+                        where: {id: item.foodId}
                     });
+
+                    if (!food) {
+                        throw new Error('Alimento no encontrado');
+                    }
+
+                    const ingredient = await tx.ingredient.upsert({
+                        where: {name: food.name},
+                        update: {foodId: food.id},
+                        create: {
+                            name: food.name,
+                            foodId: food.id
+                        }
+                    });
+
+                    const baseGrams =
+                        item.grams && item.grams > 0 ? item.grams : 100;
 
                     await tx.recipeIngredient.create({
                         data: {
                             recipeId: validatedRecipeId,
                             ingredientId: ingredient.id,
-                            grams: item.grams
+                            grams: baseGrams
                         }
                     });
                 }

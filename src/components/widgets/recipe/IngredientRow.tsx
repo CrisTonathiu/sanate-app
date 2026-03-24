@@ -56,7 +56,7 @@ export function IngredientRow({
 
             <div className='flex-1 grid grid-cols-1 sm:grid-cols-12 gap-3'>
                 {/* Ingredient Name */}
-                <div className='sm:col-span-4 relative'>
+                <div className='sm:col-span-5 relative'>
                     <Label className='text-xs text-muted-foreground mb-1.5 block'>
                         Ingrediente
                     </Label>
@@ -92,7 +92,7 @@ export function IngredientRow({
                 </div>
 
                 {/* Quantity */}
-                <div className='sm:col-span-2'>
+                <div className='sm:col-span-3'>
                     <Label className='text-xs text-muted-foreground mb-1.5 block'>
                         Cantidad
                     </Label>
@@ -111,7 +111,7 @@ export function IngredientRow({
                 </div>
 
                 {/* Unit */}
-                <div className='sm:col-span-3'>
+                <div className='sm:col-span-4'>
                     <Label className='text-xs text-muted-foreground mb-1.5 block'>
                         Unidad
                     </Label>
@@ -129,28 +129,6 @@ export function IngredientRow({
                             ))}
                         </SelectContent>
                     </Select>
-                </div>
-
-                {/* Grams */}
-                <div className='sm:col-span-3'>
-                    <Label className='text-xs text-muted-foreground mb-1.5 block'>
-                        Gramos{' '}
-                        <span className='text-muted-foreground/50'>
-                            (opcional)
-                        </span>
-                    </Label>
-                    <Input
-                        type='number'
-                        value={ingredient.grams}
-                        onChange={e =>
-                            onUpdate(
-                                'grams',
-                                e.target.value ? parseFloat(e.target.value) : ''
-                            )
-                        }
-                        placeholder='Auto (calc.)'
-                        className='h-10 bg-background/50 border-border'
-                    />
                 </div>
             </div>
 

@@ -45,7 +45,9 @@ export default function ClientPage() {
                 step.instruction.toLowerCase().includes(q)
             ) ||
             recipe.ingredients.some(item =>
-                (item.ingredient?.name ?? '').toLowerCase().includes(q)
+                (item.ingredient?.food?.name || item.ingredient?.name || '')
+                    .toLowerCase()
+                    .includes(q)
             );
         const matchesFilter =
             activeFilter === 'all' || recipe.mealType === activeFilter;

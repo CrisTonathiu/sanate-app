@@ -1,3 +1,9 @@
+export interface MealIngredientPortion {
+    ingredientName: string;
+    baseGrams: number;
+    targetGrams: number;
+}
+
 export interface MealSlot {
     id: string;
     recipeName: string;
@@ -5,6 +11,10 @@ export interface MealSlot {
     imageUrl?: string;
     calories: number;
     protein: number;
+    carbs?: number;
+    fat?: number;
+    portionMultiplier?: number;
+    ingredientPortions?: MealIngredientPortion[];
 }
 
 export interface Recipe {
