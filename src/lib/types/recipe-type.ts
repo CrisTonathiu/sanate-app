@@ -12,6 +12,8 @@ export interface NutritionData {
 
 interface SelectedIngredient {
     foodId: string;
+    quantity?: number;
+    unit?: string;
     grams?: number;
 }
 

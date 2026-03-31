@@ -1,7 +1,10 @@
 export interface MealIngredientPortion {
     ingredientName: string;
+    baseQuantity?: number;
+    targetQuantity?: number;
     baseGrams: number;
     targetGrams: number;
+    unit?: string;
 }
 
 export interface MealSlot {

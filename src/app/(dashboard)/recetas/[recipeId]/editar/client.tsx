@@ -18,6 +18,8 @@ interface RecipeApiResponse {
         imageUrl?: string | null;
         mealType: string;
         ingredients: Array<{
+            quantity?: number;
+            unit?: 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
             grams?: number;
             ingredient: {
                 foodId?: string | null;
@@ -72,6 +74,8 @@ export default function EditRecipeClient({recipeId}: EditRecipeClientProps) {
                             item.ingredient.food?.id ||
                             item.ingredient.foodId ||
                             item.ingredient.name,
+                        quantity: item.quantity,
+                        unit: item.unit,
                         grams: item.grams
                     })),
                     extraIngredients: body.data.extraIngredients.map(item => ({

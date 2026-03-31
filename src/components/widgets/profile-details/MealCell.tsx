@@ -31,6 +31,63 @@ export default function MealCell({
     };
     const Icon = mealIcons[mealType];
 
+    const getUnitLabel = (unit?: string) => {
+        const normalized = unit?.trim().toLowerCase();
+        if (!normalized) return 'g';
+
+        const unitLabels: Record<string, string> = {
+            g: 'g',
+            gram: 'g',
+            gramo: 'g',
+            gramos: 'g',
+            gr: 'g',
+            piece: 'pz',
+            pieza: 'pz',
+            cup: 'tz',
+            tbsp: 'cda',
+            tsp: 'cdita',
+            ml: 'ml',
+            oz: 'oz',
+            taza: 'tz',
+            cda: 'cda',
+            cdita: 'cdita',
+            pz: 'pz'
+        };
+
+        return unitLabels[normalized] ?? unit;
+    };
+
+    const getDisplayAmount = (portion: {
+        targetQuantity?: number;
+        targetGrams: number;
+        unit?: string;
+    }) => {
+        const unitLabel = getUnitLabel(portion.unit);
+
+        if (unitLabel === 'pz') {
+            if (
+                typeof portion.targetQuantity === 'number' &&
+                !Number.isNaN(portion.targetQuantity)
+            ) {
+                return Math.max(1, Math.round(portion.targetQuantity));
+            }
+            return Math.max(1, Math.round(portion.targetGrams));
+        }
+
+        if (unitLabel === 'g') {
+            return portion.targetGrams;
+        }
+
+        if (
+            typeof portion.targetQuantity === 'number' &&
+            !Number.isNaN(portion.targetQuantity)
+        ) {
+            return portion.targetQuantity;
+        }
+
+        return portion.targetGrams;
+    };
+
     return (
         <div className='group relative flex flex-col rounded-xl border border-border bg-card/50 overflow-hidden transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5'>
             {/* Recipe Image */}
@@ -76,23 +133,27 @@ export default function MealCell({
                 <span className='text-sm font-medium text-foreground line-clamp-1'>
                     {meal.recipeName}
                 </span>
-                {(meal.calories || meal.protein || meal.carbs || meal.fat) && (
-                    <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                        {meal.calories && <span>{meal.calories} kcal</span>}
-                        {meal.calories && meal.protein && (
-                            <span className='text-muted-foreground/40'>|</span>
-                        )}
-                        {meal.protein && <span>{meal.protein}g proteína</span>}
-                        {meal.protein && meal.carbs && (
-                            <span className='text-muted-foreground/40'>|</span>
-                        )}
-                        {meal.carbs && <span>{meal.carbs}g carbs</span>}
-                        {meal.carbs && meal.fat && (
-                            <span className='text-muted-foreground/40'>|</span>
-                        )}
-                        {meal.fat && <span>{meal.fat}g grasa</span>}
-                    </div>
-                )}
+                {meal.ingredientPortions &&
+                    meal.ingredientPortions.length > 0 && (
+                        <div className='flex flex-col gap-0.5'>
+                            {meal.ingredientPortions
+                                .slice(0, 3)
+                                .map((ing, idx) => (
+                                    <span
+                                        key={idx}
+                                        className='text-xs text-muted-foreground truncate'>
+                                        {getDisplayAmount(ing)}{' '}
+                                        {getUnitLabel(ing.unit)}{' '}
+                                        {ing.ingredientName}
+                                    </span>
+                                ))}
+                            {meal.ingredientPortions.length > 3 && (
+                                <span className='text-xs text-muted-foreground/60 italic'>
+                                    +{meal.ingredientPortions.length - 3} more
+                                </span>
+                            )}
+                        </div>
+                    )}
             </div>
         </div>
     );

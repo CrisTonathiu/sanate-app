@@ -1,6 +1,16 @@
 import {z} from 'zod';
 import {MealType} from '@prisma/client';
 
+const ingredientUnitSchema = z.enum([
+    'GRAM',
+    'PIECE',
+    'CUP',
+    'TBSP',
+    'TSP',
+    'ML',
+    'OZ'
+]);
+
 export const createRecipeSchema = z.object({
     title: z.string(),
     imageUrl: z.string().url().optional(),
@@ -8,6 +18,8 @@ export const createRecipeSchema = z.object({
     ingredients: z.array(
         z.object({
             foodId: z.string().cuid('Invalid food ID'),
+            quantity: z.number().positive().optional(),
+            unit: ingredientUnitSchema.optional(),
             grams: z.number().positive().optional()
         })
     ),
