@@ -34,6 +34,16 @@ enum MealType {
   DRINKS
 }
 
+enum IngredientUnit {
+  GRAM
+  PIECE
+  CUP
+  TBSP
+  TSP
+  ML
+  OZ
+}
+
 enum ProtocolStatus {
   ACTIVE
   COMPLETED
@@ -227,7 +237,9 @@ model RecipeIngredient {
   recipeId     String
   ingredientId String
 
-  grams Float
+  quantity Float          @default(100)
+  unit     IngredientUnit @default(GRAM)
+  grams    Float          @default(100)
 
   recipe     Recipe     @relation(fields: [recipeId], references: [id])
   ingredient Ingredient @relation(fields: [ingredientId], references: [id])

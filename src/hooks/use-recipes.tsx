@@ -4,6 +4,8 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 
 export interface RecipeIngredient {
     id: string;
+    quantity?: number;
+    unit?: 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
     grams?: number;
     ingredientId: string;
     ingredient?: {

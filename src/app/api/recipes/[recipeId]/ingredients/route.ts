@@ -11,6 +11,8 @@ export async function POST(
     const result = await addIngredientToRecipe({
         recipeId,
         ingredientId: body.ingredientId,
+        quantity: body.quantity,
+        unit: body.unit,
         grams: body.grams
     });
     return Response.json(result, {status: result.success ? 200 : 400});

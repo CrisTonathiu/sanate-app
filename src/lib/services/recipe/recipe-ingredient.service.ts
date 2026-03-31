@@ -35,15 +35,28 @@ export async function addIngredientToRecipe(
             };
         }
 
+        const recipeIngredientData = {
+            recipeId: validatedInput.recipeId,
+            ingredientId: validatedInput.ingredientId,
+            quantity:
+                validatedInput.quantity && validatedInput.quantity > 0
+                    ? validatedInput.quantity
+                    : validatedInput.unit === 'GRAM'
+                      ? validatedInput.grams && validatedInput.grams > 0
+                          ? validatedInput.grams
+                          : 100
+                      : 1,
+            unit: validatedInput.unit ?? 'GRAM',
+            grams:
+                validatedInput.grams && validatedInput.grams > 0
+                    ? validatedInput.grams
+                    : 100
+        } as unknown as Parameters<
+            typeof prisma.recipeIngredient.create
+        >[0]['data'];
+
         await prisma.recipeIngredient.create({
-            data: {
-                recipeId: validatedInput.recipeId,
-                ingredientId: validatedInput.ingredientId,
-                grams:
-                    validatedInput.grams && validatedInput.grams > 0
-                        ? validatedInput.grams
-                        : 100
-            }
+            data: recipeIngredientData
         });
 
         return {

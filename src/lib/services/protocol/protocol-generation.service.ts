@@ -29,6 +29,15 @@ type MacroPlan = {
     fatGramsPerWeek: number;
 };
 
+type RecipeIngredientUnit =
+    | 'GRAM'
+    | 'PIECE'
+    | 'CUP'
+    | 'TBSP'
+    | 'TSP'
+    | 'ML'
+    | 'OZ';
+
 type RecipeSummary = {
     id: string;
     title: string;
@@ -40,8 +49,21 @@ type RecipeSummary = {
     fat: number;
     ingredients: Array<{
         name: string;
+        quantity: number;
         grams: number;
+        unit: RecipeIngredientUnit;
+        caloriesPer100g: number;
+        proteinPer100g: number;
+        carbsPer100g: number;
+        fatPer100g: number;
     }>;
+};
+
+type IngredientPortionAdjustment = {
+    name: string;
+    quantity: number;
+    unit: RecipeIngredientUnit;
+    grams: number;
 };
 
 const DAYS = [
@@ -101,6 +123,9 @@ const AI_RESPONSE_SCHEMA = z.object({
             })
         })
     )
+    // Temporarily disabled: `mealAdjustments` was making AI responses too brittle.
+    // Re-enable once the prompt/schema contract is stable and consistently validated.
+    // ,mealAdjustments: ...
 });
 
 function getActiveMealOrder(input: GenerateProtocolPlanInput): MealKey[] {
@@ -163,9 +188,97 @@ function round1(value: number) {
     return Number(value.toFixed(1));
 }
 
+function normalizeRecipeIngredientUnit(
+    unit?: RecipeIngredientUnit | string | null
+): RecipeIngredientUnit {
+    const normalized = unit?.toString().trim().toUpperCase();
+    if (normalized === 'GRAM') return 'GRAM';
+    if (normalized === 'PIECE') return 'PIECE';
+    if (normalized === 'CUP') return 'CUP';
+    if (normalized === 'TBSP') return 'TBSP';
+    if (normalized === 'TSP') return 'TSP';
+    if (normalized === 'ML') return 'ML';
+    if (normalized === 'OZ') return 'OZ';
+    return 'GRAM';
+}
+
+function scaleQuantityByUnit(
+    quantity: number,
+    scale: number,
+    unit: RecipeIngredientUnit
+) {
+    const scaled = quantity * scale;
+
+    // Piece-like portions should remain user-friendly integers.
+    if (unit === 'PIECE') {
+        return Math.max(1, Math.round(scaled));
+    }
+
+    return round1(scaled);
+}
+
+function computeNutritionFromSummaryIngredients(
+    ingredients: RecipeSummary['ingredients']
+) {
+    let calories = 0;
+    let protein = 0;
+    let carbs = 0;
+    let fat = 0;
+
+    for (const item of ingredients) {
+        const ratio = item.grams / 100;
+        calories += item.caloriesPer100g * ratio;
+        protein += item.proteinPer100g * ratio;
+        carbs += item.carbsPer100g * ratio;
+        fat += item.fatPer100g * ratio;
+    }
+
+    return {
+        calories: Math.round(calories),
+        protein: round1(protein),
+        carbs: round1(carbs),
+        fat: round1(fat)
+    };
+}
+
+function applyIngredientAdjustments(
+    ingredients: RecipeSummary['ingredients'],
+    adjustments?: IngredientPortionAdjustment[]
+) {
+    if (!adjustments || adjustments.length === 0) {
+        return ingredients;
+    }
+
+    const adjustmentsByName = new Map(
+        adjustments.map(item => [
+            normalizeAllergenName(item.name),
+            {
+                quantity: item.quantity,
+                unit: normalizeRecipeIngredientUnit(item.unit),
+                grams: item.grams
+            }
+        ])
+    );
+
+    return ingredients.map(item => {
+        const matched = adjustmentsByName.get(normalizeAllergenName(item.name));
+
+        if (!matched) return item;
+
+        return {
+            ...item,
+            quantity: matched.quantity,
+            unit: matched.unit,
+            grams: matched.grams
+        };
+    });
+}
+
 function computeRecipeNutrition(recipe: {
     title: string;
     ingredients: Array<{
+        quantity?: number | null;
+        unit?: RecipeIngredientUnit | null;
         grams: number;
         ingredient: {
             name: string;
@@ -188,13 +301,32 @@ function computeRecipeNutrition(recipe: {
     let fat = 0;
 
     for (const item of recipe.ingredients) {
+        const unit = normalizeRecipeIngredientUnit(item.unit);
+        const quantity =
+            typeof item.quantity === 'number' && item.quantity > 0
+                ? item.quantity
+                : unit === 'GRAM'
+                  ? item.grams
+                  : 1;
+
+        const gramsForNutrition =
+            typeof item.grams === 'number' && item.grams > 0
+                ? item.grams
+                : unit === 'GRAM'
+                  ? quantity
+                  : 100;
+
         console.log(
             'Procesando ingrediente:',
             item.ingredient.name,
-            'Cantidad (g):',
-            item.grams
+            'Unidad:',
+            unit,
+            'Cantidad:',
+            quantity,
+            'Gramos:',
+            gramsForNutrition
         );
-        const ratio = item.grams / 100;
+        const ratio = gramsForNutrition / 100;
         const food = item.ingredient.food;
 
         if (!food) continue;
@@ -350,7 +482,19 @@ async function generateWithAI(args: {
                 id: item.id,
                 title: item.title,
                 calories: item.calories,
-                protein: item.protein
+                protein: item.protein,
+                carbs: item.carbs,
+                fat: item.fat,
+                ingredients: item.ingredients.map(ing => ({
+                    name: ing.name,
+                    quantity: ing.quantity,
+                    unit: ing.unit,
+                    grams: ing.grams,
+                    caloriesPer100g: ing.caloriesPer100g,
+                    proteinPer100g: ing.proteinPer100g,
+                    carbsPer100g: ing.carbsPer100g,
+                    fatPer100g: ing.fatPer100g
+                }))
             }))
         ])
     );
@@ -367,7 +511,9 @@ async function generateWithAI(args: {
             'Usa solo ids de receta disponibles en cada lista de tiempo de comida.',
             'Incluye un weekPlan completo de 7 días.',
             'Evita repetir la misma receta en días consecutivos cuando haya alternativas.',
-            'Asegura que macroPercents sume 100.'
+            'Asegura que macroPercents sume 100.',
+            // Temporarily disabled: ingredient-level AI adjustments are not being validated right now.
+            'No inventes ingredientes: usa solo los ingredientes que existen en la receta seleccionada.'
         ],
         catalog: compactCatalog
     };
@@ -408,6 +554,11 @@ async function generateWithAI(args: {
         }
 
         const parsed = AI_RESPONSE_SCHEMA.safeParse(JSON.parse(content));
+        console.debug('[protocol.generate.ai] Respuesta cruda de OpenAI', {
+            content,
+            parseSuccess: parsed.success,
+            parseError: parsed.success ? null : parsed.error.issues
+        });
         if (!parsed.success) {
             console.warn(
                 '[protocol.generate.ai] Respuesta invalida de OpenAI',
@@ -492,7 +643,8 @@ function pickRecipeById(
 function toMealSlot(
     recipe: RecipeSummary | null,
     targetCalories: number,
-    fallbackRecipeName = 'No incluido'
+    fallbackRecipeName = 'No incluido',
+    ingredientAdjustments?: IngredientPortionAdjustment[]
 ): MealSlot & {
     scaledCalories: number;
     scaledProtein: number;
@@ -517,6 +669,11 @@ function toMealSlot(
     }
 
     if (recipe.calories <= 0) {
+        const adjustedIngredients = applyIngredientAdjustments(
+            recipe.ingredients,
+            ingredientAdjustments
+        );
+
         return {
             id: recipe.id,
             recipeName: recipe.title,
@@ -526,15 +683,50 @@ function toMealSlot(
             carbs: 0,
             fat: 0,
             portionMultiplier: 0,
-            ingredientPortions: recipe.ingredients.map(item => ({
+            ingredientPortions: adjustedIngredients.map(item => ({
                 ingredientName: item.name,
+                baseQuantity: item.quantity,
+                targetQuantity: item.quantity,
                 baseGrams: item.grams,
-                targetGrams: 0
+                targetGrams: item.grams,
+                unit: item.unit
             })),
             scaledCalories: 0,
             scaledProtein: 0,
             scaledCarbs: 0,
             scaledFat: 0
+        };
+    }
+
+    if (ingredientAdjustments && ingredientAdjustments.length > 0) {
+        const adjustedIngredients = applyIngredientAdjustments(
+            recipe.ingredients,
+            ingredientAdjustments
+        );
+        const adjustedNutrition =
+            computeNutritionFromSummaryIngredients(adjustedIngredients);
+
+        return {
+            id: recipe.id,
+            recipeName: recipe.title,
+            imageUrl: recipe.imageUrl ?? undefined,
+            calories: adjustedNutrition.calories,
+            protein: adjustedNutrition.protein,
+            carbs: adjustedNutrition.carbs,
+            fat: adjustedNutrition.fat,
+            portionMultiplier: 1,
+            ingredientPortions: adjustedIngredients.map(item => ({
+                ingredientName: item.name,
+                baseQuantity: item.quantity,
+                targetQuantity: item.quantity,
+                baseGrams: item.grams,
+                targetGrams: item.grams,
+                unit: item.unit
+            })),
+            scaledCalories: adjustedNutrition.calories,
+            scaledProtein: adjustedNutrition.protein,
+            scaledCarbs: adjustedNutrition.carbs,
+            scaledFat: adjustedNutrition.fat
         };
     }
 
@@ -556,8 +748,15 @@ function toMealSlot(
         portionMultiplier: scale,
         ingredientPortions: recipe.ingredients.map(item => ({
             ingredientName: item.name,
+            baseQuantity: item.quantity,
+            targetQuantity: scaleQuantityByUnit(
+                item.quantity,
+                scale,
+                item.unit
+            ),
             baseGrams: item.grams,
-            targetGrams: round1(item.grams * scale)
+            targetGrams: round1(item.grams * scale),
+            unit: item.unit
         })),
         scaledCalories,
         scaledProtein,
@@ -667,10 +866,30 @@ export async function generateProtocolPlanForPatient(
                     protein: nutrition.protein,
                     carbs: nutrition.carbs,
                     fat: nutrition.fat,
-                    ingredients: recipe.ingredients.map(item => ({
-                        name: item.ingredient.name,
-                        grams: item.grams
-                    }))
+                    ingredients: recipe.ingredients.map(item => {
+                        const recipeIngredient = item as {
+                            grams: number;
+                            quantity?: number | null;
+                            unit?: RecipeIngredientUnit | null;
+                            ingredient: {name: string};
+                        };
+
+                        return {
+                            name: recipeIngredient.ingredient.name,
+                            quantity: recipeIngredient.quantity ?? 1,
+                            grams: recipeIngredient.grams,
+                            unit: normalizeRecipeIngredientUnit(
+                                recipeIngredient.unit
+                            ),
+                            caloriesPer100g:
+                                item.ingredient.food?.caloriesPer100g ?? 0,
+                            proteinPer100g:
+                                item.ingredient.food?.proteinPer100g ?? 0,
+                            carbsPer100g:
+                                item.ingredient.food?.carbsPer100g ?? 0,
+                            fatPer100g: item.ingredient.food?.fatPer100g ?? 0
+                        };
+                    })
                 };
             })
             .filter(
@@ -775,6 +994,8 @@ export async function generateProtocolPlanForPatient(
 
         const weekPlan: DayMeals[] = DAYS.map((dayName, dayIndex) => {
             const aiDay = planFromAI[dayIndex] ?? fallbackWeekPlan[dayIndex];
+            // Temporarily disabled: AI ingredient adjustments are ignored until
+            // the response format is stable enough for validation.
 
             const recipeByMeal: Record<MealKey, RecipeSummary | null> = {
                 smoothie: input.includeSmoothie

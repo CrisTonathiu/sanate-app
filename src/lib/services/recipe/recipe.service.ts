@@ -127,15 +127,34 @@ export async function createRecipe(input: CreateRecipeInput) {
                     }
                 });
 
+                const baseUnit = item.unit ?? 'GRAM';
+                const baseQuantity =
+                    item.quantity && item.quantity > 0
+                        ? item.quantity
+                        : baseUnit === 'GRAM'
+                          ? item.grams && item.grams > 0
+                              ? item.grams
+                              : 100
+                          : 1;
                 const baseGrams =
-                    item.grams && item.grams > 0 ? item.grams : 100;
+                    item.grams && item.grams > 0
+                        ? item.grams
+                        : baseUnit === 'GRAM'
+                          ? baseQuantity
+                          : 100;
+
+                const recipeIngredientData = {
+                    recipeId: newRecipe.id,
+                    ingredientId: ingredient.id,
+                    quantity: baseQuantity,
+                    unit: baseUnit,
+                    grams: baseGrams
+                } as unknown as Parameters<
+                    typeof tx.recipeIngredient.create
+                >[0]['data'];
 
                 await tx.recipeIngredient.create({
-                    data: {
-                        recipeId: newRecipe.id,
-                        ingredientId: ingredient.id,
-                        grams: baseGrams
-                    }
+                    data: recipeIngredientData
                 });
             }
 
@@ -226,15 +245,34 @@ export async function updateRecipe(
                         }
                     });
 
+                    const baseUnit = item.unit ?? 'GRAM';
+                    const baseQuantity =
+                        item.quantity && item.quantity > 0
+                            ? item.quantity
+                            : baseUnit === 'GRAM'
+                              ? item.grams && item.grams > 0
+                                  ? item.grams
+                                  : 100
+                              : 1;
                     const baseGrams =
-                        item.grams && item.grams > 0 ? item.grams : 100;
+                        item.grams && item.grams > 0
+                            ? item.grams
+                            : baseUnit === 'GRAM'
+                              ? baseQuantity
+                              : 100;
+
+                    const recipeIngredientData = {
+                        recipeId: validatedRecipeId,
+                        ingredientId: ingredient.id,
+                        quantity: baseQuantity,
+                        unit: baseUnit,
+                        grams: baseGrams
+                    } as unknown as Parameters<
+                        typeof tx.recipeIngredient.create
+                    >[0]['data'];
 
                     await tx.recipeIngredient.create({
-                        data: {
-                            recipeId: validatedRecipeId,
-                            ingredientId: ingredient.id,
-                            grams: baseGrams
-                        }
+                        data: recipeIngredientData
                     });
                 }
             }

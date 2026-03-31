@@ -71,6 +71,58 @@ interface RecipeFormProps {
 
 // --- Helper Functions ---
 const generateId = () => Math.random().toString(36).substring(2, 9);
+type IngredientUnit = 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
+type IngredientUiUnit = 'g' | 'piece' | 'cup' | 'tbsp' | 'tsp' | 'ml' | 'oz';
+
+const UI_TO_DB_UNIT: Record<IngredientUiUnit, IngredientUnit> = {
+    g: 'GRAM',
+    piece: 'PIECE',
+    cup: 'CUP',
+    tbsp: 'TBSP',
+    tsp: 'TSP',
+    ml: 'ML',
+    oz: 'OZ'
+};
+
+const DB_TO_UI_UNIT: Record<IngredientUnit, IngredientUiUnit> = {
+    GRAM: 'g',
+    PIECE: 'piece',
+    CUP: 'cup',
+    TBSP: 'tbsp',
+    TSP: 'tsp',
+    ML: 'ml',
+    OZ: 'oz'
+};
+
+const normalizeUiUnit = (value?: string): IngredientUiUnit => {
+    if (!value) return 'g';
+
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'gram' || normalized === 'gramo' || normalized === 'gramos') {
+        return 'g';
+    }
+
+    if (
+        normalized === 'piece' ||
+        normalized === 'cup' ||
+        normalized === 'tbsp' ||
+        normalized === 'tsp' ||
+        normalized === 'ml' ||
+        normalized === 'oz' ||
+        normalized === 'g'
+    ) {
+        return normalized;
+    }
+
+    const dbUnit = value.toUpperCase() as IngredientUnit;
+    return DB_TO_UI_UNIT[dbUnit] ?? 'g';
+};
+
+const toDbUnit = (value?: string): IngredientUnit => {
+    const uiUnit = normalizeUiUnit(value);
+    return UI_TO_DB_UNIT[uiUnit];
+};
 
 export function RecipeForm(props: RecipeFormProps) {
     const {mode, initialData, isLoading, onSave, onDelete, onCancel} = props;
@@ -116,7 +168,7 @@ export function RecipeForm(props: RecipeFormProps) {
             (acc, ing) => {
                 const gramsUsed = (() => {
                     if (
-                        ing.unit === 'g' &&
+                        normalizeUiUnit(ing.unit) === 'g' &&
                         ing.quantity &&
                         (ing.quantity as number) > 0
                     )
@@ -160,8 +212,8 @@ export function RecipeForm(props: RecipeFormProps) {
                         id: generateId(),
                         foodId: matchedFood?.id,
                         name: matchedFood?.name ?? item.foodId,
-                        quantity: item.grams ?? 100,
-                        unit: 'g',
+                        quantity: item.quantity ?? item.grams ?? 100,
+                        unit: normalizeUiUnit(item.unit),
                         caloriesPer100g: matchedFood?.caloriesPer100g ?? 0,
                         carbohydratesPer100g: matchedFood?.carbsPer100g ?? 0,
                         proteinPer100g: matchedFood?.proteinPer100g ?? 0,
@@ -462,15 +514,22 @@ export function RecipeForm(props: RecipeFormProps) {
 
         const payloadIngredients = ingredients
             .filter(ing => ing.foodId)
-            .map(ing => ({
-                foodId: ing.foodId as string,
-                grams:
-                    ing.unit === 'g' &&
-                    typeof ing.quantity === 'number' &&
-                    ing.quantity > 0
+            .map(ing => {
+                const uiUnit = normalizeUiUnit(ing.unit);
+                const quantity =
+                    typeof ing.quantity === 'number' && ing.quantity > 0
                         ? ing.quantity
-                        : 100
-            }));
+                        : uiUnit === 'g'
+                          ? 100
+                          : 1;
+
+                return {
+                    foodId: ing.foodId as string,
+                    quantity,
+                    unit: toDbUnit(uiUnit),
+                    grams: uiUnit === 'g' ? quantity : 100
+                };
+            });
 
         if (payloadIngredients.length === 0) {
             alert('Agrega al menos un ingrediente.');
