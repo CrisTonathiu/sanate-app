@@ -1,51 +1,26 @@
 'use client';
 
-import {useState} from 'react';
-import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Textarea} from '@/components/ui/textarea';
 import {motion} from 'framer-motion';
-import {Button} from '@/components/ui/button';
-import {useCreateConsultation} from '@/hooks/use-consultations';
 
 interface ConsultationInputsProps {
-    patientId: string;
+    reason: string;
+    setReason: (value: string) => void;
+    diagnosis: string;
+    setDiagnosis: (value: string) => void;
+    notes: string;
+    setNotes: (value: string) => void;
 }
 
 export default function ConsultationInputs({
-    patientId
+    reason,
+    setReason,
+    diagnosis,
+    setDiagnosis,
+    notes,
+    setNotes
 }: ConsultationInputsProps) {
-    const [reason, setReason] = useState('');
-    const [diagnosis, setDiagnosis] = useState('');
-    const [notes, setNotes] = useState('');
-    const [followUpAt, setFollowUpAt] = useState('');
-    const [submitMessage, setSubmitMessage] = useState<string | null>(null);
-
-    const createConsultationMutation = useCreateConsultation();
-
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setSubmitMessage(null);
-
-        try {
-            await createConsultationMutation.mutateAsync({
-                patientId,
-                reason: reason || undefined,
-                diagnosis: diagnosis || undefined,
-                notes: notes || undefined,
-                followUpAt: followUpAt || undefined
-            });
-
-            setSubmitMessage('Consulta guardada correctamente.');
-        } catch (error) {
-            setSubmitMessage(
-                error instanceof Error
-                    ? error.message
-                    : 'No se pudo guardar la consulta.'
-            );
-        }
-    };
-
     return (
         <motion.div
             initial={{opacity: 0, y: 10}}
@@ -55,8 +30,7 @@ export default function ConsultationInputs({
             <h3 className='text-lg font-semibold text-foreground mb-4'>
                 Detalles de la consulta
             </h3>
-
-            <form onSubmit={handleSubmit} className='grid gap-4'>
+            <div className='grid gap-4'>
                 <div className='space-y-2'>
                     <Label htmlFor='reason'>Motivo de consulta</Label>
                     <Textarea
@@ -89,35 +63,7 @@ export default function ConsultationInputs({
                         className='min-h-[60px] resize-none'
                     />
                 </div>
-
-                <div className='space-y-2'>
-                    <Label htmlFor='followup'>Fecha de seguimiento</Label>
-                    <Input
-                        id='followup'
-                        type='date'
-                        value={followUpAt}
-                        onChange={event => setFollowUpAt(event.target.value)}
-                        className='w-full sm:w-auto'
-                    />
-                </div>
-
-                <div className='flex items-center justify-end gap-3 pt-2'>
-                    <Button
-                        type='submit'
-                        disabled={createConsultationMutation.isPending}
-                        className='h-10 rounded-xl'>
-                        {createConsultationMutation.isPending
-                            ? 'Guardando...'
-                            : 'Guardar consulta'}
-                    </Button>
-                </div>
-
-                {submitMessage && (
-                    <p className='text-sm text-muted-foreground'>
-                        {submitMessage}
-                    </p>
-                )}
-            </form>
+            </div>
         </motion.div>
     );
 }

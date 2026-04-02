@@ -16,7 +16,6 @@ import {StepKey} from '@/lib/types/patient-type';
 import PatientSummaryCard from '@/components/widgets/profile-details/PatientSummaryCard';
 import {getAgeFromDateString} from '@/lib/utils';
 import ConsultationInputs from '@/components/widgets/profile-details/ConsultationInputs';
-import {Check, ChevronLeft, ChevronRight} from 'lucide-react';
 import ProtocolConfigCard, {
     GeneratePlanPayload
 } from '@/components/widgets/profile-details/ProtocolConfigCard';
@@ -24,370 +23,13 @@ import {DayMeals} from '@/lib/interface/meal-interface';
 import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPlanner';
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
 import ProtocolPreview from '@/components/widgets/profile-details/ProtocolPreview';
+import {ProtocolDistributionCard} from '@/components/widgets/profile-details/ProtocolDistributionCard';
+import {MealType} from '@/lib/config/meal-config';
+import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
 
 interface ClientPageProps {
     patientId: string;
 }
-
-const INITIAL_WEEK_PLAN: DayMeals[] = [
-    {
-        day: 'Lunes',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '1',
-            recipeName: 'Avena con frutos rojos',
-            imageUrl:
-                'https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=200&h=150&fit=crop',
-            calories: 320,
-            protein: 12
-        },
-        snack: {
-            id: '5',
-            recipeName: 'Almendras y manzana',
-            imageUrl:
-                'https://images.unsplash.com/photo-1570913149827-d2ac84ab3f9a?w=200&h=150&fit=crop',
-            calories: 180,
-            protein: 6
-        },
-        lunch: {
-            id: '8',
-            recipeName: 'Ensalada de pollo a la parrilla',
-            imageUrl:
-                'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=150&fit=crop',
-            calories: 420,
-            protein: 35
-        },
-        dinner: {
-            id: '11',
-            recipeName: 'Salmon con vegetales',
-            imageUrl:
-                'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200&h=150&fit=crop',
-            calories: 450,
-            protein: 38
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    },
-    {
-        day: 'Martes',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '2',
-            recipeName: 'Parfait de yogur griego',
-            imageUrl:
-                'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=200&h=150&fit=crop',
-            calories: 280,
-            protein: 18
-        },
-        snack: {
-            id: '6',
-            recipeName: 'Hummus con vegetales',
-            imageUrl:
-                'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        lunch: {
-            id: '9',
-            recipeName: 'Bowl de quinoa estilo Buddha',
-            imageUrl:
-                'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=150&fit=crop',
-            calories: 480,
-            protein: 18
-        },
-        dinner: {
-            id: '12',
-            recipeName: 'Salteado de carne magra',
-            imageUrl:
-                'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=200&h=150&fit=crop',
-            calories: 520,
-            protein: 32
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    },
-    {
-        day: 'Miércoles',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '3',
-            recipeName: 'Tostada de aguacate',
-            imageUrl:
-                'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=200&h=150&fit=crop',
-            calories: 350,
-            protein: 14
-        },
-        snack: {
-            id: '7',
-            recipeName: 'Barra de proteina',
-            imageUrl:
-                'https://images.unsplash.com/photo-1622484212850-eb596d769edc?w=200&h=150&fit=crop',
-            calories: 200,
-            protein: 15
-        },
-        lunch: {
-            id: '10',
-            recipeName: 'Wrap de pavo',
-            imageUrl:
-                'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=200&h=150&fit=crop',
-            calories: 380,
-            protein: 28
-        },
-        dinner: {
-            id: '13',
-            recipeName: 'Tacos de pescado a la parrilla',
-            imageUrl:
-                'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=200&h=150&fit=crop',
-            calories: 380,
-            protein: 28
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    },
-    {
-        day: 'Jueves',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '4',
-            recipeName: 'Bowl de batido',
-            imageUrl:
-                'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=200&h=150&fit=crop',
-            calories: 290,
-            protein: 8
-        },
-        snack: {
-            id: '5',
-            recipeName: 'Almendras y manzana',
-            imageUrl:
-                'https://images.unsplash.com/photo-1570913149827-d2ac84ab3f9a?w=200&h=150&fit=crop',
-            calories: 180,
-            protein: 6
-        },
-        lunch: {
-            id: '8',
-            recipeName: 'Ensalada de pollo a la parrilla',
-            imageUrl:
-                'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=150&fit=crop',
-            calories: 420,
-            protein: 35
-        },
-        dinner: {
-            id: '11',
-            recipeName: 'Salmon con vegetales',
-            imageUrl:
-                'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200&h=150&fit=crop',
-            calories: 450,
-            protein: 38
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    },
-    {
-        day: 'Viernes',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '1',
-            recipeName: 'Avena con frutos rojos',
-            imageUrl:
-                'https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=200&h=150&fit=crop',
-            calories: 320,
-            protein: 12
-        },
-        snack: {
-            id: '6',
-            recipeName: 'Hummus con vegetales',
-            imageUrl:
-                'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        lunch: {
-            id: '9',
-            recipeName: 'Bowl de quinoa estilo Buddha',
-            imageUrl:
-                'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200&h=150&fit=crop',
-            calories: 480,
-            protein: 18
-        },
-        dinner: {
-            id: '12',
-            recipeName: 'Salteado de carne magra',
-            imageUrl:
-                'https://images.unsplash.com/photo-1603360946369-dc9bb6258143?w=200&h=150&fit=crop',
-            calories: 520,
-            protein: 32
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    },
-    {
-        day: 'Sábado',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '2',
-            recipeName: 'Parfait de yogur griego',
-            imageUrl:
-                'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=200&h=150&fit=crop',
-            calories: 280,
-            protein: 18
-        },
-        snack: {
-            id: '7',
-            recipeName: 'Barra de proteina',
-            imageUrl:
-                'https://images.unsplash.com/photo-1622484212850-eb596d769edc?w=200&h=150&fit=crop',
-            calories: 200,
-            protein: 15
-        },
-        lunch: {
-            id: '10',
-            recipeName: 'Wrap de pavo',
-            imageUrl:
-                'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=200&h=150&fit=crop',
-            calories: 380,
-            protein: 28
-        },
-        dinner: {
-            id: '13',
-            recipeName: 'Tacos de pescado a la parrilla',
-            imageUrl:
-                'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=200&h=150&fit=crop',
-            calories: 380,
-            protein: 28
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    },
-    {
-        day: 'Domingo',
-        smoothie: {
-            id: '0',
-            recipeName: 'Smoothie de frutas',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 150,
-            protein: 5
-        },
-        breakfast: {
-            id: '3',
-            recipeName: 'Tostada de aguacate',
-            imageUrl:
-                'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=200&h=150&fit=crop',
-            calories: 350,
-            protein: 14
-        },
-        snack: {
-            id: '5',
-            recipeName: 'Almendras y manzana',
-            imageUrl:
-                'https://images.unsplash.com/photo-1570913149827-d2ac84ab3f9a?w=200&h=150&fit=crop',
-            calories: 180,
-            protein: 6
-        },
-        lunch: {
-            id: '8',
-            recipeName: 'Ensalada de pollo a la parrilla',
-            imageUrl:
-                'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=150&fit=crop',
-            calories: 420,
-            protein: 35
-        },
-        dinner: {
-            id: '11',
-            recipeName: 'Salmon con vegetales',
-            imageUrl:
-                'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200&h=150&fit=crop',
-            calories: 450,
-            protein: 38
-        },
-        drinks: {
-            id: '14',
-            recipeName: 'Agua con limón',
-            imageUrl:
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=150&fit=crop',
-            calories: 0,
-            protein: 0
-        }
-    }
-];
 
 export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const router = useRouter();
@@ -397,38 +39,28 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const {data: conditions = [], isPending: isPendingConditions} =
         useGetPatientConditions(patientId);
 
+    // Consultation State
+    const [reason, setReason] = useState<string>('');
+    const [diagnosis, setDiagnosis] = useState<string>('');
+    const [notes, setNotes] = useState<string>('');
+
+    const [planCalories, setPlanCalories] = useState<number>(0);
+
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [recipeModalOpen, setRecipeModalOpen] = useState<boolean>(false);
-    const [includeSmoothie, setIncludeSmoothie] = useState<boolean>(false);
-    const [includeDrinks, setIncludeDrinks] = useState<boolean>(false);
 
-    const [weekPlan, setWeekPlan] = useState<DayMeals[]>(INITIAL_WEEK_PLAN);
+    const [weekPlan, setWeekPlan] = useState<DayMeals[]>([]);
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
 
     const [selectedDayMeal, setSelectedDayMeal] = useState<{
         day: string;
-        mealType:
-            | 'smoothie'
-            | 'breakfast'
-            | 'snack'
-            | 'lunch'
-            | 'dinner'
-            | 'drinks';
+        mealType: MealType;
     } | null>(null);
 
     const maxStep = isFirstConsultation ? 5 : 3;
 
-    const handleOpenRecipeModal = (
-        day: string,
-        mealType:
-            | 'smoothie'
-            | 'breakfast'
-            | 'snack'
-            | 'lunch'
-            | 'dinner'
-            | 'drinks'
-    ) => {
+    const handleOpenRecipeModal = (day: string, mealType: MealType) => {
         setSelectedDayMeal({day, mealType});
         setRecipeModalOpen(true);
     };
@@ -454,28 +86,44 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                 allergies={allergies}
                                 conditions={conditions}
                             />
-                            <ConsultationInputs patientId={patientId} />
+                            <ConsultationInputs
+                                reason={reason}
+                                setReason={setReason}
+                                diagnosis={diagnosis}
+                                setDiagnosis={setDiagnosis}
+                                notes={notes}
+                                setNotes={setNotes}
+                            />
                         </div>
                     );
                 case 2:
                     return (
                         <ProtocolConfigCard
-                            onGeneratePlan={handleGeneratePlan}
-                            isGenerating={isGenerating}
+                            height={patient.height || 0}
+                            age={getAgeFromDateString(patient.birthDate) || 0}
+                            gender={patient.gender as 'MALE' | 'FEMALE'}
+                            planCalories={planCalories}
+                            setPlanCalories={setPlanCalories}
                         />
                     );
                 case 3:
                     return (
-                        <WeeklyMealPlanner
-                            weekPlan={weekPlan}
-                            onOpenRecipeModal={handleOpenRecipeModal}
-                            includeSmoothie={includeSmoothie}
-                            includeDrinks={includeDrinks}
+                        <ProtocolDistributionCard
+                            isGenerating={isGenerating}
+                            planCalories={planCalories}
+                            onGeneratePlan={handleGeneratePlan}
                         />
                     );
                 case 4:
-                    return <RecommendationsCard />;
+                    return (
+                        <WeeklyMealPlanner
+                            weekPlan={weekPlan}
+                            onOpenRecipeModal={handleOpenRecipeModal}
+                        />
+                    );
                 case 5:
+                    return <RecommendationsCard />;
+                case 6:
                     return (
                         <ProtocolPreview
                             weekPlan={weekPlan}
@@ -502,7 +150,14 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                 allergies={allergies}
                                 conditions={conditions}
                             />
-                            <ConsultationInputs patientId={patientId} />
+                            <ConsultationInputs
+                                reason={reason}
+                                setReason={setReason}
+                                diagnosis={diagnosis}
+                                setDiagnosis={setDiagnosis}
+                                notes={notes}
+                                setNotes={setNotes}
+                            />
                         </div>
                     );
             }
@@ -523,8 +178,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const handleGeneratePlan = async (payload: GeneratePlanPayload) => {
         setIsGenerating(true);
-        setIncludeSmoothie(payload.includeSmoothie ?? false);
-        setIncludeDrinks(payload.includeDrinks ?? false);
 
         try {
             const response = await fetch(
@@ -589,7 +242,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     }
 
     return (
-        <div className='relative mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8'>
+        <div className='relative mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 pb-30'>
             {/* Patient Breadcrumb */}
             <PatientBreadcrumb
                 patientId={patientId}
@@ -637,36 +290,14 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     {renderStepContent()}
                 </motion.div>
             </AnimatePresence>
-
             {/* Navigation */}
-            <motion.div
-                initial={{opacity: 0, y: 10}}
-                animate={{opacity: 1, y: 0}}
-                transition={{delay: 0.2}}
-                className='flex justify-between mt-8 pt-6 border-t border-border'>
-                <Button
-                    variant='outline'
-                    onClick={prevStep}
-                    disabled={currentStep === 1}
-                    className='h-11 px-6 rounded-xl'>
-                    <ChevronLeft className='mr-2 h-4 w-4' />
-                    Anterior
-                </Button>
-
-                {currentStep < maxStep ? (
-                    <Button onClick={nextStep} className='h-11 px-6 rounded-xl'>
-                        Siguiente paso
-                        <ChevronRight className='ml-2 h-4 w-4' />
-                    </Button>
-                ) : (
-                    <Button className='h-11 px-6 rounded-xl'>
-                        <Check className='mr-2 h-4 w-4' />
-                        {isFirstConsultation
-                            ? 'Completar protocolo'
-                            : 'Completar cambios'}
-                    </Button>
-                )}
-            </motion.div>
+            <ProtocolNavigation
+                currentStep={currentStep}
+                maxStep={maxStep}
+                isFirstConsultation={isFirstConsultation}
+                nextStep={nextStep}
+                prevStep={prevStep}
+            />
         </div>
     );
 }

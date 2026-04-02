@@ -2,6 +2,7 @@
 
 import DesktopSidebar from '@/components/layout/DesktopSidebar';
 import Header from '@/components/layout/Header';
+import {SidebarProvider, useSidebar} from '@/lib/context/sidebar-context';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
 import React from 'react';
@@ -10,8 +11,8 @@ type MainProps = {
     children: React.ReactNode;
 };
 
-export default function Main({children}: MainProps) {
-    const [sidebarOpen, setSidebarOpen] = React.useState<boolean>(true);
+function MainContent({children}: {children: React.ReactNode}) {
+    const {sidebarOpen, setSidebarOpen} = useSidebar();
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
     return (
         <div className='relative min-h-screen overflow-hidden bg-background'>
@@ -51,5 +52,13 @@ export default function Main({children}: MainProps) {
                 <main className='flex-1'>{children}</main>
             </div>
         </div>
+    );
+}
+
+export default function Main({children}: MainProps) {
+    return (
+        <SidebarProvider>
+            <MainContent>{children}</MainContent>
+        </SidebarProvider>
     );
 }

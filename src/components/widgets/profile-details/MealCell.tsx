@@ -1,6 +1,7 @@
 'use client';
 
 import {Button} from '@/components/ui/button';
+import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
 import {Coffee, Apple, Sun, Moon, Replace, Pencil} from 'lucide-react';
 
@@ -11,20 +12,15 @@ export default function MealCell({
     onEdit
 }: {
     meal: MealSlot;
-    mealType:
-        | 'smoothie'
-        | 'breakfast'
-        | 'snack'
-        | 'lunch'
-        | 'dinner'
-        | 'drinks';
+    mealType: MealType;
     onReplace: () => void;
     onEdit: () => void;
 }) {
     const mealIcons = {
         smoothie: Coffee,
         breakfast: Coffee,
-        snack: Apple,
+        snack1: Apple,
+        snack2: Apple,
         lunch: Sun,
         dinner: Moon,
         drinks: Coffee

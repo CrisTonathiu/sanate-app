@@ -40,7 +40,8 @@ export interface DayMeals {
     day: string;
     smoothie: MealSlot;
     breakfast: MealSlot;
-    snack: MealSlot;
+    snack1: MealSlot;
+    snack2: MealSlot;
     lunch: MealSlot;
     dinner: MealSlot;
     drinks: MealSlot;

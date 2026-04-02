@@ -13,6 +13,6 @@ export type PatientProfile = {
 export type Patient = User & PatientProfile;
 
 // --- Types ---
-type CreateModeStep = 1 | 2 | 3 | 4 | 5;
+type CreateModeStep = 1 | 2 | 3 | 4 | 5 | 6;
 type EditModeStep = 1 | 2 | 3;
 export type StepKey = CreateModeStep | EditModeStep;
