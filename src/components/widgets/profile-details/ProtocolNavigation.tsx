@@ -2,7 +2,7 @@ import {Button} from '@/components/ui/button';
 import {useSidebar} from '@/lib/context/sidebar-context';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
-import {Check, ChevronLeft, ChevronRight} from 'lucide-react';
+import {Check, ChevronLeft, ChevronRight, Loader2} from 'lucide-react';
 
 interface ProtocolNavigationProps {
     currentStep: number;
@@ -10,6 +10,7 @@ interface ProtocolNavigationProps {
     isFirstConsultation: boolean;
     nextStep: () => void;
     prevStep: () => void;
+    isGenerating?: boolean;
 }
 
 export function ProtocolNavigation({
@@ -17,7 +18,8 @@ export function ProtocolNavigation({
     maxStep,
     isFirstConsultation,
     nextStep,
-    prevStep
+    prevStep,
+    isGenerating = false
 }: ProtocolNavigationProps) {
     const {sidebarOpen} = useSidebar();
 
@@ -41,9 +43,21 @@ export function ProtocolNavigation({
                 </Button>
 
                 {currentStep < maxStep ? (
-                    <Button onClick={nextStep} className='h-11 px-6 rounded-xl'>
-                        Siguiente paso
-                        <ChevronRight className='ml-2 h-4 w-4' />
+                    <Button
+                        onClick={nextStep}
+                        disabled={isGenerating}
+                        className='h-11 px-6 rounded-xl'>
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                Generando plan...
+                            </>
+                        ) : (
+                            <>
+                                Siguiente paso
+                                <ChevronRight className='ml-2 h-4 w-4' />
+                            </>
+                        )}
                     </Button>
                 ) : (
                     <Button className='h-11 px-6 rounded-xl'>

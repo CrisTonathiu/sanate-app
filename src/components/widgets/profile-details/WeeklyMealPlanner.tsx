@@ -16,6 +16,7 @@ export default function WeeklyMealPlanner({
     onOpenRecipeModal
 }: WeeklyMealPlannerProps) {
     const [enabledMeals, setEnabledMeals] = useState(DEFAULT_ENABLED_MEALS);
+
     return (
         <motion.div
             initial={{opacity: 0, y: 10}}

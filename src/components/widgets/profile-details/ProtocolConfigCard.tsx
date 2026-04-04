@@ -14,9 +14,6 @@ import {Separator} from '@/components/ui/separator';
 import {calculateGEB, calculateGEBMifflin} from '@/lib/helpers';
 import {motion} from 'framer-motion';
 import {useEffect, useMemo, useState} from 'react';
-export interface GeneratePlanPayload {
-    planCalories: number;
-}
 
 interface ProtocolConfigCardProps {
     height: number;
@@ -24,6 +21,16 @@ interface ProtocolConfigCardProps {
     gender: 'MALE' | 'FEMALE';
     planCalories: number;
     setPlanCalories: (calories: number) => void;
+    macroPercents: {
+        carbs: number;
+        protein: number;
+        fat: number;
+    };
+    setMacroPercents: (percents: {
+        carbs: number;
+        protein: number;
+        fat: number;
+    }) => void;
 }
 
 const PROTEIN_PER_KG_MULTIPLIER = 4;
@@ -35,17 +42,22 @@ export default function ProtocolConfigCard({
     age,
     gender,
     planCalories,
-    setPlanCalories
+    setPlanCalories,
+    macroPercents,
+    setMacroPercents
 }: ProtocolConfigCardProps) {
     const [weight, setWeight] = useState(76.0);
     const [activityLevel, setActivityLevel] = useState<any>('moderado');
     const [formula, setFormula] = useState<'mifflin' | 'harris'>('mifflin');
 
     // Macronutrient percentages
-    const [carbsPercent, setCarbsPercent] = useState(45);
-    const [proteinPercent, setProteinPercent] = useState(35);
-    const [fatsPercent, setFatsPercent] = useState(20);
-    const macroPercentTotal = carbsPercent + proteinPercent + fatsPercent;
+    const {
+        carbs: carbsPercent,
+        protein: proteinPercent,
+        fat: fatPercent
+    } = macroPercents;
+
+    const macroPercentTotal = carbsPercent + proteinPercent + fatPercent;
     const isMacroPercentValid = macroPercentTotal === 100;
 
     useEffect(() => {
@@ -59,14 +71,14 @@ export default function ProtocolConfigCard({
     const proteinGrams =
         (planCalories * (proteinPercent / 100)) / PROTEIN_PER_KG_MULTIPLIER;
     const proteinKcal = proteinGrams * PROTEIN_PER_KG_MULTIPLIER;
-    const fatsGrams =
-        (planCalories * (fatsPercent / 100)) / FATS_PER_KG_MULTIPLIER;
-    const fatsKcal = fatsGrams * FATS_PER_KG_MULTIPLIER;
+    const fatGrams =
+        (planCalories * (fatPercent / 100)) / FATS_PER_KG_MULTIPLIER;
+    const fatKcal = fatGrams * FATS_PER_KG_MULTIPLIER;
 
     // Per kg calculations
     const carbsPerKg = carbsGrams / weight;
     const proteinPerKg = proteinGrams / weight;
-    const fatsPerKg = fatsGrams / weight;
+    const fatPerKg = fatGrams / weight;
 
     // Activity factor mapping
     const activityFactors: Record<any, {label: string; factor: number}> = {
@@ -296,9 +308,12 @@ export default function ProtocolConfigCard({
                                         type='number'
                                         value={carbsPercent}
                                         onChange={e =>
-                                            setCarbsPercent(
-                                                parseInt(e.target.value) || 0
-                                            )
+                                            setMacroPercents({
+                                                ...macroPercents,
+                                                carbs:
+                                                    parseInt(e.target.value) ||
+                                                    0
+                                            })
                                         }
                                         className='bg-secondary/30 border-border pr-6'
                                     />
@@ -342,9 +357,12 @@ export default function ProtocolConfigCard({
                                         type='number'
                                         value={proteinPercent}
                                         onChange={e =>
-                                            setProteinPercent(
-                                                parseInt(e.target.value) || 0
-                                            )
+                                            setMacroPercents({
+                                                ...macroPercents,
+                                                protein:
+                                                    parseInt(e.target.value) ||
+                                                    0
+                                            })
                                         }
                                         className='bg-secondary/30 border-border pr-6'
                                     />
@@ -386,11 +404,14 @@ export default function ProtocolConfigCard({
                                 <div className='relative'>
                                     <Input
                                         type='number'
-                                        value={fatsPercent}
+                                        value={fatPercent}
                                         onChange={e =>
-                                            setFatsPercent(
-                                                parseInt(e.target.value) || 0
-                                            )
+                                            setMacroPercents({
+                                                ...macroPercents,
+                                                fat:
+                                                    parseInt(e.target.value) ||
+                                                    0
+                                            })
                                         }
                                         className='bg-secondary/30 border-border pr-6'
                                     />
@@ -401,7 +422,7 @@ export default function ProtocolConfigCard({
                                 <div className='relative'>
                                     <Input
                                         type='number'
-                                        value={fatsGrams.toFixed(1)}
+                                        value={fatGrams.toFixed(1)}
                                         readOnly
                                         className='bg-secondary/20 border-border pr-6 text-muted-foreground'
                                     />
@@ -412,7 +433,7 @@ export default function ProtocolConfigCard({
                                 <div className='relative'>
                                     <Input
                                         type='number'
-                                        value={fatsKcal.toFixed(0)}
+                                        value={fatKcal.toFixed(0)}
                                         readOnly
                                         className='bg-secondary/20 border-border pr-8 text-muted-foreground'
                                     />
@@ -459,12 +480,12 @@ export default function ProtocolConfigCard({
                             </div>
                             <div className='flex items-center justify-between'>
                                 <span className='text-sm text-muted-foreground'>
-                                    Grasas ({fatsGrams.toFixed(2)} gr.) / Peso (
+                                    Grasas ({fatGrams.toFixed(2)} gr.) / Peso (
                                     {weight} kg.) =
                                 </span>
                                 <Input
                                     type='number'
-                                    value={fatsPerKg.toFixed(2)}
+                                    value={fatPerKg.toFixed(2)}
                                     readOnly
                                     className='w-24 bg-secondary/20 border-border text-right'
                                 />

@@ -23,7 +23,18 @@ export const generateProtocolPlanSchema = z.object({
     activityLevel: activityLevelSchema.default('moderado'),
     weightKg: z.number().min(20).max(400).optional(),
     includeSmoothie: z.boolean().optional().default(false),
-    includeDrinks: z.boolean().optional().default(false)
+    includeDrinks: z.boolean().optional().default(false),
+    planCalories: z.number().min(500).max(6000).optional(),
+    macroPercents: z
+        .object({
+            protein: z.number().min(5).max(70),
+            carbs: z.number().min(5).max(80),
+            fat: z.number().min(5).max(70)
+        })
+        .optional(),
+    mealDistribution: z
+        .record(z.string(), z.number().min(0).max(100))
+        .optional()
 });
 
 export type GenerateProtocolPlanInput = z.infer<

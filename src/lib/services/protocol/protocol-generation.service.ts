@@ -13,7 +13,8 @@ import {ZodError, z} from 'zod';
 type MealKey =
     | 'smoothie'
     | 'breakfast'
-    | 'snack'
+    | 'snack1'
+    | 'snack2'
     | 'lunch'
     | 'dinner'
     | 'drinks';
@@ -79,7 +80,8 @@ const DAYS = [
 const MEAL_ORDER: MealKey[] = [
     'smoothie',
     'breakfast',
-    'snack',
+    'snack1',
+    'snack2',
     'lunch',
     'dinner',
     'drinks'
@@ -95,7 +97,8 @@ const REQUIRED_MEAL_ORDER: MealKey[] = [
 const MEAL_CALORIE_SPLIT: Record<MealKey, number> = {
     smoothie: 0.1,
     breakfast: 0.2,
-    snack: 0.1,
+    snack1: 0.1,
+    snack2: 0.1,
     lunch: 0.3,
     dinner: 0.25,
     drinks: 0.05
@@ -115,7 +118,8 @@ const AI_RESPONSE_SCHEMA = z.object({
             day: z.string(),
             meals: z.object({
                 breakfast: z.string(),
-                snack: z.string(),
+                snack1: z.string().optional(),
+                snack2: z.string().optional(),
                 lunch: z.string(),
                 dinner: z.string(),
                 smoothie: z.string().optional(),
@@ -129,6 +133,17 @@ const AI_RESPONSE_SCHEMA = z.object({
 });
 
 function getActiveMealOrder(input: GenerateProtocolPlanInput): MealKey[] {
+    if (input.mealDistribution) {
+        const enabledUiKeys = Object.entries(input.mealDistribution)
+            .filter(([, pct]) => pct > 0)
+            .map(([k]) => k);
+        const serviceKeys = new Set<MealKey>();
+        for (const k of enabledUiKeys) {
+            if (MEAL_ORDER.includes(k as MealKey))
+                serviceKeys.add(k as MealKey);
+        }
+        return MEAL_ORDER.filter(k => serviceKeys.has(k));
+    }
     return MEAL_ORDER.filter(mealKey => {
         if (REQUIRED_MEAL_ORDER.includes(mealKey)) return true;
         if (mealKey === 'smoothie') return input.includeSmoothie;
@@ -141,7 +156,8 @@ function mapMealKeyToEnum(mealKey: MealKey): MealType {
     const map: Record<MealKey, MealType> = {
         smoothie: 'SMOOTHIE',
         breakfast: 'BREAKFAST',
-        snack: 'SNACK',
+        snack1: 'SNACK1',
+        snack2: 'SNACK2',
         lunch: 'LUNCH',
         dinner: 'DINNER',
         drinks: 'DRINKS'
@@ -395,7 +411,8 @@ function buildMealCatalog(recipes: RecipeSummary[]) {
     const catalog: Record<MealKey, RecipeSummary[]> = {
         smoothie: [],
         breakfast: [],
-        snack: [],
+        snack1: [],
+        snack2: [],
         lunch: [],
         dinner: [],
         drinks: []
@@ -404,7 +421,8 @@ function buildMealCatalog(recipes: RecipeSummary[]) {
     for (const recipe of recipes) {
         if (recipe.mealType === 'SMOOTHIE') catalog.smoothie.push(recipe);
         if (recipe.mealType === 'BREAKFAST') catalog.breakfast.push(recipe);
-        if (recipe.mealType === 'SNACK') catalog.snack.push(recipe);
+        if (recipe.mealType === 'SNACK1') catalog.snack1.push(recipe);
+        if (recipe.mealType === 'SNACK2') catalog.snack2.push(recipe);
         if (recipe.mealType === 'LUNCH') catalog.lunch.push(recipe);
         if (recipe.mealType === 'DINNER') catalog.dinner.push(recipe);
         if (recipe.mealType === 'DRINKS') catalog.drinks.push(recipe);
@@ -817,6 +835,15 @@ export async function generateProtocolPlanForPatient(
             }
         });
 
+        console.info('[protocol.generate] Datos del paciente obtenidos', {
+            patientId,
+            name: patient
+                ? `${patient.user.firstName} ${patient.user.lastName}`
+                : 'Paciente no encontrado',
+            allergiesCount: patient?.allergies.length ?? 0,
+            conditionsCount: patient?.conditions.length ?? 0
+        });
+
         if (!patient) {
             console.warn('[protocol.generate] Paciente no encontrado', {
                 patientId
@@ -851,6 +878,13 @@ export async function generateProtocolPlanForPatient(
                 extraIngredients: true
             }
         });
+
+        console.info(
+            '[protocol.generate] Recetas obtenidas de la base de datos',
+            {
+                totalRecipes: recipesFromDb.length
+            }
+        );
 
         const allowedRecipes: RecipeSummary[] = recipesFromDb
             .filter(recipe => isRecipeAllowed(recipe, allergyNames))
@@ -960,16 +994,20 @@ export async function generateProtocolPlanForPatient(
             activityLevel: input.activityLevel
         });
 
-        const dailyCalories = aiData?.dailyCalories ?? inferredCalories;
+        const dailyCalories =
+            input.planCalories ?? aiData?.dailyCalories ?? inferredCalories;
 
         console.info('[protocol.generate] Calorias objetivo calculadas', {
+            fromUser: typeof input.planCalories === 'number',
             fromAI: typeof aiData?.dailyCalories === 'number',
             inferredCalories,
             selectedDailyCalories: dailyCalories
         });
 
         const macroPercents =
-            aiData?.macroPercents ?? getDefaultMacroPercent(input.goal);
+            input.macroPercents ??
+            aiData?.macroPercents ??
+            getDefaultMacroPercent(input.goal);
         const percentTotal =
             macroPercents.protein + macroPercents.carbs + macroPercents.fat;
 
@@ -982,6 +1020,24 @@ export async function generateProtocolPlanForPatient(
             ),
             fat: Number(((macroPercents.fat / percentTotal) * 100).toFixed(1))
         };
+
+        // Build per-meal calorie fractions from user-defined distribution
+        const mealCalorieSplit: Record<MealKey, number> = {
+            ...MEAL_CALORIE_SPLIT
+        };
+        if (input.mealDistribution) {
+            const dist = input.mealDistribution;
+            // Reset all to 0 then apply user values
+            (Object.keys(mealCalorieSplit) as MealKey[]).forEach(
+                k => (mealCalorieSplit[k] = 0)
+            );
+            for (const [uiKey, pct] of Object.entries(dist)) {
+                const key = uiKey as MealKey;
+                if (key in mealCalorieSplit) {
+                    mealCalorieSplit[key] = pct / 100;
+                }
+            }
+        }
 
         const fallbackWeekPlan = buildFallbackWeekPlan(
             catalog,
@@ -997,8 +1053,15 @@ export async function generateProtocolPlanForPatient(
             // Temporarily disabled: AI ingredient adjustments are ignored until
             // the response format is stable enough for validation.
 
+            const isSmoothieActive = input.mealDistribution
+                ? (input.mealDistribution.smoothie ?? 0) > 0
+                : input.includeSmoothie;
+            const isDrinksActive = input.mealDistribution
+                ? (input.mealDistribution.drinks ?? 0) > 0
+                : input.includeDrinks;
+
             const recipeByMeal: Record<MealKey, RecipeSummary | null> = {
-                smoothie: input.includeSmoothie
+                smoothie: isSmoothieActive
                     ? pickRecipeById(
                           catalog,
                           'smoothie',
@@ -1012,10 +1075,16 @@ export async function generateProtocolPlanForPatient(
                     aiDay.meals.breakfast,
                     dayIndex
                 ),
-                snack: pickRecipeById(
+                snack1: pickRecipeById(
                     catalog,
-                    'snack',
-                    aiDay.meals.snack,
+                    'snack1',
+                    aiDay.meals.snack1,
+                    dayIndex
+                ),
+                snack2: pickRecipeById(
+                    catalog,
+                    'snack2',
+                    aiDay.meals.snack2,
                     dayIndex
                 ),
                 lunch: pickRecipeById(
@@ -1030,7 +1099,7 @@ export async function generateProtocolPlanForPatient(
                     aiDay.meals.dinner,
                     dayIndex
                 ),
-                drinks: input.includeDrinks
+                drinks: isDrinksActive
                     ? pickRecipeById(
                           catalog,
                           'drinks',
@@ -1044,31 +1113,35 @@ export async function generateProtocolPlanForPatient(
                 day: dayName,
                 smoothie: toMealSlot(
                     recipeByMeal.smoothie,
-                    dailyCalories * MEAL_CALORIE_SPLIT.smoothie,
-                    input.includeSmoothie
+                    dailyCalories * mealCalorieSplit.smoothie,
+                    isSmoothieActive
                         ? 'Sin batido asignado'
                         : 'Batido no incluido'
                 ),
                 breakfast: toMealSlot(
                     recipeByMeal.breakfast,
-                    dailyCalories * MEAL_CALORIE_SPLIT.breakfast
+                    dailyCalories * mealCalorieSplit.breakfast
                 ),
-                snack: toMealSlot(
-                    recipeByMeal.snack,
-                    dailyCalories * MEAL_CALORIE_SPLIT.snack
+                snack1: toMealSlot(
+                    recipeByMeal.snack1,
+                    dailyCalories * mealCalorieSplit.snack1
+                ),
+                snack2: toMealSlot(
+                    recipeByMeal.snack2,
+                    dailyCalories * mealCalorieSplit.snack2
                 ),
                 lunch: toMealSlot(
                     recipeByMeal.lunch,
-                    dailyCalories * MEAL_CALORIE_SPLIT.lunch
+                    dailyCalories * mealCalorieSplit.lunch
                 ),
                 dinner: toMealSlot(
                     recipeByMeal.dinner,
-                    dailyCalories * MEAL_CALORIE_SPLIT.dinner
+                    dailyCalories * mealCalorieSplit.dinner
                 ),
                 drinks: toMealSlot(
                     recipeByMeal.drinks,
-                    dailyCalories * MEAL_CALORIE_SPLIT.drinks,
-                    input.includeDrinks
+                    dailyCalories * mealCalorieSplit.drinks,
+                    isDrinksActive
                         ? 'Sin bebida asignada'
                         : 'Bebida no incluida'
                 )

@@ -1,61 +1,33 @@
 'use client';
 
-import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
 import {cn} from '@/lib/utils';
 import {AnimatePresence, motion} from 'framer-motion';
-import {
-    AlertCircle,
-    Check,
-    Loader2,
-    Percent,
-    PieChart,
-    Plus,
-    Sparkles,
-    X
-} from 'lucide-react';
-import {useState} from 'react';
-import {GeneratePlanPayload} from './ProtocolConfigCard';
+import {AlertCircle, Check, Percent, PieChart, Plus, X} from 'lucide-react';
+import React from 'react';
 
 interface ProtocolDistributionCardProps {
-    isGenerating: boolean;
     planCalories: number;
-    onGeneratePlan: (payload: GeneratePlanPayload) => void;
+    enabledMeals: Record<MealType, boolean>;
+    setEnabledMeals: React.Dispatch<
+        React.SetStateAction<Record<MealType, boolean>>
+    >;
+    mealPercentages: Record<MealType, number>;
+    setMealPercentages: React.Dispatch<
+        React.SetStateAction<Record<MealType, number>>
+    >;
 }
 
 export function ProtocolDistributionCard({
-    isGenerating,
     planCalories,
-    onGeneratePlan
+    enabledMeals,
+    setEnabledMeals,
+    mealPercentages,
+    setMealPercentages
 }: ProtocolDistributionCardProps) {
-    // Enabled meals state
-    const [enabledMeals, setEnabledMeals] = useState<Record<MealType, boolean>>(
-        {
-            breakfast: true,
-            snack1: false,
-            lunch: true,
-            dinner: true,
-            snack2: false,
-            smoothie: false,
-            drinks: false
-        }
-    );
-
-    // Meal distribution percentages (default: snack ~11%, rest divided equally ~29.67% each)
-    const [mealPercentages, setMealPercentages] = useState<
-        Record<MealType, number>
-    >({
-        breakfast: 35,
-        snack1: 0,
-        lunch: 35,
-        dinner: 30,
-        snack2: 0,
-        smoothie: 0,
-        drinks: 0
-    });
     // Check if distribution is valid (totals 100%)
     const enabledMealsList = Object.entries(enabledMeals)
         .filter(([, enabled]) => enabled)
@@ -80,64 +52,37 @@ export function ProtocolDistributionCard({
         }));
     };
 
-    const recalculatePercentages = (mealType: MealType) => {
-        const enabledCount = Object.values(enabledMeals).filter(Boolean).length;
-        if (enabledCount === 0) return;
-
-        const equalPercentage = Math.round(100 / enabledCount);
-        const newPercentages: Record<MealType, number> = {} as any;
-
-        Object.keys(enabledMeals).forEach(key => {
-            if (enabledMeals[key as MealType]) {
-                newPercentages[key as MealType] = equalPercentage;
-            } else {
-                newPercentages[key as MealType] = 0;
-            }
-        });
-
-        setMealPercentages(newPercentages);
-    };
-
     // Add a meal type
     const onAddMealType = (mealType: MealType) => {
         if (enabledMeals[mealType]) return;
-
-        console.log('Adding meal type:', mealType);
-
-        setEnabledMeals(prev => ({
-            ...prev,
-            [mealType]: true
-        }));
-
-        // Recalculate percentages
-        recalculatePercentages(mealType);
+        const newEnabled = {...enabledMeals, [mealType]: true};
+        setEnabledMeals(newEnabled);
+        const enabledKeys = Object.keys(newEnabled).filter(
+            k => newEnabled[k as MealType]
+        );
+        const equalPct = Math.round(100 / enabledKeys.length);
+        const newPcts: Record<MealType, number> = {} as any;
+        Object.keys(newEnabled).forEach(k => {
+            newPcts[k as MealType] = newEnabled[k as MealType] ? equalPct : 0;
+        });
+        setMealPercentages(newPcts);
     };
 
     // Remove a meal type
     const onRemoveMealType = (mealType: MealType) => {
         if (!enabledMeals[mealType]) return;
-
-        console.log('Removing meal type:', mealType);
-
-        setEnabledMeals(prev => ({
-            ...prev,
-            [mealType]: false
-        }));
-
-        // Recalculate percentages
-        recalculatePercentages(mealType);
-    };
-
-    const handleEnabledMealsChange = (
-        newEnabledMeals: typeof enabledMeals
-    ) => {};
-
-    const submitGeneration = () => {
-        if (planCalories < 0) {
-            return;
-        }
-
-        onGeneratePlan({planCalories});
+        const newEnabled = {...enabledMeals, [mealType]: false};
+        setEnabledMeals(newEnabled);
+        const enabledKeys = Object.keys(newEnabled).filter(
+            k => newEnabled[k as MealType]
+        );
+        if (enabledKeys.length === 0) return;
+        const equalPct = Math.round(100 / enabledKeys.length);
+        const newPcts: Record<MealType, number> = {} as any;
+        Object.keys(newEnabled).forEach(k => {
+            newPcts[k as MealType] = newEnabled[k as MealType] ? equalPct : 0;
+        });
+        setMealPercentages(newPcts);
     };
 
     const canRemove = Object.values(enabledMeals).filter(Boolean).length > 1;
