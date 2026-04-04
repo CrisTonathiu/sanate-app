@@ -27,6 +27,8 @@ export interface Recipe {
     mealType:
         | 'smoothie'
         | 'breakfast'
+        | 'snack1'
+        | 'snack2'
         | 'snack'
         | 'lunch'
         | 'dinner'

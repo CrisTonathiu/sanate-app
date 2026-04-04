@@ -20,7 +20,7 @@ export async function POST(
     try {
         const body = await request.json();
         const validatedInput = generateProtocolPlanSchema.parse(body);
-
+        console.log('Validated input:', validatedInput);
         const result = await generateProtocolPlanForPatient(
             patientId,
             validatedInput

@@ -85,10 +85,19 @@ export default function ProtocolPreview({
                                     <div className='flex flex-col gap-1'>
                                         <span className='text-xs text-muted-foreground flex items-center gap-1'>
                                             <Apple className='h-3 w-3' />
-                                            Colación
+                                            Colación 1
                                         </span>
                                         <span className='text-xs font-medium text-foreground'>
-                                            {day.snack.recipeName}
+                                            {day.snack1.recipeName}
+                                        </span>
+                                    </div>
+                                    <div className='flex flex-col gap-1'>
+                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
+                                            <Apple className='h-3 w-3' />
+                                            Colación 2
+                                        </span>
+                                        <span className='text-xs font-medium text-foreground'>
+                                            {day.snack2.recipeName}
                                         </span>
                                     </div>
                                     <div className='flex flex-col gap-1'>

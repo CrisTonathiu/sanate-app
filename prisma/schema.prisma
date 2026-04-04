@@ -28,7 +28,8 @@ enum AllergySeverity {
 enum MealType {
   SMOOTHIE
   BREAKFAST
-  SNACK
+  SNACK1
+  SNACK2
   LUNCH
   DINNER
   DRINKS

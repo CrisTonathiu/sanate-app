@@ -16,9 +16,7 @@ import {StepKey} from '@/lib/types/patient-type';
 import PatientSummaryCard from '@/components/widgets/profile-details/PatientSummaryCard';
 import {getAgeFromDateString} from '@/lib/utils';
 import ConsultationInputs from '@/components/widgets/profile-details/ConsultationInputs';
-import ProtocolConfigCard, {
-    GeneratePlanPayload
-} from '@/components/widgets/profile-details/ProtocolConfigCard';
+import ProtocolConfigCard from '@/components/widgets/profile-details/ProtocolConfigCard';
 import {DayMeals} from '@/lib/interface/meal-interface';
 import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPlanner';
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
@@ -44,7 +42,41 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [diagnosis, setDiagnosis] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
 
+    // Protocol State
     const [planCalories, setPlanCalories] = useState<number>(0);
+    const [macroPercents, setMacroPercents] = useState<{
+        carbs: number;
+        protein: number;
+        fat: number;
+    }>({
+        carbs: 50,
+        protein: 20,
+        fat: 30
+    });
+
+    // Meal distribution state (lifted from ProtocolDistributionCard)
+    const [enabledMeals, setEnabledMeals] = useState<Record<MealType, boolean>>(
+        {
+            breakfast: true,
+            snack1: false,
+            lunch: true,
+            dinner: true,
+            snack2: false,
+            smoothie: false,
+            drinks: false
+        }
+    );
+    const [mealPercentages, setMealPercentages] = useState<
+        Record<MealType, number>
+    >({
+        breakfast: 35,
+        snack1: 0,
+        lunch: 35,
+        dinner: 30,
+        snack2: 0,
+        smoothie: 0,
+        drinks: 0
+    });
 
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -104,14 +136,18 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                             gender={patient.gender as 'MALE' | 'FEMALE'}
                             planCalories={planCalories}
                             setPlanCalories={setPlanCalories}
+                            macroPercents={macroPercents}
+                            setMacroPercents={setMacroPercents}
                         />
                     );
                 case 3:
                     return (
                         <ProtocolDistributionCard
-                            isGenerating={isGenerating}
                             planCalories={planCalories}
-                            onGeneratePlan={handleGeneratePlan}
+                            enabledMeals={enabledMeals}
+                            setEnabledMeals={setEnabledMeals}
+                            mealPercentages={mealPercentages}
+                            setMealPercentages={setMealPercentages}
                         />
                     );
                 case 4:
@@ -164,19 +200,11 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
-    const nextStep = () => {
-        if (currentStep < maxStep) {
-            setCurrentStep(prev => (prev + 1) as StepKey);
-        }
-    };
-
-    const prevStep = () => {
-        if (currentStep > 1) {
-            setCurrentStep(prev => (prev - 1) as StepKey);
-        }
-    };
-
-    const handleGeneratePlan = async (payload: GeneratePlanPayload) => {
+    const handleGeneratePlan = async (payload: {
+        planCalories: number;
+        macroPercents: {carbs: number; protein: number; fat: number};
+        mealDistribution: Record<string, number>;
+    }) => {
         setIsGenerating(true);
 
         try {
@@ -205,7 +233,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             }
 
             setWeekPlan(generatedWeekPlan);
-            setCurrentStep(3);
+            setCurrentStep(4);
         } catch (error) {
             window.alert(
                 error instanceof Error
@@ -214,6 +242,33 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             );
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const nextStep = () => {
+        if (currentStep === 3) {
+            // Build mealDistribution payload from enabled meals + percentages
+            const mealDistribution: Record<string, number> = {};
+            (Object.keys(enabledMeals) as MealType[]).forEach(key => {
+                if (enabledMeals[key]) {
+                    mealDistribution[key] = mealPercentages[key];
+                }
+            });
+            handleGeneratePlan({
+                planCalories,
+                macroPercents,
+                mealDistribution
+            });
+            return;
+        }
+        if (currentStep < maxStep) {
+            setCurrentStep(prev => (prev + 1) as StepKey);
+        }
+    };
+
+    const prevStep = () => {
+        if (currentStep > 1) {
+            setCurrentStep(prev => (prev - 1) as StepKey);
         }
     };
 
@@ -297,6 +352,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 isFirstConsultation={isFirstConsultation}
                 nextStep={nextStep}
                 prevStep={prevStep}
+                isGenerating={isGenerating}
             />
         </div>
     );
