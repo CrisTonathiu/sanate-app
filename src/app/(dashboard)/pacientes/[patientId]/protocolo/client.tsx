@@ -221,6 +221,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
             const result = await response.json();
 
+            console.log('API response:', result);
+
             if (!response.ok || !result?.success) {
                 throw new Error(
                     result?.message || 'No se pudo generar el plan semanal'
@@ -228,6 +230,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             }
 
             const generatedWeekPlan = result?.data?.weekPlan as DayMeals[];
+            console.log(
+                'Received week plan from server:',
+                JSON.stringify(generatedWeekPlan, null, 2)
+            );
             if (!generatedWeekPlan || generatedWeekPlan.length === 0) {
                 throw new Error('El servidor no devolvió un plan válido');
             }

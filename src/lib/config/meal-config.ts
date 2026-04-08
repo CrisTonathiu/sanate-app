@@ -51,8 +51,8 @@ export type EnabledMeals = Record<MealType, boolean>;
 
 export const DEFAULT_ENABLED_MEALS: EnabledMeals = {
     smoothie: false,
-    breakfast: false,
-    snack1: true,
+    breakfast: true,
+    snack1: false,
     lunch: true,
     snack2: false,
     dinner: true,

@@ -2,8 +2,13 @@
 
 import {useState} from 'react';
 import QuickAccessCard from '@/components/widgets/QuickAccessCard';
-import AddPatientDialog from '@/components/widgets/AddPatientDialog';
+import dynamic from 'next/dynamic';
 import {FileChartPie, UserPlus, Video} from 'lucide-react';
+
+const AddPatientDialog = dynamic(
+    () => import('@/components/widgets/AddPatientDialog'),
+    {ssr: false}
+);
 
 export default function ClientPage() {
     const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);

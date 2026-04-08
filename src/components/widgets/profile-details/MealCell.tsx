@@ -84,21 +84,20 @@ export default function MealCell({
         return portion.targetGrams;
     };
 
+    if (!meal) return null;
+
     return (
         <div className='group relative flex flex-col rounded-xl border border-border bg-card/50 overflow-hidden transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5'>
             {/* Recipe Image */}
             <div className='relative h-20 w-full overflow-hidden rounded-t-xl bg-secondary/30'>
-                {meal.imageUrl ? (
-                    <img
-                        src={meal.imageUrl}
-                        alt={meal.recipeName}
-                        className='h-full w-full object-cover transition-transform group-hover:scale-105 rounded-t-xl'
-                    />
-                ) : (
-                    <div className='flex h-full w-full items-center justify-center rounded-t-xl bg-gradient-to-br from-secondary/50 to-secondary'>
-                        <Icon className='h-8 w-8 text-muted-foreground/40' />
-                    </div>
-                )}
+                <img
+                    src={meal.imageUrl ?? '/recipe-placeholder.svg'}
+                    alt={meal.recipeName}
+                    onError={e => {
+                        e.currentTarget.src = '/recipe-placeholder.svg';
+                    }}
+                    className='h-full w-full object-cover transition-transform group-hover:scale-105 rounded-t-xl'
+                />
                 {/* Meal type badge */}
                 <div className='absolute top-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow-sm'>
                     <Icon className='h-3.5 w-3.5 text-primary' />
@@ -150,6 +149,30 @@ export default function MealCell({
                             )}
                         </div>
                     )}
+
+                {meal.calories && (
+                    <span className='text-xs text-muted-foreground mt-1'>
+                        {meal.calories} kcal
+                    </span>
+                )}
+
+                {meal.protein && (
+                    <span className='text-xs text-muted-foreground'>
+                        {meal.protein} g proteína
+                    </span>
+                )}
+
+                {meal.carbs && (
+                    <span className='text-xs text-muted-foreground'>
+                        {meal.carbs} g carbohidratos
+                    </span>
+                )}
+
+                {meal.fat && (
+                    <span className='text-xs text-muted-foreground'>
+                        {meal.fat} g grasa
+                    </span>
+                )}
             </div>
         </div>
     );
