@@ -276,8 +276,9 @@ model ProtocolMeal {
 
   recipeId String?
 
-  day    ProtocolDay @relation(fields: [dayId], references: [id])
-  recipe Recipe?     @relation(fields: [recipeId], references: [id])
+  day      ProtocolDay           @relation(fields: [dayId], references: [id])
+  recipe   Recipe?               @relation(fields: [recipeId], references: [id])
+  portions ProtocolMealPortions?
 }
 
 model Protocol {
@@ -342,9 +343,10 @@ model Food {
   carbsPer100g   Float?
   fatPer100g     Float?
   caloriesPer100g Float?
-
-  // opcional
   density Float? // útil para líquidos
+
+  isDiscrete Boolean @default(false)
+  maxPortionGrams Float? // límite realista
 
   equivalents FoodEquivalent[]
   equivalentIn FoodEquivalent[] @relation("EquivalentFood")
@@ -382,6 +384,50 @@ model FoodGroup {
   isFree Boolean @default(false)
 
   foods Food[]
+}
+
+// Stores the per-patient scaled ingredient portions for a meal inside a protocol.
+// The base recipe is kept via ProtocolMeal.recipeId; this table records what the
+// patient should actually consume (grams/quantities after calorie scaling).
+model ProtocolMealPortions {
+  id             String      @id @default(cuid())
+  protocolMealId String      @unique
+  protocolMeal   ProtocolMeal @relation(fields: [protocolMealId], references: [id], onDelete: Cascade)
+
+  // Macro targets used when computing portions
+  targetCalories Float
+  targetProtein  Float
+  targetCarbs    Float
+  targetFat      Float
+
+  // Actual scaled totals
+  actualCalories Float
+  actualProtein  Float
+  actualCarbs    Float
+  actualFat      Float
+
+  ingredients ProtocolMealIngredient[]
+
+  createdAt DateTime @default(now())
+
+  @@index([protocolMealId])
+}
+
+// One row per ingredient in a scaled meal.
+model ProtocolMealIngredient {
+  id         String               @id @default(cuid())
+  portionsId String
+  portions   ProtocolMealPortions @relation(fields: [portionsId], references: [id], onDelete: Cascade)
+
+  ingredientName String
+  unit           IngredientUnit @default(GRAM)
+
+  baseQuantity   Float
+  targetQuantity Float
+  baseGrams      Float
+  targetGrams    Float
+
+  @@index([portionsId])
 }
 
 model ProtocolFoodGroup {
