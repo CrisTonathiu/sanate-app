@@ -17,13 +17,14 @@ import PatientSummaryCard from '@/components/widgets/profile-details/PatientSumm
 import {getAgeFromDateString} from '@/lib/utils';
 import ConsultationInputs from '@/components/widgets/profile-details/ConsultationInputs';
 import ProtocolConfigCard from '@/components/widgets/profile-details/ProtocolConfigCard';
-import {DayMeals} from '@/lib/interface/meal-interface';
+import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPlanner';
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
 import ProtocolPreview from '@/components/widgets/profile-details/ProtocolPreview';
 import {ProtocolDistributionCard} from '@/components/widgets/profile-details/ProtocolDistributionCard';
 import {MealType} from '@/lib/config/meal-config';
 import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
+import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
 
 interface ClientPageProps {
     patientId: string;
@@ -97,6 +98,24 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setRecipeModalOpen(true);
     };
 
+    const handleMealUpdate = (
+        day: string,
+        mealType: MealType,
+        updatedMeal: MealSlot
+    ) => {
+        setWeekPlan(prev =>
+            prev.map(d => (d.day === day ? {...d, [mealType]: updatedMeal} : d))
+        );
+    };
+
+    const getTargetCaloriesForMeal = (mealType: MealType): number => {
+        const total = (Object.keys(enabledMeals) as MealType[])
+            .filter(k => enabledMeals[k])
+            .reduce((sum, k) => sum + (mealPercentages[k] ?? 0), 0);
+        const pct = mealPercentages[mealType] ?? 0;
+        return total > 0 ? Math.round((pct / total) * planCalories) : 0;
+    };
+
     const renderStepContent = () => {
         if (!patient) return null;
         if (isFirstConsultation) {
@@ -155,6 +174,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         <WeeklyMealPlanner
                             weekPlan={weekPlan}
                             onOpenRecipeModal={handleOpenRecipeModal}
+                            onMealUpdate={handleMealUpdate}
                         />
                     );
                 case 5:
@@ -360,6 +380,27 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 prevStep={prevStep}
                 isGenerating={isGenerating}
             />
+
+            {selectedDayMeal && (
+                <RecipePickerModal
+                    open={recipeModalOpen}
+                    mealType={selectedDayMeal.mealType}
+                    targetCalories={getTargetCaloriesForMeal(
+                        selectedDayMeal.mealType
+                    )}
+                    onClose={() => {
+                        setRecipeModalOpen(false);
+                        setSelectedDayMeal(null);
+                    }}
+                    onSelect={meal =>
+                        handleMealUpdate(
+                            selectedDayMeal.day,
+                            selectedDayMeal.mealType,
+                            meal
+                        )
+                    }
+                />
+            )}
         </div>
     );
 }
