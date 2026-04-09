@@ -15,6 +15,12 @@ export interface RecipeIngredient {
         food?: {
             id: string;
             name: string;
+            caloriesPer100g?: number | null;
+            proteinPer100g?: number | null;
+            carbsPer100g?: number | null;
+            fatPer100g?: number | null;
+            isDiscrete?: boolean;
+            maxPortionGrams?: number | null;
         } | null;
     };
 }

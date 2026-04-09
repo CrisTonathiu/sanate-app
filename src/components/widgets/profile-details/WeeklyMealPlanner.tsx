@@ -1,4 +1,4 @@
-import {DayMeals} from '@/lib/interface/meal-interface';
+import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import {DEFAULT_ENABLED_MEALS, MealType} from '@/lib/config/meal-config';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
@@ -9,11 +9,17 @@ import {useState} from 'react';
 interface WeeklyMealPlannerProps {
     weekPlan: DayMeals[];
     onOpenRecipeModal: (day: string, mealType: MealType) => void;
+    onMealUpdate?: (
+        day: string,
+        mealType: MealType,
+        updatedMeal: MealSlot
+    ) => void;
 }
 
 export default function WeeklyMealPlanner({
     weekPlan,
-    onOpenRecipeModal
+    onOpenRecipeModal,
+    onMealUpdate
 }: WeeklyMealPlannerProps) {
     const [enabledMeals, setEnabledMeals] = useState(DEFAULT_ENABLED_MEALS);
 
@@ -125,7 +131,13 @@ export default function WeeklyMealPlanner({
                                                     'smoothie'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'smoothie',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
@@ -140,7 +152,13 @@ export default function WeeklyMealPlanner({
                                                     'breakfast'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'breakfast',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
@@ -155,7 +173,13 @@ export default function WeeklyMealPlanner({
                                                     'snack1'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'snack1',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
@@ -171,7 +195,13 @@ export default function WeeklyMealPlanner({
                                                     'lunch'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'lunch',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
@@ -187,7 +217,13 @@ export default function WeeklyMealPlanner({
                                                     'snack2'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'snack2',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
@@ -203,7 +239,13 @@ export default function WeeklyMealPlanner({
                                                     'dinner'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'dinner',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
@@ -219,7 +261,13 @@ export default function WeeklyMealPlanner({
                                                     'drinks'
                                                 )
                                             }
-                                            onEdit={() => {}}
+                                            onEdit={m =>
+                                                onMealUpdate?.(
+                                                    day.day,
+                                                    'drinks',
+                                                    m
+                                                )
+                                            }
                                         />
                                     </td>
                                 )}
