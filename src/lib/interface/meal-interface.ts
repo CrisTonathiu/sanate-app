@@ -17,6 +17,8 @@ export interface MealSlot {
     carbs?: number;
     fat?: number;
     portionMultiplier?: number;
+    isRealistic?: boolean;
+    warnings?: string[];
     ingredientPortions?: MealIngredientPortion[];
 }
 
