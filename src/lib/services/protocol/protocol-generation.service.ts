@@ -165,21 +165,37 @@ function isRecipeAllowed(
 // --------------------
 // Realism validation
 // --------------------
-function isRealisticMeal(ingredients: any[], scale: number): boolean {
+function evaluateMealRealism(
+    ingredients: RecipeSummary['ingredients'],
+    scale: number
+): {isRealistic: boolean; warnings: string[]} {
+    const warnings: string[] = [];
     for (const item of ingredients) {
         const scaledGrams = item.grams * scale;
 
+        // maxPortionGrams (si existe)
         if (item.maxPortionGrams && scaledGrams > item.maxPortionGrams) {
-            return false;
+            warnings.push(
+                `${item.name} excede porción recomendada (${Math.round(scaledGrams)}g)`
+            );
         }
 
+        // unidades discretas
         if (item.unit === 'PIECE') {
             const scaledQty = item.quantity * scale;
-            if (scaledQty > 3) return false;
+
+            if (scaledQty > 4) {
+                warnings.push(
+                    `${item.name}: ${Math.round(scaledQty)} piezas puede ser excesivo`
+                );
+            }
         }
     }
 
-    return true;
+    return {
+        isRealistic: warnings.length === 0,
+        warnings
+    };
 }
 
 // --------------------
@@ -280,21 +296,10 @@ function buildMealCatalog(recipes: RecipeSummary[]) {
     return catalog;
 }
 
-function buildMeal(
-    recipe: RecipeSummary,
-    targetCalories: number
-): {isValid: false; error: string} | {isValid: true; slot: MealSlot} {
+function buildMeal(recipe: RecipeSummary, targetCalories: number): MealSlot {
     const scale = Number((targetCalories / recipe.calories).toFixed(2));
 
-    console.log(
-        `Construyendo comida: ${recipe.title}, targetCalories: ${targetCalories}, scale: ${scale}`
-    );
-    if (!isRealisticMeal(recipe.ingredients, scale)) {
-        return {
-            isValid: false,
-            error: `Receta ${recipe.title} no realista. Agregar otro alimento para cumplir macros.`
-        };
-    }
+    const realism = evaluateMealRealism(recipe.ingredients, scale);
 
     const slot: MealSlot = {
         id: recipe.id,
@@ -305,6 +310,8 @@ function buildMeal(
         carbs: round1(recipe.carbs * scale),
         fat: round1(recipe.fat * scale),
         portionMultiplier: scale,
+        isRealistic: realism.isRealistic,
+        warnings: realism.warnings,
         ingredientPortions: recipe.ingredients.map(item => ({
             ingredientName: item.name,
             baseQuantity: item.quantity,
@@ -318,7 +325,7 @@ function buildMeal(
         }))
     };
 
-    return {isValid: true, slot};
+    return slot;
 }
 
 // --------------------
@@ -485,23 +492,13 @@ export async function generateProtocolPlanForPatient(
                 recipesForMeal[0];
             const targetCalories = dailyCalories * split[mealKey];
 
-            const result = buildMeal(recipe, targetCalories);
+            const slotResult = buildMeal(recipe, targetCalories);
 
-            if (!result.isValid) {
-                return {
-                    success: false,
-                    message: `${day} - ${mealKey}: ${result.error}`
-                };
-            }
-
-            dayMeals[key] = result.slot;
+            dayMeals[key] = slotResult;
         }
 
         weekPlan.push(dayMeals as DayMeals);
     }
-
-    console.log('Generated week plan:', JSON.stringify(weekPlan, null, 2));
-
     return {
         success: true,
         data: {

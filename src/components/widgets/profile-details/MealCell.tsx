@@ -87,7 +87,8 @@ export default function MealCell({
     if (!meal) return null;
 
     return (
-        <div className='group relative flex flex-col rounded-xl border border-border bg-card/50 overflow-hidden transition-all hover:border-primary/40 hover:shadow-md hover:shadow-primary/5'>
+        <div
+            className={`group relative flex flex-col rounded-xl border bg-card/50 overflow-hidden transition-all hover:shadow-md hover:shadow-primary/5 ${meal.isRealistic === false ? 'border-red-500 hover:border-red-400' : 'border-border hover:border-primary/40'}`}>
             {/* Recipe Image */}
             <div className='relative h-20 w-full overflow-hidden rounded-t-xl bg-secondary/30'>
                 <img
@@ -173,6 +174,18 @@ export default function MealCell({
                         {meal.fat} g grasa
                     </span>
                 )}
+
+                {meal.isRealistic === false &&
+                    meal.warnings &&
+                    meal.warnings.length > 0 && (
+                        <div className='mt-1 flex flex-col gap-0.5'>
+                            {meal.warnings.map((w, i) => (
+                                <span key={i} className='text-xs text-red-500'>
+                                    ⚠ {w}
+                                </span>
+                            ))}
+                        </div>
+                    )}
             </div>
         </div>
     );
