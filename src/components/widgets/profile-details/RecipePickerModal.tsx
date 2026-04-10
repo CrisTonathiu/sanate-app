@@ -153,7 +153,7 @@ export default function RecipePickerModal({
                 <DialogHeader>
                     <DialogTitle className='flex items-center gap-2'>
                         <UtensilsCrossed className='h-5 w-5 text-primary' />
-                        Select Recipe
+                        Seleccionar receta
                         {mealType && (
                             <Badge
                                 variant='secondary'
@@ -167,7 +167,7 @@ export default function RecipePickerModal({
                     <div className='relative mb-3 w-full'>
                         <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
                         <Input
-                            placeholder='Search recipes...'
+                            placeholder='Buscar recetas...'
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             className='pl-10'
@@ -240,7 +240,7 @@ export default function RecipePickerModal({
                                                     handleSelect(recipe)
                                                 }
                                                 className='h-7 px-3 text-xs'>
-                                                Select
+                                                Seleccionar
                                             </Button>
                                         </div>
                                     </div>
