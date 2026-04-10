@@ -2,7 +2,11 @@
 
 import {useState, useMemo} from 'react';
 import {useGetRecipes, Recipe} from '@/hooks/use-recipes';
-import {MealType} from '@/lib/config/meal-config';
+import {
+    MealType,
+    mealTypeConfig,
+    mealTypeLabel
+} from '@/lib/config/meal-config';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
 import {
     Dialog,
@@ -21,6 +25,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import {Button} from '@/components/ui/button';
+import {cn} from '@/lib/utils';
 
 // Maps MealType (lowercase) to the DB MealType (uppercase) values
 const MEAL_TYPE_MAP: Record<string, string[]> = {
@@ -159,7 +164,7 @@ export default function RecipePickerModal({
                     </DialogTitle>
                 </DialogHeader>
                 <div className='flex gap-3 mt-4'>
-                    <div className='relative mb-3'>
+                    <div className='relative mb-3 w-full'>
                         <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
                         <Input
                             placeholder='Search recipes...'
@@ -168,19 +173,6 @@ export default function RecipePickerModal({
                             className='pl-10'
                         />
                     </div>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className='w-[150px]'>
-                            <Filter className='h-4 w-4 mr-2' />
-                            <SelectValue placeholder='Filtrar' />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value='all'>Todas</SelectItem>
-                            <SelectItem value='breakfast'>Desayuno</SelectItem>
-                            <SelectItem value='snack'>Colación</SelectItem>
-                            <SelectItem value='lunch'>Comida</SelectItem>
-                            <SelectItem value='dinner'>Cena</SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
 
                 <div className='flex-1 overflow-y-auto mt-4 pr-2'>
@@ -197,24 +189,33 @@ export default function RecipePickerModal({
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
                         {filtered.map(recipe => {
                             const nutrition = computeNutrition(recipe);
+                            const config =
+                                mealTypeConfig[recipe.mealType] ||
+                                mealTypeConfig.SNACK;
+                            const MealIcon = config.icon;
                             return (
                                 <div
                                     key={recipe.id}
                                     className='group flex flex-col rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-md transition-all'>
                                     {/* Recipe Image */}
-                                    <div className='relative h-28 w-full overflow-hidden bg-secondary/30'>
+                                    <div className='relative h-44 w-full overflow-hidden bg-secondary/30'>
                                         <img
-                                            src={
-                                                recipe.imageUrl ??
-                                                '/recipe-placeholder.svg'
-                                            }
+                                            src={recipe.imageUrl ?? undefined}
                                             alt={recipe.title}
-                                            className='h-full w-full object-cover transition-transform group-hover:scale-105'
+                                            className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-105'
                                         />
+                                        <div className='absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent' />
+
+                                        {/* Meal Type Badge */}
                                         <Badge
-                                            variant='secondary'
-                                            className='absolute top-2 right-2 text-xs capitalize bg-background/90 backdrop-blur-sm'>
-                                            {recipe.mealType}
+                                            variant='outline'
+                                            className={cn(
+                                                'absolute top-3 left-3 text-xs font-medium border backdrop-blur-sm',
+                                                config.color
+                                            )}>
+                                            <MealIcon className='h-3 w-3 mr-1' />
+                                            {mealTypeLabel[recipe.mealType] ??
+                                                recipe.mealType}
                                         </Badge>
                                     </div>
 

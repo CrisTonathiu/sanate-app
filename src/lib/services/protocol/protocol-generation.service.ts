@@ -7,6 +7,7 @@ import {
     ProtocolGoal
 } from '@/lib/validations/protocol-generation.schema';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
+import {id} from 'zod/v4/locales';
 
 // --------------------
 // Types
@@ -31,6 +32,7 @@ type RecipeSummary = {
     carbs: number;
     fat: number;
     ingredients: Array<{
+        id: string;
         name: string;
         quantity: number;
         grams: number;
@@ -313,6 +315,7 @@ function buildMeal(recipe: RecipeSummary, targetCalories: number): MealSlot {
         isRealistic: realism.isRealistic,
         warnings: realism.warnings,
         ingredientPortions: recipe.ingredients.map(item => ({
+            ingredientId: item.id,
             ingredientName: item.name,
             baseQuantity: item.quantity,
             targetQuantity:
@@ -321,7 +324,11 @@ function buildMeal(recipe: RecipeSummary, targetCalories: number): MealSlot {
                     : Math.round(item.quantity * scale),
             baseGrams: item.grams,
             targetGrams: Math.round(item.grams * scale),
-            unit: normalizeRecipeIngredientUnit(item.unit)
+            unit: normalizeRecipeIngredientUnit(item.unit),
+            baseCalories: item.caloriesPer100g,
+            baseProtein: item.proteinPer100g,
+            baseCarbs: item.carbsPer100g,
+            baseFat: item.fatPer100g
         }))
     };
 
@@ -424,6 +431,7 @@ export async function generateProtocolPlanForPatient(
                 fat: nutrition.fat,
                 ingredients: recipe.ingredients.map(item => {
                     const recipeIngredient = item as {
+                        id: string;
                         grams: number;
                         quantity?: number | null;
                         unit?: RecipeIngredientUnit | null;
@@ -431,6 +439,7 @@ export async function generateProtocolPlanForPatient(
                     };
 
                     return {
+                        id: recipeIngredient.id,
                         name: recipeIngredient.ingredient.name,
                         quantity: recipeIngredient.quantity ?? 1,
                         grams: recipeIngredient.grams,

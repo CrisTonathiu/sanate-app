@@ -28,7 +28,7 @@ export default function MealCell({
         drinks: Coffee
     };
     const Icon = mealIcons[mealType];
-    const [editOpen, setEditOpen] = useState(false);
+    const [editOpen, setEditOpen] = useState<boolean>(false);
 
     const getUnitLabel = (unit?: string) => {
         const normalized = unit?.trim().toLowerCase();
@@ -150,7 +150,7 @@ export default function MealCell({
                                 {meal.ingredientPortions.length > 3 && (
                                     <span className='text-xs text-muted-foreground/60 italic'>
                                         +{meal.ingredientPortions.length - 3}{' '}
-                                        more
+                                        más
                                     </span>
                                 )}
                             </div>
@@ -199,10 +199,9 @@ export default function MealCell({
             <MealEditModal
                 meal={meal}
                 open={editOpen}
-                onClose={() => setEditOpen(false)}
+                onOpen={setEditOpen}
                 onSave={updatedMeal => {
                     onEdit(updatedMeal);
-                    setEditOpen(false);
                 }}
             />
         </>

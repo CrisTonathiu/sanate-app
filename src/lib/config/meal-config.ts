@@ -1,4 +1,4 @@
-import {Apple, Coffee, Moon, Sun} from 'lucide-react';
+import {Apple, Coffee, GlassWater, Moon, Sun} from 'lucide-react';
 
 export const MEAL_CONFIG = [
     {
@@ -57,4 +57,43 @@ export const DEFAULT_ENABLED_MEALS: EnabledMeals = {
     snack2: false,
     dinner: true,
     drinks: false
+};
+
+export const mealTypeConfig: Record<
+    string,
+    {color: string; icon: React.ElementType}
+> = {
+    BREAKFAST: {
+        color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+        icon: Coffee
+    },
+    LUNCH: {
+        color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+        icon: Sun
+    },
+    DINNER: {
+        color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+        icon: Moon
+    },
+    SNACK: {
+        color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+        icon: Apple
+    },
+    SMOOTHIE: {
+        color: 'bg-green-500/10 text-green-600 border-green-500/20',
+        icon: GlassWater
+    },
+    DRINKS: {
+        color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+        icon: GlassWater
+    }
+};
+
+export const mealTypeLabel: Record<string, string> = {
+    SMOOTHIE: 'Licuado',
+    BREAKFAST: 'Desayuno',
+    SNACK: 'Colacion',
+    LUNCH: 'Comida',
+    DINNER: 'Cena',
+    DRINKS: 'Bebida'
 };
