@@ -1,4 +1,5 @@
 import {Badge} from '@/components/ui/badge';
+import {mealTypeConfig} from '@/lib/config/meal-config';
 import {RecipeDTO} from '@/lib/dto/RecipeDTO';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
@@ -23,36 +24,6 @@ export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
         LUNCH: 'Comida',
         DINNER: 'Cena',
         DRINKS: 'Bebida'
-    };
-
-    const mealTypeConfig: Record<
-        string,
-        {color: string; icon: React.ElementType}
-    > = {
-        BREAKFAST: {
-            color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-            icon: Coffee
-        },
-        LUNCH: {
-            color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-            icon: Sun
-        },
-        DINNER: {
-            color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
-            icon: Moon
-        },
-        SNACK: {
-            color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
-            icon: Apple
-        },
-        SMOOTHIE: {
-            color: 'bg-green-500/10 text-green-600 border-green-500/20',
-            icon: GlassWater
-        },
-        DRINKS: {
-            color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
-            icon: GlassWater
-        }
     };
 
     const config = mealTypeConfig[recipe.mealType] || mealTypeConfig.SNACK;
@@ -114,7 +85,7 @@ export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
                                 </span>
                             </div>
                             <span className='text-[10px] text-muted-foreground'>
-                                protein
+                                proteína
                             </span>
                         </div>
                         <div className='flex flex-col items-center'>
@@ -125,7 +96,7 @@ export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
                                 </span>
                             </div>
                             <span className='text-[10px] text-muted-foreground'>
-                                carbs
+                                carbos
                             </span>
                         </div>
                         <div className='flex flex-col items-center'>
@@ -136,7 +107,7 @@ export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
                                 </span>
                             </div>
                             <span className='text-[10px] text-muted-foreground'>
-                                fats
+                                grasas
                             </span>
                         </div>
                     </div>
