@@ -46,9 +46,27 @@ export function ProtocolDistributionCard({
         meal: keyof typeof mealPercentages,
         value: number
     ) => {
+        const clampedValue = Math.min(Math.max(value, 0), 100);
+        const roundedValue = Math.round(clampedValue * 100) / 100;
+
         setMealPercentages((prev: any) => ({
             ...prev,
-            [meal]: value
+            [meal]: roundedValue
+        }));
+    };
+
+    const onCaloriesChange = (
+        meal: keyof typeof mealPercentages,
+        value: number
+    ) => {
+        if (planCalories <= 0) return;
+
+        const clampedCalories = Math.min(Math.max(value, 0), planCalories);
+        const nextPercentage = (clampedCalories / planCalories) * 100;
+
+        setMealPercentages((prev: any) => ({
+            ...prev,
+            [meal]: Math.min(Math.max(nextPercentage, 0), 100)
         }));
     };
 
@@ -84,6 +102,10 @@ export function ProtocolDistributionCard({
         });
         setMealPercentages(newPcts);
     };
+
+    const [pctDraft, setPctDraft] = React.useState<
+        Partial<Record<MealType, string>>
+    >({});
 
     const canRemove = Object.values(enabledMeals).filter(Boolean).length > 1;
 
@@ -198,16 +220,49 @@ export function ProtocolDistributionCard({
                                                         type='number'
                                                         min={0}
                                                         max={100}
-                                                        value={percentage}
+                                                        step='0.01'
+                                                        value={
+                                                            mealType in pctDraft
+                                                                ? pctDraft[
+                                                                      mealType
+                                                                  ]
+                                                                : percentage
+                                                        }
                                                         onChange={e =>
-                                                            onPercentageChange(
-                                                                mealType,
-                                                                parseInt(
-                                                                    e.target
-                                                                        .value
-                                                                ) || 0
+                                                            setPctDraft(
+                                                                prev => ({
+                                                                    ...prev,
+                                                                    [mealType]:
+                                                                        e.target
+                                                                            .value
+                                                                })
                                                             )
                                                         }
+                                                        onBlur={e => {
+                                                            const parsed =
+                                                                parseFloat(
+                                                                    e.target
+                                                                        .value
+                                                                );
+                                                            onPercentageChange(
+                                                                mealType,
+                                                                isNaN(parsed)
+                                                                    ? 0
+                                                                    : parsed
+                                                            );
+                                                            setPctDraft(
+                                                                prev => {
+                                                                    const next =
+                                                                        {
+                                                                            ...prev
+                                                                        };
+                                                                    delete next[
+                                                                        mealType
+                                                                    ];
+                                                                    return next;
+                                                                }
+                                                            );
+                                                        }}
                                                         className='bg-background border-border pr-8'
                                                     />
                                                     <Percent className='absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
@@ -215,16 +270,39 @@ export function ProtocolDistributionCard({
                                             </div>
 
                                             {/* Calculated kcal */}
-                                            <div className='pt-2 border-t border-border'>
-                                                <div className='flex items-center justify-between'>
-                                                    <span className='text-xs text-muted-foreground'>
-                                                        Calorias
-                                                    </span>
-                                                    <span className='text-lg font-bold text-foreground'>
-                                                        {kcal}{' '}
-                                                        <span className='text-sm font-normal text-muted-foreground'>
-                                                            kcal
-                                                        </span>
+                                            <div className='space-y-1.5'>
+                                                <Label className='text-xs text-muted-foreground'>
+                                                    Calorias exactas
+                                                </Label>
+                                                <div className='relative'>
+                                                    <Input
+                                                        type='number'
+                                                        min={0}
+                                                        max={Math.max(
+                                                            Math.round(
+                                                                planCalories
+                                                            ),
+                                                            0
+                                                        )}
+                                                        step='1'
+                                                        value={kcal}
+                                                        onChange={e =>
+                                                            onCaloriesChange(
+                                                                mealType,
+                                                                parseInt(
+                                                                    e.target
+                                                                        .value,
+                                                                    10
+                                                                ) || 0
+                                                            )
+                                                        }
+                                                        className='bg-background border-border pr-14'
+                                                        disabled={
+                                                            planCalories <= 0
+                                                        }
+                                                    />
+                                                    <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground'>
+                                                        kcal
                                                     </span>
                                                 </div>
                                             </div>
@@ -248,7 +326,7 @@ export function ProtocolDistributionCard({
                                         ? 'text-green-500'
                                         : 'text-destructive'
                                 )}>
-                                {totalPercentage}%
+                                {totalPercentage.toFixed(2)}%
                             </span>
                         </div>
                         <div className='h-2 rounded-full bg-secondary overflow-hidden'>
