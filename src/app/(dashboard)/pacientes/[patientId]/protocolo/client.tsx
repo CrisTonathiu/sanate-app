@@ -35,6 +35,24 @@ interface ClientPageProps {
     patientId: string;
 }
 
+type MacroMealDistributionPayload = Record<
+    string,
+    {
+        totalPercentage: number;
+        totalKcal: number;
+        carbsPercentage: number;
+        carbsKcal: number;
+        proteinPercentage: number;
+        proteinKcal: number;
+        fatPercentage: number;
+        fatKcal: number;
+    }
+>;
+
+function round2(value: number) {
+    return Number(value.toFixed(2));
+}
+
 export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const router = useRouter();
     const {data: patient, isPending} = useGetPatientProfile(patientId);
@@ -283,6 +301,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         planCalories: number;
         macroPercents: {carbs: number; protein: number; fat: number};
         mealDistribution: Record<string, number>;
+        macroMealDistribution: MacroMealDistributionPayload;
     }) => {
         setIsGenerating(true);
 
@@ -352,15 +371,51 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
             // Build mealDistribution payload from enabled meals + percentages
             const mealDistribution: Record<string, number> = {};
+            const macroCalories = {
+                carbs: (planCalories * macroPercents.carbs) / 100,
+                protein: (planCalories * macroPercents.protein) / 100,
+                fat: (planCalories * macroPercents.fat) / 100
+            };
+            const macroMealDistribution: MacroMealDistributionPayload = {};
+
             (Object.keys(enabledMeals) as MealType[]).forEach(key => {
                 if (enabledMeals[key]) {
                     mealDistribution[key] = mealPercentages[key];
+                    macroMealDistribution[key] = {
+                        totalPercentage: round2(mealPercentages[key]),
+                        totalKcal: round2(
+                            (planCalories * mealPercentages[key]) / 100
+                        ),
+                        carbsPercentage: round2(
+                            macroMealPercentages.carbs[key]
+                        ),
+                        carbsKcal: round2(
+                            (macroCalories.carbs *
+                                macroMealPercentages.carbs[key]) /
+                                100
+                        ),
+                        proteinPercentage: round2(
+                            macroMealPercentages.protein[key]
+                        ),
+                        proteinKcal: round2(
+                            (macroCalories.protein *
+                                macroMealPercentages.protein[key]) /
+                                100
+                        ),
+                        fatPercentage: round2(macroMealPercentages.fat[key]),
+                        fatKcal: round2(
+                            (macroCalories.fat *
+                                macroMealPercentages.fat[key]) /
+                                100
+                        )
+                    };
                 }
             });
             handleGeneratePlan({
                 planCalories,
                 macroPercents,
-                mealDistribution
+                mealDistribution,
+                macroMealDistribution
             });
             return;
         }

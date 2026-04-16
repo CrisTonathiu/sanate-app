@@ -1,5 +1,16 @@
 import {z} from 'zod';
 
+const macroMealTargetSchema = z.object({
+    totalPercentage: z.number().min(0).max(100),
+    totalKcal: z.number().min(0),
+    carbsPercentage: z.number().min(0).max(100),
+    carbsKcal: z.number().min(0),
+    proteinPercentage: z.number().min(0).max(100),
+    proteinKcal: z.number().min(0),
+    fatPercentage: z.number().min(0).max(100),
+    fatKcal: z.number().min(0)
+});
+
 export const protocolGoalSchema = z.enum([
     'perdida_peso',
     'ganancia_musculo',
@@ -34,6 +45,9 @@ export const generateProtocolPlanSchema = z.object({
         .optional(),
     mealDistribution: z
         .record(z.string(), z.number().min(0).max(100))
+        .optional(),
+    macroMealDistribution: z
+        .record(z.string(), macroMealTargetSchema)
         .optional()
 });
 
