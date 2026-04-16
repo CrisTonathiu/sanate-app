@@ -322,6 +322,10 @@ export async function deletePatient(patientId: string) {
                 where: {patientId}
             });
 
+            await tx.patientFoodDislike.deleteMany({
+                where: {patientId}
+            });
+
             await tx.patientNote.deleteMany({
                 where: {patientId}
             });

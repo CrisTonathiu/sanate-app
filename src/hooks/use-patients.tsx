@@ -3,6 +3,7 @@
 import {
     PatientAllergyDTO,
     PatientConditionDTO,
+    PatientFoodDislikeDTO,
     PatientProfileDTO
 } from '@/lib/dto/PatientDTO';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
@@ -169,6 +170,47 @@ export function useGetPatientConditions(patientId?: string) {
     });
 }
 
+export function useGetPatientFoodDislikes(patientId?: string) {
+    return useQuery<PatientFoodDislikeDTO[]>({
+        queryKey: ['patientFoodDislikes', patientId],
+        enabled: !!patientId,
+        queryFn: async () => {
+            const res = await fetch(
+                `/api/patients/${patientId}/food-dislikes`,
+                {
+                    credentials: 'include'
+                }
+            );
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(
+                    error?.message || 'Failed to fetch patient food dislikes'
+                );
+            }
+
+            const rawData = await res.json();
+            const rows = rawData?.data ?? [];
+
+            return rows.map(
+                (row: {
+                    foodId?: string;
+                    notes?: string | null;
+                    food?: {
+                        id?: string;
+                        name?: string;
+                    };
+                }) => ({
+                    id: row.food?.id || row.foodId,
+                    food: row.food?.name || 'Sin nombre',
+                    notes: row.notes || undefined
+                })
+            ) as PatientFoodDislikeDTO[];
+        },
+        staleTime: 1000 * 60 * 5
+    });
+}
+
 export function useCreatePatient() {
     const router = useRouter();
     return useMutation({
@@ -242,6 +284,69 @@ export function useUpdatePatient(patientId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({
                 queryKey: ['patientProfile', patientId]
+            });
+        }
+    });
+}
+
+export function useAddPatientFoodDislike(patientId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: {foodId: string; notes?: string}) => {
+            const res = await fetch(
+                `/api/patients/${patientId}/food-dislikes`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }
+            );
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message || 'Failed to add patient food dislike'
+                );
+            }
+
+            const resData = await res.json();
+            return resData.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['patientFoodDislikes', patientId]
+            });
+        }
+    });
+}
+
+export function useDeletePatientFoodDislike(patientId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (foodId: string) => {
+            const res = await fetch(
+                `/api/patients/${patientId}/food-dislikes/${foodId}`,
+                {
+                    method: 'DELETE'
+                }
+            );
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message || 'Failed to delete patient food dislike'
+                );
+            }
+
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['patientFoodDislikes', patientId]
             });
         }
     });

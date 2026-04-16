@@ -42,3 +42,13 @@ export const createPatientConditionSchema = z.object({
 export type CreatePatientConditionInput = z.infer<
     typeof createPatientConditionSchema
 >;
+
+export const createPatientFoodDislikeSchema = z.object({
+    patientId: patientIdSchema,
+    foodId: z.string().min(1, 'Food ID is required'),
+    notes: z.string().optional()
+});
+
+export type CreatePatientFoodDislikeInput = z.infer<
+    typeof createPatientFoodDislikeSchema
+>;

@@ -94,6 +94,7 @@ model Patient {
   vitals        PatientVital[]
   conditions    PatientCondition[]
   allergies     PatientAllergy[]
+  foodDislikes  PatientFoodDislike[]
   notes         PatientNote[]
   consultations Consultation[]
   protocols     Protocol[]
@@ -167,6 +168,23 @@ model PatientAllergy {
   notes    String?
 
   createdAt DateTime @default(now())
+}
+
+model PatientFoodDislike {
+  id        String @id @default(cuid())
+  patientId String
+  foodId    String
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  food    Food    @relation(fields: [foodId], references: [id])
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, foodId])
+  @@index([patientId])
+  @@index([foodId])
 }
 
 model PatientNote {
@@ -350,6 +368,7 @@ model Food {
 
   equivalents FoodEquivalent[]
   equivalentIn FoodEquivalent[] @relation("EquivalentFood")
+  dislikedBy   PatientFoodDislike[]
 
   ingredients Ingredient[]
 

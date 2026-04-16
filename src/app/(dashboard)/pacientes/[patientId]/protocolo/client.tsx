@@ -8,6 +8,7 @@ import ProfileDetailsLoader from '@/components/loaders/ProfileDetailsLoader';
 import {
     useGetPatientAllergies,
     useGetPatientConditions,
+    useGetPatientFoodDislikes,
     useGetPatientProfile
 } from '@/hooks/use-patients';
 import {useState} from 'react';
@@ -60,6 +61,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         useGetPatientAllergies(patientId);
     const {data: conditions = [], isPending: isPendingConditions} =
         useGetPatientConditions(patientId);
+    const {data: foodDislikes = [], isPending: isPendingFoodDislikes} =
+        useGetPatientFoodDislikes(patientId);
 
     // Consultation State
     const [reason, setReason] = useState<string>('');
@@ -201,6 +204,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     return (
                         <div className='space-y-4'>
                             <PatientSummaryCard
+                                patientId={patientId}
                                 name={
                                     patient.firstName + ' ' + patient.lastName
                                 }
@@ -212,6 +216,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                 weight={patient.initialWeight || 0}
                                 allergies={allergies}
                                 conditions={conditions}
+                                foodDislikes={foodDislikes}
                             />
                             <ConsultationInputs
                                 reason={reason}
@@ -276,6 +281,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     return (
                         <div className='space-y-4'>
                             <PatientSummaryCard
+                                patientId={patientId}
                                 name={
                                     patient.firstName + ' ' + patient.lastName
                                 }
@@ -287,6 +293,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                 weight={patient.initialWeight || 0}
                                 allergies={allergies}
                                 conditions={conditions}
+                                foodDislikes={foodDislikes}
                             />
                             <ConsultationInputs
                                 reason={reason}
@@ -441,7 +448,12 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
-    if (isPending || isPendingAllergies || isPendingConditions) {
+    if (
+        isPending ||
+        isPendingAllergies ||
+        isPendingConditions ||
+        isPendingFoodDislikes
+    ) {
         return <ProfileDetailsLoader />;
     }
 
