@@ -53,12 +53,14 @@ export default function StepIndicator({
                 {steps.map((step, index) => {
                     const isActive = currentStep === step.key;
                     const isCompleted = currentStep > step.key;
+                    const isLocked = !isActive && !isCompleted;
 
                     return (
                         <div key={step.key} className='flex items-center'>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
+                                        disabled={isLocked}
                                         onClick={() =>
                                             onStepClick(step.key as StepKey)
                                         }
@@ -70,7 +72,7 @@ export default function StepIndicator({
                                                 'bg-secondary text-foreground',
                                             !isActive &&
                                                 !isCompleted &&
-                                                'bg-secondary/50 text-muted-foreground hover:bg-secondary/80'
+                                                'bg-secondary/50 text-muted-foreground hover:bg-secondary/80 disabled:pointer-events-none disabled:hover:bg-secondary/50 disabled:opacity-60'
                                         )}>
                                         <div
                                             className={cn(

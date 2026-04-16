@@ -65,6 +65,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [reason, setReason] = useState<string>('');
     const [diagnosis, setDiagnosis] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
+    const protocolTitle = diagnosis.trim() || 'Protocolo nutricional';
+    const durationLabel = 'Duracion: 4 semanas';
 
     // Protocol State
     const [planCalories, setPlanCalories] = useState<number>(0);
@@ -138,7 +140,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         mealType: MealType;
     } | null>(null);
 
-    const maxStep = isFirstConsultation ? 5 : 3;
+    const maxStep = isFirstConsultation ? 6 : 3;
 
     const handleOpenRecipeModal = (day: string, mealType: MealType) => {
         setSelectedDayMeal({day, mealType});
@@ -261,6 +263,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         <ProtocolPreview
                             weekPlan={weekPlan}
                             isFirstConsultation={isFirstConsultation}
+                            protocolTitle={protocolTitle}
+                            durationLabel={durationLabel}
+                            patientName={`${patient.firstName} ${patient.lastName}`}
                         />
                     );
             }
@@ -430,6 +435,12 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
+    const handleStepClick = (step: StepKey) => {
+        if (step <= currentStep) {
+            setCurrentStep(step);
+        }
+    };
+
     if (isPending || isPendingAllergies || isPendingConditions) {
         return <ProfileDetailsLoader />;
     }
@@ -487,7 +498,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             {/* Step Indicator */}
             <StepIndicator
                 currentStep={currentStep}
-                onStepClick={setCurrentStep}
+                onStepClick={handleStepClick}
                 isFirstConsultation={isFirstConsultation}
             />
 

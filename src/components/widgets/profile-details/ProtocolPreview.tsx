@@ -2,30 +2,26 @@
 
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
 import {DayMeals} from '@/lib/interface/meal-interface';
 import {motion} from 'framer-motion';
-import {
-    Apple,
-    Coffee,
-    Eye,
-    FileDown,
-    FileText,
-    Loader2,
-    Moon,
-    Save,
-    Sun,
-    UserPlus
-} from 'lucide-react';
+import {Eye, FileDown, FileText, Loader2, Save, UserPlus} from 'lucide-react';
 import {useState} from 'react';
 
 interface ProtocolPreviewProps {
     weekPlan: DayMeals[];
     isFirstConsultation: boolean;
+    protocolTitle?: string;
+    durationLabel?: string;
+    patientName?: string;
 }
 
 export default function ProtocolPreview({
     weekPlan,
-    isFirstConsultation
+    isFirstConsultation,
+    protocolTitle,
+    durationLabel,
+    patientName
 }: ProtocolPreviewProps) {
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
@@ -39,6 +35,12 @@ export default function ProtocolPreview({
         setIsSavingNotes(true);
         setTimeout(() => setIsSavingNotes(false), 1500);
     };
+
+    const mealEntries = MEAL_CONFIG.map(({key, label, icon: Icon}) => ({
+        key,
+        label,
+        Icon
+    }));
 
     return (
         <motion.div
@@ -57,10 +59,11 @@ export default function ProtocolPreview({
                 <CardContent className='pt-6'>
                     <div className='mb-6'>
                         <h4 className='text-sm font-semibold text-foreground mb-1'>
-                            Protocolo de control de diabetes
+                            {protocolTitle || 'Protocolo nutricional'}
                         </h4>
                         <p className='text-xs text-muted-foreground'>
-                            Duracion: 4 semanas | Paciente: Willie Jennings
+                            {durationLabel || 'Duracion no definida'}
+                            {patientName ? ` | Paciente: ${patientName}` : ''}
                         </p>
                     </div>
 
@@ -73,49 +76,28 @@ export default function ProtocolPreview({
                                     {day.day}
                                 </h5>
                                 <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-                                    <div className='flex flex-col gap-1'>
-                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Coffee className='h-3 w-3' />{' '}
-                                            Desayuno
-                                        </span>
-                                        <span className='text-xs font-medium text-foreground'>
-                                            {day.breakfast.recipeName}
-                                        </span>
-                                    </div>
-                                    <div className='flex flex-col gap-1'>
-                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Apple className='h-3 w-3' />
-                                            Colación 1
-                                        </span>
-                                        <span className='text-xs font-medium text-foreground'>
-                                            {day.snack1.recipeName}
-                                        </span>
-                                    </div>
-                                    <div className='flex flex-col gap-1'>
-                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Apple className='h-3 w-3' />
-                                            Colación 2
-                                        </span>
-                                        <span className='text-xs font-medium text-foreground'>
-                                            {day.snack2.recipeName}
-                                        </span>
-                                    </div>
-                                    <div className='flex flex-col gap-1'>
-                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Sun className='h-3 w-3' /> Comida
-                                        </span>
-                                        <span className='text-xs font-medium text-foreground'>
-                                            {day.lunch.recipeName}
-                                        </span>
-                                    </div>
-                                    <div className='flex flex-col gap-1'>
-                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Moon className='h-3 w-3' /> Cena
-                                        </span>
-                                        <span className='text-xs font-medium text-foreground'>
-                                            {day.dinner.recipeName}
-                                        </span>
-                                    </div>
+                                    {mealEntries
+                                        .filter(({key}) => {
+                                            const meal = day[key as MealType];
+                                            return Boolean(meal?.recipeName);
+                                        })
+                                        .map(({key, label, Icon}) => {
+                                            const meal = day[key as MealType];
+
+                                            return (
+                                                <div
+                                                    key={key}
+                                                    className='flex flex-col gap-1'>
+                                                    <span className='text-xs text-muted-foreground flex items-center gap-1'>
+                                                        <Icon className='h-3 w-3' />
+                                                        {label}
+                                                    </span>
+                                                    <span className='text-xs font-medium text-foreground'>
+                                                        {meal.recipeName}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
                                 </div>
                             </div>
                         ))}
