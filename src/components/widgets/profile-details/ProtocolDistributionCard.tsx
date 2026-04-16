@@ -3,10 +3,28 @@
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
-import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
+import {
+    macros,
+    MacroMealPercentages,
+    MacroPercents,
+    MEAL_CONFIG,
+    MealPercentages,
+    MacroType,
+    MealType
+} from '@/lib/config/meal-config';
 import {cn} from '@/lib/utils';
 import {AnimatePresence, motion} from 'framer-motion';
-import {AlertCircle, Check, Percent, PieChart, Plus, X} from 'lucide-react';
+import {
+    AlertCircle,
+    Beef,
+    Check,
+    Droplets,
+    Percent,
+    PieChart,
+    Plus,
+    Wheat,
+    X
+} from 'lucide-react';
 import React from 'react';
 
 interface ProtocolDistributionCardProps {
@@ -15,27 +33,90 @@ interface ProtocolDistributionCardProps {
     setEnabledMeals: React.Dispatch<
         React.SetStateAction<Record<MealType, boolean>>
     >;
-    mealPercentages: Record<MealType, number>;
-    setMealPercentages: React.Dispatch<
-        React.SetStateAction<Record<MealType, number>>
+    mealPercentages: MealPercentages;
+    setMealPercentages: React.Dispatch<React.SetStateAction<MealPercentages>>;
+    macroMealPercentages: MacroMealPercentages;
+    setMacroMealPercentages: React.Dispatch<
+        React.SetStateAction<MacroMealPercentages>
     >;
+    macroPercents: MacroPercents;
 }
+
+const createEmptyMealPercentages = (): MealPercentages => ({
+    smoothie: 0,
+    breakfast: 0,
+    snack1: 0,
+    lunch: 0,
+    snack2: 0,
+    dinner: 0,
+    drinks: 0
+});
+
+const createEqualMealPercentages = (
+    enabledMeals: Record<MealType, boolean>
+): MealPercentages => {
+    const enabledKeys = MEAL_CONFIG.map(({key}) => key).filter(
+        key => enabledMeals[key]
+    );
+    const next = createEmptyMealPercentages();
+
+    if (enabledKeys.length === 0) {
+        return next;
+    }
+
+    const baseUnits = Math.floor(10000 / enabledKeys.length);
+    const remainderUnits = 10000 - baseUnits * enabledKeys.length;
+
+    enabledKeys.forEach((key, index) => {
+        next[key] = (baseUnits + (index < remainderUnits ? 1 : 0)) / 100;
+    });
+
+    return next;
+};
+
+const macroLabels: Record<MacroType, string> = {
+    carbs: 'Carbs',
+    protein: 'Proteina',
+    fat: 'Grasa'
+};
 
 export function ProtocolDistributionCard({
     planCalories,
     enabledMeals,
     setEnabledMeals,
     mealPercentages,
-    setMealPercentages
+    setMealPercentages,
+    macroMealPercentages,
+    setMacroMealPercentages,
+    macroPercents
 }: ProtocolDistributionCardProps) {
     // Check if distribution is valid (totals 100%)
     const enabledMealsList = Object.entries(enabledMeals)
         .filter(([, enabled]) => enabled)
-        .map(([key]) => key);
+        .map(([key]) => key as MealType);
     const totalPercentage = enabledMealsList.reduce(
         (sum, key) =>
             sum + mealPercentages[key as keyof typeof mealPercentages],
         0
+    );
+    const isMealDistributionValid = totalPercentage === 100;
+    const totalMacroPercentages = macros.reduce(
+        (acc, macro) => {
+            acc[macro] = enabledMealsList.reduce(
+                (sum, key) => sum + macroMealPercentages[macro][key],
+                0
+            );
+            return acc;
+        },
+        {} as Record<MacroType, number>
+    );
+    const macroCaloriesPerDay = {
+        carbs: (planCalories * macroPercents.carbs) / 100,
+        protein: (planCalories * macroPercents.protein) / 100,
+        fat: (planCalories * macroPercents.fat) / 100
+    };
+    const areMacroDistributionsValid = macros.every(
+        macro => totalMacroPercentages[macro] === 100
     );
     const allMealTypes = MEAL_CONFIG.map(m => m.key);
     const disabledMealTypes = allMealTypes.filter(
@@ -70,20 +151,36 @@ export function ProtocolDistributionCard({
         }));
     };
 
+    const onMacroPercentageChange = (
+        macro: MacroType,
+        meal: MealType,
+        value: number
+    ) => {
+        const clampedValue = Math.min(Math.max(value, 0), 100);
+        const roundedValue = Math.round(clampedValue * 100) / 100;
+
+        setMacroMealPercentages(prev => ({
+            ...prev,
+            [macro]: {
+                ...prev[macro],
+                [meal]: roundedValue
+            }
+        }));
+    };
+
     // Add a meal type
     const onAddMealType = (mealType: MealType) => {
         if (enabledMeals[mealType]) return;
         const newEnabled = {...enabledMeals, [mealType]: true};
         setEnabledMeals(newEnabled);
-        const enabledKeys = Object.keys(newEnabled).filter(
-            k => newEnabled[k as MealType]
-        );
-        const equalPct = Math.round(100 / enabledKeys.length);
-        const newPcts: Record<MealType, number> = {} as any;
-        Object.keys(newEnabled).forEach(k => {
-            newPcts[k as MealType] = newEnabled[k as MealType] ? equalPct : 0;
-        });
+
+        const newPcts = createEqualMealPercentages(newEnabled);
         setMealPercentages(newPcts);
+        setMacroMealPercentages({
+            carbs: {...newPcts},
+            protein: {...newPcts},
+            fat: {...newPcts}
+        });
     };
 
     // Remove a meal type
@@ -95,16 +192,21 @@ export function ProtocolDistributionCard({
             k => newEnabled[k as MealType]
         );
         if (enabledKeys.length === 0) return;
-        const equalPct = Math.round(100 / enabledKeys.length);
-        const newPcts: Record<MealType, number> = {} as any;
-        Object.keys(newEnabled).forEach(k => {
-            newPcts[k as MealType] = newEnabled[k as MealType] ? equalPct : 0;
-        });
+
+        const newPcts = createEqualMealPercentages(newEnabled);
         setMealPercentages(newPcts);
+        setMacroMealPercentages({
+            carbs: {...newPcts},
+            protein: {...newPcts},
+            fat: {...newPcts}
+        });
     };
 
     const [pctDraft, setPctDraft] = React.useState<
         Partial<Record<MealType, string>>
+    >({});
+    const [macroPctDraft, setMacroPctDraft] = React.useState<
+        Partial<Record<string, string>>
     >({});
 
     const canRemove = Object.values(enabledMeals).filter(Boolean).length > 1;
@@ -121,8 +223,9 @@ export function ProtocolDistributionCard({
                         Distribucion de calorias por comida
                     </CardTitle>
                     <p className='text-sm text-muted-foreground'>
-                        Define el porcentaje de calorias para cada tipo de
-                        comida. Total: {planCalories} kcal
+                        Define el porcentaje total de calorias por comida y la
+                        distribucion de carbs, proteina y grasa dentro de las
+                        comidas. Total: {planCalories} kcal
                     </p>
                 </CardHeader>
                 <CardContent className='space-y-4'>
@@ -175,6 +278,29 @@ export function ProtocolDistributionCard({
                                     const kcal = Math.round(
                                         (planCalories * percentage) / 100
                                     );
+                                    const macroMealKcal = {
+                                        carbs: Math.round(
+                                            (macroCaloriesPerDay.carbs *
+                                                macroMealPercentages.carbs[
+                                                    mealType
+                                                ]) /
+                                                100
+                                        ),
+                                        protein: Math.round(
+                                            (macroCaloriesPerDay.protein *
+                                                macroMealPercentages.protein[
+                                                    mealType
+                                                ]) /
+                                                100
+                                        ),
+                                        fat: Math.round(
+                                            (macroCaloriesPerDay.fat *
+                                                macroMealPercentages.fat[
+                                                    mealType
+                                                ]) /
+                                                100
+                                        )
+                                    };
 
                                     return (
                                         <motion.div
@@ -306,6 +432,114 @@ export function ProtocolDistributionCard({
                                                     </span>
                                                 </div>
                                             </div>
+
+                                            <div className='space-y-2 pt-2 border-t border-border'>
+                                                {macros.map(macro => {
+                                                    const draftKey = `${macro}:${mealType}`;
+
+                                                    return (
+                                                        <div
+                                                            key={macro}
+                                                            className='grid grid-cols-[minmax(0,1fr)_92px_92px] gap-2 items-center lg:grid-cols-1 lg:items-stretch'>
+                                                            <div>
+                                                                <p className='text-xs font-medium text-foreground'>
+                                                                    {
+                                                                        macroLabels[
+                                                                            macro
+                                                                        ]
+                                                                    }
+                                                                </p>
+                                                                <p className='text-[11px] text-muted-foreground'>
+                                                                    {macroPercents[
+                                                                        macro
+                                                                    ].toFixed(
+                                                                        2
+                                                                    )}
+                                                                    % del dia
+                                                                </p>
+                                                            </div>
+                                                            <div className='contents lg:grid lg:grid-cols-2 lg:gap-2'>
+                                                                <div className='relative'>
+                                                                    <Input
+                                                                        type='number'
+                                                                        min={0}
+                                                                        max={
+                                                                            100
+                                                                        }
+                                                                        step='0.01'
+                                                                        value={
+                                                                            draftKey in
+                                                                            macroPctDraft
+                                                                                ? macroPctDraft[
+                                                                                      draftKey
+                                                                                  ]
+                                                                                : macroMealPercentages[
+                                                                                      macro
+                                                                                  ][
+                                                                                      mealType
+                                                                                  ]
+                                                                        }
+                                                                        onChange={e =>
+                                                                            setMacroPctDraft(
+                                                                                prev => ({
+                                                                                    ...prev,
+                                                                                    [draftKey]:
+                                                                                        e
+                                                                                            .target
+                                                                                            .value
+                                                                                })
+                                                                            )
+                                                                        }
+                                                                        onBlur={e => {
+                                                                            const parsed =
+                                                                                parseFloat(
+                                                                                    e
+                                                                                        .target
+                                                                                        .value
+                                                                                );
+                                                                            onMacroPercentageChange(
+                                                                                macro,
+                                                                                mealType,
+                                                                                isNaN(
+                                                                                    parsed
+                                                                                )
+                                                                                    ? 0
+                                                                                    : parsed
+                                                                            );
+                                                                            setMacroPctDraft(
+                                                                                prev => {
+                                                                                    const next =
+                                                                                        {
+                                                                                            ...prev
+                                                                                        };
+                                                                                    delete next[
+                                                                                        draftKey
+                                                                                    ];
+                                                                                    return next;
+                                                                                }
+                                                                            );
+                                                                        }}
+                                                                        className='bg-background border-border pr-6 h-9'
+                                                                    />
+                                                                    <span className='absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground'>
+                                                                        %
+                                                                    </span>
+                                                                </div>
+                                                                <div className='rounded-md border border-border bg-background px-3 h-9 flex items-center justify-end text-sm font-medium text-foreground'>
+                                                                    {
+                                                                        macroMealKcal[
+                                                                            macro
+                                                                        ]
+                                                                    }
+                                                                    <span className='ml-1 text-[11px] text-muted-foreground'>
+                                                                        kcal
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </motion.div>
                                     );
                                 }
@@ -313,60 +547,169 @@ export function ProtocolDistributionCard({
                         </AnimatePresence>
                     </div>
 
-                    {/* Total Percentage Bar */}
-                    <div className='space-y-2'>
-                        <div className='flex items-center justify-between'>
-                            <span className='text-sm font-medium text-foreground'>
-                                Total porcentaje
-                            </span>
-                            <span
-                                className={cn(
-                                    'text-sm font-semibold',
-                                    totalPercentage === 100
-                                        ? 'text-green-500'
-                                        : 'text-destructive'
-                                )}>
-                                {totalPercentage.toFixed(2)}%
-                            </span>
-                        </div>
-                        <div className='h-2 rounded-full bg-secondary overflow-hidden'>
-                            <motion.div
-                                initial={{width: 0}}
-                                animate={{
-                                    width: `${Math.min(totalPercentage, 100)}%`
-                                }}
-                                className={cn(
-                                    'h-full rounded-full transition-colors',
-                                    totalPercentage === 100
-                                        ? 'bg-green-500'
-                                        : totalPercentage > 100
-                                          ? 'bg-destructive'
-                                          : 'bg-amber-500'
-                                )}
-                            />
-                        </div>
+                    {/* Totals Cards */}
+                    <div className='grid grid-cols-2 gap-4'>
+                        {[
+                            {
+                                label: 'Calorias totales',
+                                icon: PieChart,
+                                value: totalPercentage,
+                                color: 'primary'
+                            },
+                            {
+                                label: 'Carbohidratos totales',
+                                icon: Wheat,
+                                value: totalMacroPercentages['carbs'],
+                                color: 'amber'
+                            },
+                            {
+                                label: 'Proteínas totales',
+                                icon: Beef,
+                                value: totalMacroPercentages['protein'],
+                                color: 'red'
+                            },
+                            {
+                                label: 'Grasas totales',
+                                icon: Droplets,
+                                value: totalMacroPercentages['fat'],
+                                color: 'blue'
+                            }
+                        ].map(item => {
+                            const isComplete = item.value === 100;
+                            const isOver = item.value > 100;
+                            const Icon = item.icon;
+                            const colorClasses = {
+                                primary: 'text-primary',
+                                amber: 'text-amber-500',
+                                red: 'text-red-500',
+                                blue: 'text-blue-500'
+                            };
+                            const strokeColors = {
+                                primary: isComplete
+                                    ? '#22c55e'
+                                    : isOver
+                                      ? '#ef4444'
+                                      : 'hsl(var(--primary))',
+                                amber: isComplete
+                                    ? '#22c55e'
+                                    : isOver
+                                      ? '#ef4444'
+                                      : '#f59e0b',
+                                red: isComplete
+                                    ? '#22c55e'
+                                    : isOver
+                                      ? '#ef4444'
+                                      : '#ef4444',
+                                blue: isComplete
+                                    ? '#22c55e'
+                                    : isOver
+                                      ? '#ef4444'
+                                      : '#3b82f6'
+                            };
 
-                        {/* Error Message */}
-                        <AnimatePresence>
-                            {totalPercentage !== 100 && (
-                                <motion.div
-                                    initial={{opacity: 0, height: 0}}
-                                    animate={{opacity: 1, height: 'auto'}}
-                                    exit={{opacity: 0, height: 0}}
-                                    className='flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20'>
-                                    <AlertCircle className='h-4 w-4 text-destructive flex-shrink-0' />
-                                    <span className='text-sm text-destructive'>
-                                        {totalPercentage < 100
-                                            ? `Faltan ${100 - totalPercentage}% para completar el 100%`
-                                            : `Excede el 100% por ${totalPercentage - 100}%`}
+                            const circumference = 2 * Math.PI * 36;
+                            const progress = Math.min(item.value, 100);
+                            const offset =
+                                circumference -
+                                (progress / 100) * circumference;
+                            return (
+                                <div
+                                    key={item.label}
+                                    className='relative p-4 rounded-xl border border-border bg-card flex flex-col items-center'>
+                                    {/* Circular Progress */}
+                                    <div className='relative w-24 h-24'>
+                                        <svg
+                                            className='w-24 h-24 -rotate-90'
+                                            viewBox='0 0 80 80'>
+                                            {/* Background circle */}
+                                            <circle
+                                                cx='40'
+                                                cy='40'
+                                                r='36'
+                                                fill='none'
+                                                stroke='hsl(var(--secondary))'
+                                                strokeWidth='6'
+                                            />
+                                            {/* Progress circle */}
+                                            <motion.circle
+                                                cx='40'
+                                                cy='40'
+                                                r='36'
+                                                fill='none'
+                                                stroke={
+                                                    strokeColors[
+                                                        item.color as keyof typeof strokeColors
+                                                    ]
+                                                }
+                                                strokeWidth='6'
+                                                strokeLinecap='round'
+                                                initial={{
+                                                    strokeDashoffset:
+                                                        circumference
+                                                }}
+                                                animate={{
+                                                    strokeDashoffset: offset
+                                                }}
+                                                style={{
+                                                    strokeDasharray:
+                                                        circumference
+                                                }}
+                                                transition={{
+                                                    duration: 0.5,
+                                                    ease: 'easeOut'
+                                                }}
+                                            />
+                                        </svg>
+                                        {/* Center content */}
+                                        <div className='absolute inset-0 flex flex-col items-center justify-center'>
+                                            <Icon
+                                                className={cn(
+                                                    'h-5 w-5 mb-0.5',
+                                                    colorClasses[
+                                                        item.color as keyof typeof colorClasses
+                                                    ]
+                                                )}
+                                            />
+                                            <span
+                                                className={cn(
+                                                    'text-sm font-bold',
+                                                    isComplete
+                                                        ? 'text-green-500'
+                                                        : isOver
+                                                          ? 'text-destructive'
+                                                          : 'text-foreground'
+                                                )}>
+                                                {item.value.toFixed(0)}%
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Label */}
+                                    <span className='mt-2 text-sm font-medium text-foreground'>
+                                        {item.label}
                                     </span>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+
+                                    {/* Status indicator */}
+                                    {!isComplete && (
+                                        <span className='mt-1 text-xs text-destructive'>
+                                            {item.value < 100
+                                                ? `Falta ${(100 - item.value).toFixed(1)}%`
+                                                : `+${(item.value - 100).toFixed(1)}%`}
+                                        </span>
+                                    )}
+                                    {isComplete && (
+                                        <span className='mt-1 text-xs text-green-500 flex items-center gap-1'>
+                                            <Check className='h-3 w-3' />
+                                            Completo
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Summary */}
-                    {totalPercentage === 100 && (
+                    {/* {isMealDistributionValid && areMacroDistributionsValid && (
                         <motion.div
                             initial={{opacity: 0}}
                             animate={{opacity: 1}}
@@ -397,7 +740,7 @@ export function ProtocolDistributionCard({
                                 ))}
                             </div>
                         </motion.div>
-                    )}
+                    )} */}
                 </CardContent>
             </Card>
             {/* <Button

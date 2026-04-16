@@ -47,6 +47,8 @@ export const MEAL_CONFIG = [
 
 export type MealType = (typeof MEAL_CONFIG)[number]['key'];
 
+export type MealPercentages = Record<MealType, number>;
+
 export type EnabledMeals = Record<MealType, boolean>;
 
 export const DEFAULT_ENABLED_MEALS: EnabledMeals = {
@@ -97,3 +99,11 @@ export const mealTypeLabel: Record<string, string> = {
     DINNER: 'Cena',
     DRINKS: 'Bebida'
 };
+
+export const macros = ['carbs', 'protein', 'fat'] as const;
+
+export type MacroType = (typeof macros)[number];
+
+export type MacroPercents = Record<MacroType, number>;
+
+export type MacroMealPercentages = Record<MacroType, MealPercentages>;

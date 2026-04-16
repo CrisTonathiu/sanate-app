@@ -22,7 +22,12 @@ import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPl
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
 import ProtocolPreview from '@/components/widgets/profile-details/ProtocolPreview';
 import {ProtocolDistributionCard} from '@/components/widgets/profile-details/ProtocolDistributionCard';
-import {MealType} from '@/lib/config/meal-config';
+import {
+    MacroMealPercentages,
+    MacroPercents,
+    MealPercentages,
+    MealType
+} from '@/lib/config/meal-config';
 import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
 import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
 
@@ -45,11 +50,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     // Protocol State
     const [planCalories, setPlanCalories] = useState<number>(0);
-    const [macroPercents, setMacroPercents] = useState<{
-        carbs: number;
-        protein: number;
-        fat: number;
-    }>({
+    const [macroPercents, setMacroPercents] = useState<MacroPercents>({
         carbs: 50,
         protein: 20,
         fat: 30
@@ -67,9 +68,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             drinks: false
         }
     );
-    const [mealPercentages, setMealPercentages] = useState<
-        Record<MealType, number>
-    >({
+    const [mealPercentages, setMealPercentages] = useState<MealPercentages>({
         breakfast: 35,
         snack1: 0,
         lunch: 35,
@@ -78,6 +77,36 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         smoothie: 0,
         drinks: 0
     });
+    const [macroMealPercentages, setMacroMealPercentages] =
+        useState<MacroMealPercentages>({
+            carbs: {
+                breakfast: 35,
+                snack1: 0,
+                lunch: 35,
+                dinner: 30,
+                snack2: 0,
+                smoothie: 0,
+                drinks: 0
+            },
+            protein: {
+                breakfast: 35,
+                snack1: 0,
+                lunch: 35,
+                dinner: 30,
+                snack2: 0,
+                smoothie: 0,
+                drinks: 0
+            },
+            fat: {
+                breakfast: 35,
+                snack1: 0,
+                lunch: 35,
+                dinner: 30,
+                snack2: 0,
+                smoothie: 0,
+                drinks: 0
+            }
+        });
 
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -115,6 +144,33 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         const pct = mealPercentages[mealType] ?? 0;
         return total > 0 ? Math.round((pct / total) * planCalories) : 0;
     };
+
+    const enabledMealKeys = (Object.keys(enabledMeals) as MealType[]).filter(
+        key => enabledMeals[key]
+    );
+    const mealDistributionTotal = enabledMealKeys.reduce(
+        (sum, key) => sum + (mealPercentages[key] ?? 0),
+        0
+    );
+    const macroDistributionTotals = {
+        carbs: enabledMealKeys.reduce(
+            (sum, key) => sum + macroMealPercentages.carbs[key],
+            0
+        ),
+        protein: enabledMealKeys.reduce(
+            (sum, key) => sum + macroMealPercentages.protein[key],
+            0
+        ),
+        fat: enabledMealKeys.reduce(
+            (sum, key) => sum + macroMealPercentages.fat[key],
+            0
+        )
+    };
+    const isMealDistributionStepValid =
+        mealDistributionTotal === 100 &&
+        macroDistributionTotals.carbs === 100 &&
+        macroDistributionTotals.protein === 100 &&
+        macroDistributionTotals.fat === 100;
 
     const renderStepContent = () => {
         if (!patient) return null;
@@ -167,6 +223,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                             setEnabledMeals={setEnabledMeals}
                             mealPercentages={mealPercentages}
                             setMealPercentages={setMealPercentages}
+                            macroMealPercentages={macroMealPercentages}
+                            setMacroMealPercentages={setMacroMealPercentages}
+                            macroPercents={macroPercents}
                         />
                     );
                 case 4:
@@ -273,6 +332,24 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const nextStep = () => {
         if (currentStep === 3) {
+            if (mealDistributionTotal !== 100) {
+                window.alert(
+                    `La distribucion total de comidas debe ser 100%. Actualmente es ${mealDistributionTotal.toFixed(2)}%.`
+                );
+                return;
+            }
+
+            if (
+                macroDistributionTotals.carbs !== 100 ||
+                macroDistributionTotals.protein !== 100 ||
+                macroDistributionTotals.fat !== 100
+            ) {
+                window.alert(
+                    `La distribucion por macro debe sumar 100% para carbs, proteina y grasa. Totales actuales: carbs ${macroDistributionTotals.carbs.toFixed(2)}%, proteina ${macroDistributionTotals.protein.toFixed(2)}%, grasa ${macroDistributionTotals.fat.toFixed(2)}%.`
+                );
+                return;
+            }
+
             // Build mealDistribution payload from enabled meals + percentages
             const mealDistribution: Record<string, number> = {};
             (Object.keys(enabledMeals) as MealType[]).forEach(key => {
@@ -379,6 +456,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 nextStep={nextStep}
                 prevStep={prevStep}
                 isGenerating={isGenerating}
+                disableNextStep={
+                    currentStep === 3 && !isMealDistributionStepValid
+                }
             />
 
             {selectedDayMeal && (

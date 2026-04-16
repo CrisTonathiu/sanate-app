@@ -11,6 +11,7 @@ interface ProtocolNavigationProps {
     nextStep: () => void;
     prevStep: () => void;
     isGenerating?: boolean;
+    disableNextStep?: boolean;
 }
 
 export function ProtocolNavigation({
@@ -19,7 +20,8 @@ export function ProtocolNavigation({
     isFirstConsultation,
     nextStep,
     prevStep,
-    isGenerating = false
+    isGenerating = false,
+    disableNextStep = false
 }: ProtocolNavigationProps) {
     const {sidebarOpen} = useSidebar();
 
@@ -45,7 +47,7 @@ export function ProtocolNavigation({
                 {currentStep < maxStep ? (
                     <Button
                         onClick={nextStep}
-                        disabled={isGenerating}
+                        disabled={isGenerating || disableNextStep}
                         className='h-11 px-6 rounded-xl'>
                         {isGenerating ? (
                             <>
