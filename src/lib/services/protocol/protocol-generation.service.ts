@@ -2,12 +2,8 @@
 
 import {MealType} from '@prisma/client';
 import {prisma} from '@/lib/prisma';
-import {
-    GenerateProtocolPlanInput,
-    ProtocolGoal
-} from '@/lib/validations/protocol-generation.schema';
+import {GenerateProtocolPlanInput} from '@/lib/validations/protocol-generation.schema';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
-import {id} from 'zod/v4/locales';
 
 // --------------------
 // Types
@@ -46,6 +42,10 @@ type RecipeSummary = {
     }>;
 };
 
+type MacroMealTarget = NonNullable<
+    GenerateProtocolPlanInput['macroMealDistribution']
+>[string];
+
 const DAYS = [
     'Lunes',
     'Martes',
@@ -72,6 +72,10 @@ const MEAL_ORDER: MealType[] = [
 
 function round1(value: number) {
     return Number(value.toFixed(1));
+}
+
+function round2(value: number) {
+    return Number(value.toFixed(2));
 }
 
 function normalizeAllergenName(value: string) {
@@ -298,38 +302,178 @@ function buildMealCatalog(recipes: RecipeSummary[]) {
     return catalog;
 }
 
-function buildMeal(recipe: RecipeSummary, targetCalories: number): MealSlot {
+function getMacroMealTarget(
+    macroMealDistribution: GenerateProtocolPlanInput['macroMealDistribution'],
+    mealKey: MealType
+) {
+    if (!macroMealDistribution) return undefined;
+
+    return (
+        macroMealDistribution[mealKey] ??
+        macroMealDistribution[mealKey.toLowerCase()] ??
+        macroMealDistribution[mealKey.toUpperCase()]
+    );
+}
+
+function getIngredientMacroKcal(
+    ingredient: RecipeSummary['ingredients'][number],
+    scaledGrams: number
+) {
+    const ratio = scaledGrams / 100;
+
+    return {
+        proteinKcal: (ingredient.proteinPer100g ?? 0) * ratio * 4,
+        carbsKcal: (ingredient.carbsPer100g ?? 0) * ratio * 4,
+        fatKcal: (ingredient.fatPer100g ?? 0) * ratio * 9
+    };
+}
+
+function getMacroTargetWarnings(
+    ingredientName: string,
+    ingredientMacroKcal: {
+        proteinKcal: number;
+        carbsKcal: number;
+        fatKcal: number;
+    },
+    macroTarget?: MacroMealTarget
+) {
+    const warnings: string[] = [];
+    let shouldExclude = false;
+
+    if (!macroTarget) {
+        return {shouldExclude, warnings};
+    }
+
+    const checks = [
+        {
+            label: 'proteina',
+            ingredientKcal: ingredientMacroKcal.proteinKcal,
+            targetKcal: macroTarget.proteinKcal
+        },
+        {
+            label: 'carbs',
+            ingredientKcal: ingredientMacroKcal.carbsKcal,
+            targetKcal: macroTarget.carbsKcal
+        },
+        {
+            label: 'grasa',
+            ingredientKcal: ingredientMacroKcal.fatKcal,
+            targetKcal: macroTarget.fatKcal
+        }
+    ];
+
+    for (const check of checks) {
+        if (check.ingredientKcal <= 0) {
+            continue;
+        }
+
+        if (check.targetKcal === 0) {
+            shouldExclude = true;
+            warnings.push(
+                `${ingredientName} removido: aporta ${round1(check.ingredientKcal)} kcal de ${check.label} y el objetivo para esa comida es 0 kcal.`
+            );
+            continue;
+        }
+
+        if (check.ingredientKcal > check.targetKcal) {
+            warnings.push(
+                `${ingredientName} aporta ${round1(check.ingredientKcal)} kcal de ${check.label}, por encima del objetivo de ${round1(check.targetKcal)} kcal. Revisa si debes retirarlo o cambiarlo.`
+            );
+        }
+    }
+
+    return {shouldExclude, warnings};
+}
+
+function computePortionNutrition(portion: {
+    targetGrams: number;
+    baseCalories?: number;
+    baseProtein?: number;
+    baseCarbs?: number;
+    baseFat?: number;
+}) {
+    const ratio = portion.targetGrams / 100;
+
+    return {
+        calories: (portion.baseCalories ?? 0) * ratio,
+        protein: (portion.baseProtein ?? 0) * ratio,
+        carbs: (portion.baseCarbs ?? 0) * ratio,
+        fat: (portion.baseFat ?? 0) * ratio
+    };
+}
+
+function buildMeal(
+    recipe: RecipeSummary,
+    targetCalories: number,
+    macroTarget?: MacroMealTarget
+): MealSlot {
     const scale = Number((targetCalories / recipe.calories).toFixed(2));
 
     const realism = evaluateMealRealism(recipe.ingredients, scale);
+    const warnings = [...realism.warnings];
+
+    const ingredientPortions = recipe.ingredients.flatMap(item => {
+        const targetQuantity =
+            item.unit === 'PIECE'
+                ? Math.max(1, Math.round(item.quantity * scale))
+                : Math.round(item.quantity * scale);
+        const targetGrams = Math.round(item.grams * scale);
+        const ingredientMacroKcal = getIngredientMacroKcal(item, targetGrams);
+        const macroWarnings = getMacroTargetWarnings(
+            item.name,
+            ingredientMacroKcal,
+            macroTarget
+        );
+
+        warnings.push(...macroWarnings.warnings);
+
+        if (macroWarnings.shouldExclude) {
+            return [];
+        }
+
+        return [
+            {
+                ingredientId: item.id,
+                ingredientName: item.name,
+                baseQuantity: item.quantity,
+                targetQuantity,
+                baseGrams: item.grams,
+                targetGrams,
+                unit: normalizeRecipeIngredientUnit(item.unit),
+                baseCalories: item.caloriesPer100g,
+                baseProtein: item.proteinPer100g,
+                baseCarbs: item.carbsPer100g,
+                baseFat: item.fatPer100g
+            }
+        ];
+    });
+
+    const portionTotals = ingredientPortions.reduce(
+        (sum, portion) => {
+            const nutrition = computePortionNutrition(portion);
+
+            return {
+                calories: sum.calories + nutrition.calories,
+                protein: sum.protein + nutrition.protein,
+                carbs: sum.carbs + nutrition.carbs,
+                fat: sum.fat + nutrition.fat
+            };
+        },
+        {calories: 0, protein: 0, carbs: 0, fat: 0}
+    );
 
     const slot: MealSlot = {
         id: recipe.id,
         recipeName: recipe.title,
         imageUrl: recipe.imageUrl ?? undefined,
-        calories: Math.round(recipe.calories * scale),
-        protein: round1(recipe.protein * scale),
-        carbs: round1(recipe.carbs * scale),
-        fat: round1(recipe.fat * scale),
+        calories: Math.round(portionTotals.calories),
+        protein: round1(portionTotals.protein),
+        carbs: round1(portionTotals.carbs),
+        fat: round1(portionTotals.fat),
         portionMultiplier: scale,
-        isRealistic: realism.isRealistic,
-        warnings: realism.warnings,
-        ingredientPortions: recipe.ingredients.map(item => ({
-            ingredientId: item.id,
-            ingredientName: item.name,
-            baseQuantity: item.quantity,
-            targetQuantity:
-                item.unit === 'PIECE'
-                    ? Math.max(1, Math.round(item.quantity * scale))
-                    : Math.round(item.quantity * scale),
-            baseGrams: item.grams,
-            targetGrams: Math.round(item.grams * scale),
-            unit: normalizeRecipeIngredientUnit(item.unit),
-            baseCalories: item.caloriesPer100g,
-            baseProtein: item.proteinPer100g,
-            baseCarbs: item.carbsPer100g,
-            baseFat: item.fatPer100g
-        }))
+        isRealistic: realism.isRealistic && warnings.length === 0,
+        warnings,
+        ingredientPortions
     };
 
     return slot;
@@ -346,6 +490,11 @@ export async function generateProtocolPlanForPatient(
     if (!input.planCalories || input.planCalories <= 0) {
         return {success: false, message: 'Calorías diarias inválidas'};
     }
+
+    console.log(
+        '[protocolGeneration] macroMealDistribution:',
+        input.macroMealDistribution
+    );
 
     const patient = await prisma.patient.findUnique({
         where: {id: patientId},
@@ -499,9 +648,18 @@ export async function generateProtocolPlanForPatient(
             const recipe =
                 recipesForMeal[dayIndex % recipesForMeal.length] ||
                 recipesForMeal[0];
-            const targetCalories = dailyCalories * split[mealKey];
+            const macroMealTarget = getMacroMealTarget(
+                input.macroMealDistribution,
+                mealKey
+            );
+            const targetCalories =
+                macroMealTarget?.totalKcal ?? dailyCalories * split[mealKey];
 
-            const slotResult = buildMeal(recipe, targetCalories);
+            const slotResult = buildMeal(
+                recipe,
+                round2(targetCalories),
+                macroMealTarget
+            );
 
             dayMeals[key] = slotResult;
         }

@@ -115,9 +115,6 @@ export function ProtocolDistributionCard({
         protein: (planCalories * macroPercents.protein) / 100,
         fat: (planCalories * macroPercents.fat) / 100
     };
-    const areMacroDistributionsValid = macros.every(
-        macro => totalMacroPercentages[macro] === 100
-    );
     const allMealTypes = MEAL_CONFIG.map(m => m.key);
     const disabledMealTypes = allMealTypes.filter(
         m => !enabledMealsList.includes(m)
