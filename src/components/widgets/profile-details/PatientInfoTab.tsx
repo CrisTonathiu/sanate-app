@@ -1,10 +1,12 @@
 'use client';
 
+import {Badge} from '@/components/ui/badge';
 import {Separator} from '@/components/ui/separator';
 import {motion} from 'framer-motion';
 import DataGrid from '../DataGrid';
 import SectionHeading from '../SectionHeading';
 import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
+import {useGetPatientFoodDislikes} from '@/hooks/use-patients';
 import {getAgeFromDateString} from '@/lib/utils';
 
 interface PatientInfoTabProps {
@@ -42,6 +44,10 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
     if (!patient) {
         return <div>Paciente no encontrado</div>;
     }
+
+    const {data: foodDislikes = [], isPending: isLoadingFoodDislikes} =
+        useGetPatientFoodDislikes(patient.id);
+
     const patientAge = getAgeFromDateString(patient.birthDate);
 
     const PATIENT_DATA = [
@@ -89,6 +95,35 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
             </div>
 
             <Separator className='bg-border/50' />
+
+            <div className='flex flex-col gap-4'>
+                <SectionHeading
+                    title='Preferencias alimentarias'
+                    subtitle='Alimentos que el paciente prefiere evitar por gusto o rechazo, no por alergia'
+                    delay={0.2}
+                />
+
+                {isLoadingFoodDislikes ? (
+                    <p className='text-sm text-muted-foreground'>
+                        Cargando preferencias alimentarias...
+                    </p>
+                ) : foodDislikes.length > 0 ? (
+                    <div className='flex flex-wrap gap-2'>
+                        {foodDislikes.map(item => (
+                            <Badge
+                                key={item.id}
+                                variant='outline'
+                                className='rounded-lg border-amber-200 bg-amber-50 px-3 py-1 text-amber-800'>
+                                {item.food}
+                            </Badge>
+                        ))}
+                    </div>
+                ) : (
+                    <p className='text-sm text-muted-foreground'>
+                        No hay alimentos rechazados registrados.
+                    </p>
+                )}
+            </div>
 
             {/* Medical Data */}
             {/* <div className='flex flex-col gap-4'>

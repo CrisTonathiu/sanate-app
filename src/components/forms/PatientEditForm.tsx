@@ -13,10 +13,14 @@ import {
     Ruler,
     Weight,
     Cake,
-    Check
+    Check,
+    Search,
+    X,
+    UtensilsCrossed
 } from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
+import {Badge} from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -27,7 +31,13 @@ import {
 import SectionHeading from '../widgets/SectionHeading';
 import FormField from '../widgets/FormField';
 import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
-import {useUpdatePatient} from '@/hooks/use-patients';
+import {
+    useAddPatientFoodDislike,
+    useDeletePatientFoodDislike,
+    useGetPatientFoodDislikes,
+    useUpdatePatient
+} from '@/hooks/use-patients';
+import {useGetFoods} from '@/hooks/use-foods';
 
 const containerVariants = {
     hidden: {opacity: 0},
@@ -75,8 +85,27 @@ export function PatientEditForm({
 
     const {mutateAsync: updatePatientProfile, isPending: isUpdating} =
         useUpdatePatient(patientProfile.id || '');
+    const {data: allFoods = [], isPending: isLoadingFoods} = useGetFoods();
+    const {data: foodDislikes = [], isPending: isLoadingFoodDislikes} =
+        useGetPatientFoodDislikes(patientProfile.id);
+    const {mutateAsync: addFoodDislike, isPending: isAddingFoodDislike} =
+        useAddPatientFoodDislike(patientProfile.id || '');
+    const {mutateAsync: deleteFoodDislike, isPending: isDeletingFoodDislike} =
+        useDeletePatientFoodDislike(patientProfile.id || '');
     const [isSaving, setIsSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [foodSearch, setFoodSearch] = useState('');
+
+    const selectedFoodIds = new Set(foodDislikes.map(item => item.id));
+    const filteredFoods = allFoods
+        .filter(food => !selectedFoodIds.has(food.id))
+        .filter(food =>
+            food.name.toLowerCase().includes(foodSearch.trim().toLowerCase())
+        )
+        .slice(0, 8);
+
+    const isMutatingFoodDislikes =
+        isAddingFoodDislike || isDeletingFoodDislike || isSaving;
 
     const onSubmit = async (data: PatientProfileDTO) => {
         if (isUpdating) return;
@@ -93,6 +122,19 @@ export function PatientEditForm({
 
     const inputStyles =
         'h-10 rounded-xl border-border bg-secondary/40 text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-primary/50 transition-colors duration-200';
+
+    const handleAddFoodDislike = async (foodId: string) => {
+        if (!foodId || isMutatingFoodDislikes) return;
+
+        await addFoodDislike({foodId});
+        setFoodSearch('');
+    };
+
+    const handleRemoveFoodDislike = async (foodId?: string) => {
+        if (!foodId || isMutatingFoodDislikes) return;
+
+        await deleteFoodDislike(foodId);
+    };
 
     return (
         <div className='relative min-h-screen bg-background'>
@@ -336,6 +378,113 @@ export function PatientEditForm({
                                             disabled={isSaving}
                                         />
                                     </FormField>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        <motion.div
+                            variants={itemVariants}
+                            className='rounded-2xl border border-border bg-card/50 p-6'>
+                            <SectionHeading
+                                title='Alimentos que no desea'
+                                subtitle='Preferencias del paciente distintas de alergias o restricciones médicas'
+                            />
+
+                            <div className='mt-5 flex flex-col gap-5'>
+                                <div className='space-y-3'>
+                                    <div className='relative'>
+                                        <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50' />
+                                        <Input
+                                            value={foodSearch}
+                                            onChange={event =>
+                                                setFoodSearch(
+                                                    event.target.value
+                                                )
+                                            }
+                                            placeholder='Buscar alimento para excluir por preferencia'
+                                            className={`${inputStyles} pl-9`}
+                                            disabled={isMutatingFoodDislikes}
+                                        />
+                                    </div>
+
+                                    <div className='rounded-xl border border-border bg-background/70 p-3'>
+                                        <div className='mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground'>
+                                            <UtensilsCrossed className='h-3.5 w-3.5' />
+                                            Catálogo de alimentos
+                                        </div>
+
+                                        {isLoadingFoods ||
+                                        isLoadingFoodDislikes ? (
+                                            <p className='text-sm text-muted-foreground'>
+                                                Cargando alimentos...
+                                            </p>
+                                        ) : filteredFoods.length > 0 ? (
+                                            <div className='flex flex-wrap gap-2'>
+                                                {filteredFoods.map(food => (
+                                                    <Button
+                                                        key={food.id}
+                                                        type='button'
+                                                        variant='outline'
+                                                        onClick={() =>
+                                                            handleAddFoodDislike(
+                                                                food.id
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isMutatingFoodDislikes
+                                                        }
+                                                        className='h-9 rounded-lg border-border bg-secondary/20 px-3 text-sm text-foreground hover:bg-secondary/50'>
+                                                        {food.name}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className='text-sm text-muted-foreground'>
+                                                {foodSearch.trim()
+                                                    ? 'No hay coincidencias disponibles.'
+                                                    : 'Escribe para buscar alimentos del catálogo.'}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className='space-y-3'>
+                                    <div className='flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground'>
+                                        <X className='h-3.5 w-3.5' />
+                                        Alimentos no deseados
+                                    </div>
+
+                                    {foodDislikes.length > 0 ? (
+                                        <div className='flex flex-wrap gap-2'>
+                                            {foodDislikes.map(item => (
+                                                <Badge
+                                                    key={item.id}
+                                                    variant='secondary'
+                                                    className='flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-sm font-medium text-foreground'>
+                                                    <span>{item.food}</span>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() =>
+                                                            handleRemoveFoodDislike(
+                                                                item.id
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isMutatingFoodDislikes
+                                                        }
+                                                        className='rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50'
+                                                        aria-label={`Eliminar ${item.food}`}>
+                                                        <X className='h-3.5 w-3.5' />
+                                                    </button>
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className='text-sm text-muted-foreground'>
+                                            Aún no se han agregado alimentos
+                                            rechazados por preferencia.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </motion.div>

@@ -137,28 +137,48 @@ function buildMealCalorieSplit(
 
 function isRecipeAllowed(
     recipe: {
-        ingredients: Array<{ingredient: {name: string}}>;
+        ingredients: Array<{
+            ingredient: {
+                name: string;
+                food?: {
+                    name?: string;
+                } | null;
+            };
+        }>;
         extraIngredients: Array<{name: string}>;
     },
-    patientAllergies: Set<string>
+    restrictedFoods: Set<string>
 ) {
-    console.log('Paciente tiene alergias:', Array.from(patientAllergies));
-    if (patientAllergies.size === 0) return true;
+    console.log('Paciente tiene restricciones:', Array.from(restrictedFoods));
+    if (restrictedFoods.size === 0) return true;
 
     const ingredientNames = recipe.ingredients.map(item =>
         normalizeAllergenName(item.ingredient.name)
     );
+    const ingredientFoodNames = recipe.ingredients
+        .map(item => item.ingredient.food?.name)
+        .filter((name): name is string => Boolean(name))
+        .map(name => normalizeAllergenName(name));
     const extraIngredientNames = recipe.extraIngredients.map(item =>
         normalizeAllergenName(item.name)
     );
 
-    for (const allergy of patientAllergies) {
+    for (const restrictedFood of restrictedFoods) {
         if (
             ingredientNames.some(
-                name => name.includes(allergy) || allergy.includes(name)
+                name =>
+                    name.includes(restrictedFood) ||
+                    restrictedFood.includes(name)
+            ) ||
+            ingredientFoodNames.some(
+                name =>
+                    name.includes(restrictedFood) ||
+                    restrictedFood.includes(name)
             ) ||
             extraIngredientNames.some(
-                name => name.includes(allergy) || allergy.includes(name)
+                name =>
+                    name.includes(restrictedFood) ||
+                    restrictedFood.includes(name)
             )
         ) {
             return false;
@@ -523,6 +543,15 @@ export async function generateProtocolPlanForPatient(
                     }
                 }
             },
+            foodDislikes: {
+                include: {
+                    food: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
+            },
             conditions: {
                 include: {
                     condition: {
@@ -539,6 +568,19 @@ export async function generateProtocolPlanForPatient(
     const allergyNames = new Set(
         patient.allergies.map(item => normalizeAllergenName(item.allergen.name))
     );
+    const patientFoodDislikes: Array<{food: {name: string}}> =
+        (
+            patient as {
+                foodDislikes?: Array<{food: {name: string}}>;
+            }
+        ).foodDislikes ?? [];
+    const dislikedFoodNames = new Set<string>(
+        patientFoodDislikes.map(item => normalizeAllergenName(item.food.name))
+    );
+    const restrictedFoodNames = new Set<string>([
+        ...allergyNames,
+        ...dislikedFoodNames
+    ]);
 
     const recipesFromDb = await prisma.recipe.findMany({
         include: {
@@ -548,6 +590,7 @@ export async function generateProtocolPlanForPatient(
                         include: {
                             food: {
                                 select: {
+                                    name: true,
                                     caloriesPer100g: true,
                                     proteinPer100g: true,
                                     carbsPer100g: true,
@@ -565,7 +608,7 @@ export async function generateProtocolPlanForPatient(
     });
 
     const allowedRecipes: RecipeSummary[] = recipesFromDb
-        .filter(recipe => isRecipeAllowed(recipe, allergyNames))
+        .filter(recipe => isRecipeAllowed(recipe, restrictedFoodNames))
         .map(recipe => {
             const nutrition = computeRecipeNutrition(recipe);
 

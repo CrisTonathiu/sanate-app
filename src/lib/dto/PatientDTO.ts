@@ -23,6 +23,12 @@ export interface PatientAllergyDTO {
     notes?: string;
 }
 
+export interface PatientFoodDislikeDTO {
+    id?: string;
+    food: string;
+    notes?: string;
+}
+
 export interface PatientProfileDTO {
     id: string;
 
@@ -47,4 +53,5 @@ export interface PatientProfileDTO {
     // Editable Arrays
     conditions: PatientConditionDTO[];
     allergies: PatientAllergyDTO[];
+    foodDislikes?: PatientFoodDislikeDTO[];
 }
