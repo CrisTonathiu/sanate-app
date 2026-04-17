@@ -22,8 +22,12 @@ import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPlanner';
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
 import ProtocolPreview from '@/components/widgets/profile-details/ProtocolPreview';
+import ProtocolStartDialog, {
+    ProtocolTemplateOption
+} from '@/components/widgets/profile-details/ProtocolStartDialog';
 import {ProtocolDistributionCard} from '@/components/widgets/profile-details/ProtocolDistributionCard';
 import {
+    DEFAULT_ENABLED_MEALS,
     MacroMealPercentages,
     MacroPercents,
     MealPercentages,
@@ -50,6 +54,67 @@ type MacroMealDistributionPayload = Record<
     }
 >;
 
+type ProtocolTemplateRecord = {
+    id: string;
+    name: string;
+    description?: string | null;
+    updatedAt: string;
+    weeklyPlan: DayMeals[];
+    planCalories?: number | null;
+    macroPercents?: Partial<MacroPercents> | null;
+    enabledMeals?: Partial<Record<MealType, boolean>> | null;
+    mealPercentages?: Partial<MealPercentages> | null;
+    macroMealPercentages?: Partial<
+        Record<keyof MacroMealPercentages, Partial<MealPercentages>>
+    > | null;
+};
+
+const DEFAULT_MACRO_PERCENTS: MacroPercents = {
+    carbs: 50,
+    protein: 20,
+    fat: 30
+};
+
+const DEFAULT_MEAL_PERCENTAGES: MealPercentages = {
+    breakfast: 35,
+    snack1: 0,
+    lunch: 35,
+    dinner: 30,
+    snack2: 0,
+    smoothie: 0,
+    drinks: 0
+};
+
+const DEFAULT_MACRO_MEAL_PERCENTAGES: MacroMealPercentages = {
+    carbs: {
+        breakfast: 35,
+        snack1: 0,
+        lunch: 35,
+        dinner: 30,
+        snack2: 0,
+        smoothie: 0,
+        drinks: 0
+    },
+    protein: {
+        breakfast: 35,
+        snack1: 0,
+        lunch: 35,
+        dinner: 30,
+        snack2: 0,
+        smoothie: 0,
+        drinks: 0
+    },
+    fat: {
+        breakfast: 35,
+        snack1: 0,
+        lunch: 35,
+        dinner: 30,
+        snack2: 0,
+        smoothie: 0,
+        drinks: 0
+    }
+};
+
 function round2(value: number) {
     return Number(value.toFixed(2));
 }
@@ -73,67 +138,40 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     // Protocol State
     const [planCalories, setPlanCalories] = useState<number>(0);
-    const [macroPercents, setMacroPercents] = useState<MacroPercents>({
-        carbs: 50,
-        protein: 20,
-        fat: 30
-    });
+    const [macroPercents, setMacroPercents] = useState<MacroPercents>(
+        DEFAULT_MACRO_PERCENTS
+    );
 
     // Meal distribution state (lifted from ProtocolDistributionCard)
     const [enabledMeals, setEnabledMeals] = useState<Record<MealType, boolean>>(
-        {
-            breakfast: true,
-            snack1: false,
-            lunch: true,
-            dinner: true,
-            snack2: false,
-            smoothie: false,
-            drinks: false
-        }
+        DEFAULT_ENABLED_MEALS
     );
-    const [mealPercentages, setMealPercentages] = useState<MealPercentages>({
-        breakfast: 35,
-        snack1: 0,
-        lunch: 35,
-        dinner: 30,
-        snack2: 0,
-        smoothie: 0,
-        drinks: 0
-    });
+    const [mealPercentages, setMealPercentages] = useState<MealPercentages>(
+        DEFAULT_MEAL_PERCENTAGES
+    );
     const [macroMealPercentages, setMacroMealPercentages] =
-        useState<MacroMealPercentages>({
-            carbs: {
-                breakfast: 35,
-                snack1: 0,
-                lunch: 35,
-                dinner: 30,
-                snack2: 0,
-                smoothie: 0,
-                drinks: 0
-            },
-            protein: {
-                breakfast: 35,
-                snack1: 0,
-                lunch: 35,
-                dinner: 30,
-                snack2: 0,
-                smoothie: 0,
-                drinks: 0
-            },
-            fat: {
-                breakfast: 35,
-                snack1: 0,
-                lunch: 35,
-                dinner: 30,
-                snack2: 0,
-                smoothie: 0,
-                drinks: 0
-            }
-        });
+        useState<MacroMealPercentages>(DEFAULT_MACRO_MEAL_PERCENTAGES);
 
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [recipeModalOpen, setRecipeModalOpen] = useState<boolean>(false);
+    const [isStartDialogOpen, setIsStartDialogOpen] =
+        useState<boolean>(isFirstConsultation);
+    const [protocolTemplates, setProtocolTemplates] = useState<
+        ProtocolTemplateRecord[]
+    >([]);
+    const [isLoadingTemplates, setIsLoadingTemplates] =
+        useState<boolean>(false);
+    const [isApplyingTemplate, setIsApplyingTemplate] =
+        useState<boolean>(false);
+    const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
+    const [templateError, setTemplateError] = useState<string | null>(null);
+    const [templateSaveError, setTemplateSaveError] = useState<string | null>(
+        null
+    );
+    const [selectedTemplateName, setSelectedTemplateName] = useState<
+        string | null
+    >(null);
 
     const [weekPlan, setWeekPlan] = useState<DayMeals[]>([]);
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
@@ -159,6 +197,184 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             prev.map(d => (d.day === day ? {...d, [mealType]: updatedMeal} : d))
         );
     };
+
+    const fetchProtocolTemplates = async (force = false) => {
+        if (isLoadingTemplates) {
+            return;
+        }
+
+        if (!force && protocolTemplates.length > 0) {
+            return;
+        }
+
+        setIsLoadingTemplates(true);
+        setTemplateError(null);
+
+        try {
+            const response = await fetch('/api/protocol-templates');
+            const result = await response.json();
+
+            if (!response.ok || !result?.success) {
+                throw new Error(
+                    result?.message ||
+                        'No se pudieron cargar las plantillas de protocolo'
+                );
+            }
+
+            setProtocolTemplates(
+                Array.isArray(result?.data)
+                    ? (result.data as ProtocolTemplateRecord[])
+                    : []
+            );
+        } catch (error) {
+            setTemplateError(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudieron cargar las plantillas de protocolo'
+            );
+        } finally {
+            setIsLoadingTemplates(false);
+        }
+    };
+
+    const handleStartCleanProtocol = () => {
+        setSelectedTemplateName(null);
+        setIsStartDialogOpen(false);
+    };
+
+    const handleApplyTemplate = async (templateId: string) => {
+        const template = protocolTemplates.find(item => item.id === templateId);
+
+        if (!template) {
+            setTemplateError('La plantilla seleccionada no fue encontrada.');
+            return;
+        }
+
+        setIsApplyingTemplate(true);
+
+        try {
+            setWeekPlan(template.weeklyPlan);
+            setPlanCalories(template.planCalories ?? 0);
+            setMacroPercents(prev => ({
+                ...prev,
+                ...(template.macroPercents ?? {})
+            }));
+            setEnabledMeals(prev => ({
+                ...prev,
+                ...(template.enabledMeals ?? {})
+            }));
+            setMealPercentages(prev => ({
+                ...prev,
+                ...(template.mealPercentages ?? {})
+            }));
+            setMacroMealPercentages(prev => ({
+                carbs: {
+                    ...prev.carbs,
+                    ...(template.macroMealPercentages?.carbs ?? {})
+                },
+                protein: {
+                    ...prev.protein,
+                    ...(template.macroMealPercentages?.protein ?? {})
+                },
+                fat: {
+                    ...prev.fat,
+                    ...(template.macroMealPercentages?.fat ?? {})
+                }
+            }));
+            setCurrentStep(1);
+            setSelectedTemplateName(template.name);
+            setIsStartDialogOpen(false);
+        } finally {
+            setIsApplyingTemplate(false);
+        }
+    };
+
+    const handleSaveTemplate = async (templateName: string) => {
+        setIsSavingTemplate(true);
+        setTemplateSaveError(null);
+
+        const templatePayload = {
+            name: templateName,
+            weeklyPlan: weekPlan,
+            planCalories,
+            macroPercents,
+            enabledMeals,
+            mealPercentages,
+            macroMealPercentages
+        };
+
+        try {
+            console.log(
+                '[protocol-template.save] outgoing payload:',
+                JSON.stringify(templatePayload, null, 2)
+            );
+
+            const response = await fetch('/api/protocol-templates', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(templatePayload)
+            });
+
+            const result = await response.json();
+
+            console.log(
+                '[protocol-template.save] server response:',
+                JSON.stringify(result, null, 2)
+            );
+
+            if (!response.ok || !result?.success) {
+                const nameFieldError = result?.errors?.fieldErrors?.name?.[0];
+                const weeklyPlanFieldError =
+                    result?.errors?.fieldErrors?.weeklyPlan?.[0];
+                const formError = result?.errors?.formErrors?.[0];
+                const nextErrorMessage =
+                    nameFieldError ||
+                    weeklyPlanFieldError ||
+                    formError ||
+                    result?.message ||
+                    'No se pudo guardar la plantilla de protocolo';
+
+                setTemplateSaveError(nextErrorMessage);
+                return false;
+            }
+
+            const createdTemplate = result?.data as ProtocolTemplateRecord;
+
+            if (createdTemplate) {
+                setProtocolTemplates(prev => {
+                    const nextTemplates = prev.filter(
+                        template => template.id !== createdTemplate.id
+                    );
+
+                    return [createdTemplate, ...nextTemplates];
+                });
+            }
+
+            setTemplateSaveError(null);
+            window.alert('Plantilla guardada correctamente.');
+            return true;
+        } catch (error) {
+            setTemplateSaveError(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo guardar la plantilla de protocolo'
+            );
+            return false;
+        } finally {
+            setIsSavingTemplate(false);
+        }
+    };
+
+    const protocolTemplateOptions: ProtocolTemplateOption[] =
+        protocolTemplates.map(template => ({
+            id: template.id,
+            name: template.name,
+            description: template.description,
+            updatedAt: template.updatedAt,
+            weekPlanLength: template.weeklyPlan.length
+        }));
 
     const getTargetCaloriesForMeal = (mealType: MealType): number => {
         const total = (Object.keys(enabledMeals) as MealType[])
@@ -271,6 +487,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                             protocolTitle={protocolTitle}
                             durationLabel={durationLabel}
                             patientName={`${patient.firstName} ${patient.lastName}`}
+                            isSavingTemplate={isSavingTemplate}
+                            templateSaveError={templateSaveError}
+                            onSaveTemplate={handleSaveTemplate}
                         />
                     );
             }
@@ -507,6 +726,17 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 </div>
             </motion.div>
 
+            {selectedTemplateName ? (
+                <div className='mb-6 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3'>
+                    <p className='text-sm text-foreground'>
+                        Plantilla aplicada:{' '}
+                        <span className='font-semibold'>
+                            {selectedTemplateName}
+                        </span>
+                    </p>
+                </div>
+            ) : null}
+
             {/* Step Indicator */}
             <StepIndicator
                 currentStep={currentStep}
@@ -559,6 +789,20 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     }
                 />
             )}
+
+            {isFirstConsultation ? (
+                <ProtocolStartDialog
+                    open={isStartDialogOpen}
+                    templates={protocolTemplateOptions}
+                    isLoadingTemplates={isLoadingTemplates}
+                    isApplyingTemplate={isApplyingTemplate}
+                    templateError={templateError}
+                    onStartClean={handleStartCleanProtocol}
+                    onBrowseTemplates={() => fetchProtocolTemplates()}
+                    onRetryTemplates={() => fetchProtocolTemplates(true)}
+                    onApplyTemplate={handleApplyTemplate}
+                />
+            ) : null}
         </div>
     );
 }

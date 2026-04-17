@@ -11,9 +11,25 @@ export async function getCurrentUser() {
 
     if (!user || error) return null;
 
+    const normalizedEmail = user.email?.trim();
+
+    if (!normalizedEmail) {
+        return null;
+    }
+
     const dbUser = await prisma.user.findUnique({
-        where: {email: user.email!}
+        where: {email: normalizedEmail}
     });
 
-    return dbUser;
+    if (!dbUser) {
+        return null;
+    }
+
+    return {
+        ...dbUser,
+        email:
+            typeof dbUser.email === 'string'
+                ? dbUser.email.trim()
+                : dbUser.email
+    };
 }
