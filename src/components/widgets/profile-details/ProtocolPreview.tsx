@@ -2,11 +2,21 @@
 
 import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle
+} from '@/components/ui/dialog';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
 import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
 import {DayMeals} from '@/lib/interface/meal-interface';
 import {motion} from 'framer-motion';
-import {Eye, FileDown, FileText, Loader2, Save, UserPlus} from 'lucide-react';
-import {useState} from 'react';
+import {Eye, FileDown, FileText, Loader2, Save} from 'lucide-react';
+import {useEffect, useState} from 'react';
 
 interface ProtocolPreviewProps {
     weekPlan: DayMeals[];
@@ -14,6 +24,9 @@ interface ProtocolPreviewProps {
     protocolTitle?: string;
     durationLabel?: string;
     patientName?: string;
+    isSavingTemplate?: boolean;
+    templateSaveError?: string | null;
+    onSaveTemplate?: (templateName: string) => Promise<boolean>;
 }
 
 export default function ProtocolPreview({
@@ -21,10 +34,16 @@ export default function ProtocolPreview({
     isFirstConsultation,
     protocolTitle,
     durationLabel,
-    patientName
+    patientName,
+    isSavingTemplate = false,
+    templateSaveError,
+    onSaveTemplate
 }: ProtocolPreviewProps) {
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+    const [isTemplateDialogOpen, setIsTemplateDialogOpen] =
+        useState<boolean>(false);
+    const [templateName, setTemplateName] = useState<string>('');
 
     const handleSave = () => {
         setIsSaving(true);
@@ -41,6 +60,31 @@ export default function ProtocolPreview({
         label,
         Icon
     }));
+
+    useEffect(() => {
+        if (!isTemplateDialogOpen) {
+            setTemplateName(protocolTitle || 'Protocolo nutricional');
+        }
+    }, [isTemplateDialogOpen, protocolTitle]);
+
+    const handleOpenTemplateDialog = () => {
+        setTemplateName(protocolTitle || 'Protocolo nutricional');
+        setIsTemplateDialogOpen(true);
+    };
+
+    const handleConfirmTemplateSave = async () => {
+        const trimmedTemplateName = templateName.trim();
+
+        if (!trimmedTemplateName || !onSaveTemplate) {
+            return;
+        }
+
+        const didSave = await onSaveTemplate(trimmedTemplateName);
+
+        if (didSave) {
+            setIsTemplateDialogOpen(false);
+        }
+    };
 
     return (
         <motion.div
@@ -121,6 +165,7 @@ export default function ProtocolPreview({
                     </Button> */}
                     <Button
                         variant='outline'
+                        onClick={handleOpenTemplateDialog}
                         className='flex-1 h-12 rounded-xl'>
                         <FileDown className='mr-2 h-5 w-5' />
                         Guardar como plantilla
@@ -153,6 +198,71 @@ export default function ProtocolPreview({
                     </Button>
                 </div>
             )}
+
+            <Dialog
+                open={isTemplateDialogOpen}
+                onOpenChange={open => {
+                    if (!isSavingTemplate) {
+                        setIsTemplateDialogOpen(open);
+                    }
+                }}>
+                <DialogContent className='rounded-2xl border-border bg-background sm:max-w-md'>
+                    <DialogHeader>
+                        <DialogTitle>Guardar como plantilla</DialogTitle>
+                        <DialogDescription>
+                            Escribe un nombre para identificar esta plantilla y
+                            reutilizarla al crear nuevos protocolos.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className='space-y-2'>
+                        <Label htmlFor='template-name'>
+                            Nombre de plantilla
+                        </Label>
+                        <Input
+                            id='template-name'
+                            value={templateName}
+                            onChange={event =>
+                                setTemplateName(event.target.value)
+                            }
+                            placeholder='Ej. Plan base de recomposición'
+                            disabled={isSavingTemplate}
+                            maxLength={120}
+                            aria-invalid={Boolean(templateSaveError)}
+                        />
+                        {templateSaveError ? (
+                            <p className='text-sm text-destructive'>
+                                {templateSaveError}
+                            </p>
+                        ) : null}
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type='button'
+                            variant='outline'
+                            onClick={() => setIsTemplateDialogOpen(false)}
+                            disabled={isSavingTemplate}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            type='button'
+                            onClick={handleConfirmTemplateSave}
+                            disabled={
+                                isSavingTemplate ||
+                                templateName.trim().length < 3 ||
+                                !onSaveTemplate
+                            }>
+                            {isSavingTemplate ? (
+                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                            ) : (
+                                <FileDown className='mr-2 h-4 w-4' />
+                            )}
+                            Guardar plantilla
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </motion.div>
     );
 }

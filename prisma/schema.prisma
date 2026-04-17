@@ -68,6 +68,7 @@ model User {
   nutritionistPatients Patient[]      @relation("NutritionistPatients")
   patientProfile       Patient?       @relation("UserPatient")
   consultations        Consultation[]
+  protocolTemplates    ProtocolTemplate[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -314,6 +315,27 @@ model Protocol {
   revisions ProtocolRevision[]
 
   createdAt DateTime @default(now())
+}
+
+model ProtocolTemplate {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  weeklyPlan           Json
+  planCalories         Float?
+  macroPercents        Json?
+  enabledMeals         Json?
+  mealPercentages      Json?
+  macroMealPercentages Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
 }
 
 model ProtocolRevision {
