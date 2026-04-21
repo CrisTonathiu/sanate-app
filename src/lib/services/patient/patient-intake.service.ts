@@ -6,6 +6,7 @@ import {
     CreatePatientInput,
     createPatientSchema
 } from '@/lib/validations/patient.schema';
+import {sendPatientInviteEmail} from '@/lib/services/email/patient-invite.service';
 import {prisma} from '../../prisma';
 import {ZodError} from 'zod';
 
@@ -299,10 +300,29 @@ export async function acceptPatientIntake(
             };
         });
 
+        let emailSent = false;
+        let emailError: string | undefined;
+
+        try {
+            await sendPatientInviteEmail({
+                patientId: result.patient.id,
+                patientEmail: result.user.email,
+                firstName: result.user.firstName
+            });
+            emailSent = true;
+        } catch (error) {
+            emailError =
+                error instanceof Error ? error.message : 'Unknown email error';
+        }
+
         return {
             success: true,
-            message: 'Patient intake accepted successfully',
-            data: result
+            message: emailSent
+                ? 'Patient intake accepted successfully'
+                : 'Patient intake accepted, but invite email could not be sent',
+            data: result,
+            emailSent,
+            emailError
         };
     } catch (error) {
         if (error instanceof ZodError) {
