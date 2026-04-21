@@ -9,6 +9,18 @@ import {
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {useRouter} from 'next/navigation';
 
+export interface PatientIntakeDTO {
+    id: string;
+    email?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+    source: string;
+    processed: boolean;
+    patientId?: string | null;
+    createdAt: string;
+}
+
 // Gender translation helper
 function translateGender(gender: string | null): string | null {
     if (!gender) return null;
@@ -65,6 +77,25 @@ export function useGetPatients() {
                     lastLoginAt: row.lastLoginAt
                 })
             ) as PatientProfileDTO[];
+        }
+    });
+}
+
+export function useGetPatientIntakes() {
+    return useQuery<PatientIntakeDTO[]>({
+        queryKey: ['patientIntakes'],
+        queryFn: async () => {
+            const res = await fetch('/api/patient-intakes');
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message || 'Failed to fetch patient intakes'
+                );
+            }
+
+            const resData = await res.json();
+            return (resData.data ?? []) as PatientIntakeDTO[];
         }
     });
 }
@@ -253,6 +284,39 @@ export function useCreatePatient() {
                 // Small delay to ensure dialog closes smoothly before redirect
                 setTimeout(() => {
                     router.push(`/pacientes/${result.patientId}`);
+                }, 100);
+            }
+        }
+    });
+}
+
+export function useAcceptPatientIntake() {
+    const queryClient = useQueryClient();
+    const router = useRouter();
+
+    return useMutation({
+        mutationFn: async (intakeId: string) => {
+            const res = await fetch(`/api/patient-intakes/${intakeId}/accept`, {
+                method: 'POST'
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message || 'Failed to accept patient intake'
+                );
+            }
+
+            return await res.json();
+        },
+        onSuccess: result => {
+            queryClient.invalidateQueries({queryKey: ['patientIntakes']});
+            queryClient.invalidateQueries({queryKey: ['patients']});
+
+            const patientId = result?.data?.patient?.id;
+            if (patientId) {
+                setTimeout(() => {
+                    router.push(`/pacientes/${patientId}`);
                 }, 100);
             }
         }

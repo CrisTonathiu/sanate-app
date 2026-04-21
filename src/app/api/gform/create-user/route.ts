@@ -1,9 +1,9 @@
+import {createPatientIntake} from '@/lib/services/patient/patient-intake.service';
+
 export async function POST(req: Request) {
     const body = await req.json();
 
-    console.log('Received user data:', body);
-    return Response.json(
-        {message: 'User created successfully', user: body},
-        {status: 201}
-    );
+    const result = await createPatientIntake(body);
+
+    return Response.json(result, {status: result.success ? 201 : 400});
 }
