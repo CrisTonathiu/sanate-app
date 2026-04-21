@@ -104,6 +104,24 @@ model Patient {
   updatedAt DateTime @updatedAt
 }
 
+// Para almacenar los datos crudos de los formularios de Google Forms, junto con algunos campos extraídos para facilitar la creación de pacientes.
+model PatientIntake {
+  id        String   @id @default(cuid())
+  data      Json     // raw form (dynamic)
+  source    String   @default("google_form")
+
+  // extracted fields (optional but useful)
+  email     String?
+  firstName String?
+  lastName  String?
+  phone     String?
+
+  processed Boolean  @default(false)
+  patientId String?  // link after creation
+
+  createdAt DateTime @default(now())
+}
+
 model PatientVital {
   id        String  @id @default(cuid())
   patientId String

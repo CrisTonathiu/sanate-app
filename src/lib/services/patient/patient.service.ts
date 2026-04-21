@@ -1,5 +1,6 @@
 'use server';
 
+import {Prisma} from '@prisma/client';
 import {
     CreatePatientInput,
     createPatientSchema
@@ -8,6 +9,39 @@ import {ZodError} from 'zod';
 import {prisma} from '../../prisma';
 import {PatientProfileDTO} from '../../dto/PatientDTO';
 
+export async function createPatientInTransaction(
+    tx: Prisma.TransactionClient,
+    input: CreatePatientInput,
+    nutritionistId: string
+) {
+    const user = await tx.user.create({
+        data: {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email,
+            phone: input.phone || null,
+            whatsappNumber: input.phone || null,
+            role: 'PATIENT'
+        }
+    });
+
+    const patient = await tx.patient.create({
+        data: {
+            userId: user.id,
+            nutritionistId,
+            birthDate: input.birthDate ? new Date(input.birthDate) : null,
+            gender:
+                input.gender === 'MALE' || input.gender === 'FEMALE'
+                    ? input.gender
+                    : undefined,
+            height: input.height ?? null,
+            initialWeight: input.initialWeight ?? null
+        }
+    });
+
+    return {user, patient};
+}
+
 export async function createPatient(
     input: CreatePatientInput,
     nutritionistId: string
@@ -15,36 +49,9 @@ export async function createPatient(
     try {
         const validatedInput = createPatientSchema.parse(input);
 
-        const normalizedGender = validatedInput.gender
-            ? validatedInput.gender.toUpperCase()
-            : null;
-
-        const result = await prisma.$transaction(async tx => {
-            const user = await tx.user.create({
-                data: {
-                    firstName: validatedInput.firstName,
-                    lastName: validatedInput.lastName,
-                    email: validatedInput.email,
-                    phone: validatedInput.phone || null,
-                    whatsappNumber: validatedInput.phone || null,
-                    role: 'PATIENT'
-                }
-            });
-
-            const patient = await tx.patient.create({
-                data: {
-                    userId: user.id,
-                    nutritionistId,
-                    birthDate: validatedInput.birthDate
-                        ? new Date(validatedInput.birthDate)
-                        : null,
-                    height: validatedInput.height ?? null,
-                    initialWeight: validatedInput.initialWeight ?? null
-                }
-            });
-
-            return {user, patient};
-        });
+        const result = await prisma.$transaction(tx =>
+            createPatientInTransaction(tx, validatedInput, nutritionistId)
+        );
 
         return {
             success: true,
