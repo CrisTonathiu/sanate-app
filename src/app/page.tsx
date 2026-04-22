@@ -1,7 +1,5 @@
 import {getCurrentUser} from '@/lib/auth/getCurrentUser';
 import {redirect} from 'next/navigation';
-import Main from './(dashboard)/main';
-import ClientPage from './(dashboard)/client';
 
 export default async function Home() {
     const user = await getCurrentUser();
@@ -9,9 +7,10 @@ export default async function Home() {
     if (!user) {
         redirect('/login');
     }
-    return (
-        <Main>
-            <ClientPage />
-        </Main>
-    );
+
+    if (user.role === 'PATIENT') {
+        redirect('/portal');
+    }
+
+    redirect('/pacientes');
 }
