@@ -2,7 +2,7 @@ import {getCurrentUser} from '@/lib/auth/getCurrentUser';
 import {redirect} from 'next/navigation';
 import Main from './main';
 
-export default async function DashboardLayout({
+export default async function StaffLayout({
     children
 }: Readonly<{
     children: React.ReactNode;
@@ -11,6 +11,10 @@ export default async function DashboardLayout({
 
     if (!user) {
         redirect('/login');
+    }
+
+    if (user.role === 'PATIENT') {
+        redirect('/portal');
     }
 
     return <Main>{children}</Main>;
