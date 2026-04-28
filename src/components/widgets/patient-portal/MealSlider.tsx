@@ -1,12 +1,30 @@
 'use client';
 
 import {useState, useRef} from 'react';
-import {Coffee, Sun, Moon, ChevronLeft, ChevronRight} from 'lucide-react';
+import {
+    Coffee,
+    Sun,
+    Moon,
+    Apple,
+    GlassWater,
+    ChevronLeft,
+    ChevronRight
+} from 'lucide-react';
+
+const ICON_MAP = {
+    BREAKFAST: Coffee,
+    SNACK1: Apple,
+    LUNCH: Sun,
+    SNACK2: Apple,
+    DINNER: Moon,
+    SMOOTHIE: GlassWater,
+    DRINKS: GlassWater
+};
 
 export interface MealData {
     id: string;
     name: string;
-    icon: typeof Coffee;
+    iconName: string;
     time: string;
     calories: number;
     items: string[];
@@ -16,7 +34,7 @@ const defaultMeals: MealData[] = [
     {
         id: 'breakfast',
         name: 'Breakfast',
-        icon: Coffee,
+        iconName: 'BREAKFAST',
         time: '7:00 - 9:00',
         calories: 450,
         items: ['Oatmeal with berries', 'Greek yogurt', 'Orange juice']
@@ -24,7 +42,7 @@ const defaultMeals: MealData[] = [
     {
         id: 'lunch',
         name: 'Lunch',
-        icon: Sun,
+        iconName: 'LUNCH',
         time: '12:00 - 14:00',
         calories: 650,
         items: ['Grilled chicken salad', 'Quinoa', 'Sparkling water']
@@ -32,7 +50,7 @@ const defaultMeals: MealData[] = [
     {
         id: 'dinner',
         name: 'Dinner',
-        icon: Moon,
+        iconName: 'DINNER',
         time: '18:00 - 20:00',
         calories: 550,
         items: ['Salmon fillet', 'Steamed vegetables', 'Brown rice']
@@ -92,46 +110,51 @@ export function MealSlider({meals = defaultMeals}: MealSliderProps) {
                 className='flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scrollbar-hide'
                 style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
                 {hasMeals ? (
-                    meals.map(meal => (
-                        <div
-                            key={meal.id}
-                            className='min-w-full snap-center rounded-2xl border border-border bg-card p-5'>
-                            <div className='mb-4 flex items-center justify-between'>
-                                <div className='flex items-center gap-3'>
-                                    <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400/20'>
-                                        <meal.icon className='h-5 w-5 text-amber-500' />
+                    meals.map(meal => {
+                        const IconComponent =
+                            ICON_MAP[meal.iconName as keyof typeof ICON_MAP] ||
+                            Coffee;
+                        return (
+                            <div
+                                key={meal.id}
+                                className='min-w-full snap-center rounded-2xl border border-border bg-card p-5'>
+                                <div className='mb-4 flex items-center justify-between'>
+                                    <div className='flex items-center gap-3'>
+                                        <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400/20'>
+                                            <IconComponent className='h-5 w-5 text-amber-500' />
+                                        </div>
+                                        <div>
+                                            <h4 className='font-semibold text-card-foreground'>
+                                                {meal.name}
+                                            </h4>
+                                            <p className='text-sm text-muted-foreground'>
+                                                {meal.time}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className='font-semibold text-card-foreground'>
-                                            {meal.name}
-                                        </h4>
-                                        <p className='text-sm text-muted-foreground'>
-                                            {meal.time}
+                                    <div className='text-right'>
+                                        <p className='text-lg font-semibold text-card-foreground'>
+                                            {meal.calories}
+                                        </p>
+                                        <p className='text-xs text-muted-foreground'>
+                                            kcal
                                         </p>
                                     </div>
                                 </div>
-                                <div className='text-right'>
-                                    <p className='text-lg font-semibold text-card-foreground'>
-                                        {meal.calories}
-                                    </p>
-                                    <p className='text-xs text-muted-foreground'>
-                                        kcal
-                                    </p>
-                                </div>
-                            </div>
 
-                            <ul className='space-y-2'>
-                                {meal.items.map((item, index) => (
-                                    <li
-                                        key={index}
-                                        className='flex items-center gap-2 text-sm text-muted-foreground'>
-                                        <span className='h-1.5 w-1.5 rounded-full bg-amber-400' />
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))
+                                <ul className='space-y-2'>
+                                    {meal.items.map((item, index) => (
+                                        <li
+                                            key={index}
+                                            className='flex items-center gap-2 text-sm text-muted-foreground'>
+                                            <span className='h-1.5 w-1.5 rounded-full bg-amber-400' />
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })
                 ) : (
                     <div className='min-w-full snap-center rounded-2xl border border-border bg-card p-5 text-center text-sm text-muted-foreground'>
                         No menu is available yet.

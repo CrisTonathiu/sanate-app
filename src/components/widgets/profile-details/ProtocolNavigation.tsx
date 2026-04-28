@@ -10,8 +10,10 @@ interface ProtocolNavigationProps {
     isFirstConsultation: boolean;
     nextStep: () => void;
     prevStep: () => void;
+    onComplete?: () => void;
     isGenerating?: boolean;
     disableNextStep?: boolean;
+    isCompleting?: boolean;
 }
 
 export function ProtocolNavigation({
@@ -20,8 +22,10 @@ export function ProtocolNavigation({
     isFirstConsultation,
     nextStep,
     prevStep,
+    onComplete,
     isGenerating = false,
-    disableNextStep = false
+    disableNextStep = false,
+    isCompleting = false
 }: ProtocolNavigationProps) {
     const {sidebarOpen} = useSidebar();
 
@@ -62,11 +66,23 @@ export function ProtocolNavigation({
                         )}
                     </Button>
                 ) : (
-                    <Button className='h-11 px-6 rounded-xl'>
-                        <Check className='mr-2 h-4 w-4' />
-                        {isFirstConsultation
-                            ? 'Completar Protocolo'
-                            : 'Completar Cambios'}
+                    <Button
+                        onClick={onComplete}
+                        disabled={isCompleting}
+                        className='h-11 px-6 rounded-xl'>
+                        {isCompleting ? (
+                            <>
+                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                Guardando protocolo...
+                            </>
+                        ) : (
+                            <>
+                                <Check className='mr-2 h-4 w-4' />
+                                {isFirstConsultation
+                                    ? 'Completar Protocolo'
+                                    : 'Completar Cambios'}
+                            </>
+                        )}
                     </Button>
                 )}
             </div>

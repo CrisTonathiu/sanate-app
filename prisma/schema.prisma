@@ -99,9 +99,26 @@ model Patient {
   notes         PatientNote[]
   consultations Consultation[]
   protocols     Protocol[]
+  documents     PatientDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model PatientDocument {
+  id        String @id @default(cuid())
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+
+  name        String
+  type        String // 'pdf' or 'image'
+  size        Int    // size in bytes
+  storagePath String
+  publicUrl   String?
+
+  uploadedAt DateTime @default(now())
+
+  @@index([patientId])
 }
 
 // Para almacenar los datos crudos de los formularios de Google Forms, junto con algunos campos extraídos para facilitar la creación de pacientes.

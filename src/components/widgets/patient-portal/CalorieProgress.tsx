@@ -78,14 +78,14 @@ export function CalorieProgress({
     return (
         <div className='mb-10 rounded-xl border border-border bg-card p-6'>
             <h2 className='mb-6 text-center text-xl font-medium text-foreground'>
-                Great job today
+                Gran trabajo hoy, sigue así! 🎉
             </h2>
 
             <div className='flex items-center justify-center gap-8'>
                 {/* Left stat */}
                 <div className='text-center'>
                     <p className='text-2xl font-bold text-foreground'>{left}</p>
-                    <p className='text-sm text-muted-foreground'>Left</p>
+                    <p className='text-sm text-muted-foreground'>Restantes</p>
                 </div>
 
                 {/* Main arc */}
@@ -134,7 +134,7 @@ export function CalorieProgress({
                             {consumed}
                         </span>
                         <span className='text-sm text-muted-foreground'>
-                            Calories
+                            Calorías
                         </span>
                     </div>
                 </div>
@@ -142,7 +142,7 @@ export function CalorieProgress({
                 {/* Logs stat */}
                 <div className='text-center'>
                     <p className='text-2xl font-bold text-foreground'>{logs}</p>
-                    <p className='text-sm text-muted-foreground'>Logs</p>
+                    <p className='text-sm text-muted-foreground'>Registros</p>
                 </div>
             </div>
 
@@ -150,19 +150,19 @@ export function CalorieProgress({
             <div className='mt-8 flex justify-center gap-10'>
                 <MacroCircle
                     value={protein.current}
-                    label='Protein'
+                    label='Proteína'
                     color='#a3a3a3'
                     max={protein.max}
                 />
                 <MacroCircle
                     value={carbs.current}
-                    label='Carbs'
+                    label='Carbos'
                     color='#f59e0b'
                     max={carbs.max}
                 />
                 <MacroCircle
                     value={fat.current}
-                    label='Fat'
+                    label='Grasa'
                     color='#a855f7'
                     max={fat.max}
                 />

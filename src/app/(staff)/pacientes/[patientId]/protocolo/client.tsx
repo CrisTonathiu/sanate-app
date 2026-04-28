@@ -165,6 +165,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [isApplyingTemplate, setIsApplyingTemplate] =
         useState<boolean>(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
+    const [isSavingProtocol, setIsSavingProtocol] = useState<boolean>(false);
     const [templateError, setTemplateError] = useState<string | null>(null);
     const [templateSaveError, setTemplateSaveError] = useState<string | null>(
         null
@@ -661,6 +662,54 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
+    const handleGenerateProtocol = async () => {
+        if (weekPlan.length === 0) {
+            window.alert(
+                'Primero genera un plan semanal para crear el protocolo.'
+            );
+            return;
+        }
+
+        setIsSavingProtocol(true);
+
+        try {
+            const response = await fetch(
+                `/api/patients/${patientId}/protocols`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: protocolTitle,
+                        weekCount: 1,
+                        status: 'ACTIVE',
+                        weekPlan
+                    })
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result?.success) {
+                throw new Error(
+                    result?.message || 'No se pudo generar el protocolo'
+                );
+            }
+
+            window.alert('Protocolo generado correctamente.');
+            router.refresh();
+        } catch (error) {
+            window.alert(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo generar el protocolo'
+            );
+        } finally {
+            setIsSavingProtocol(false);
+        }
+    };
+
     const handleStepClick = (step: StepKey) => {
         if (step <= currentStep) {
             setCurrentStep(step);
@@ -763,7 +812,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 isFirstConsultation={isFirstConsultation}
                 nextStep={nextStep}
                 prevStep={prevStep}
+                onComplete={handleGenerateProtocol}
                 isGenerating={isGenerating}
+                isCompleting={isSavingProtocol}
                 disableNextStep={
                     currentStep === 3 && !isMealDistributionStepValid
                 }
