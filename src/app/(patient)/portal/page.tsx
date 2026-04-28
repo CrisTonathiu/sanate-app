@@ -5,11 +5,6 @@ import {
     Activity,
     Pill,
     MessageSquare,
-    Coffee,
-    Sun,
-    Moon,
-    Apple,
-    GlassWater,
     ShoppingBag
 } from 'lucide-react';
 import {getCurrentUser} from '@/lib/auth/getCurrentUser';
@@ -21,6 +16,7 @@ import {
     MealData,
     MealSlider
 } from '@/components/widgets/patient-portal/MealSlider';
+import Link from 'next/link';
 
 const DAY_SHORT_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -52,16 +48,6 @@ const MEAL_TIMES: Record<string, string> = {
     DINNER: '18:00 - 20:00',
     SMOOTHIE: '9:00 - 10:00',
     DRINKS: 'Cualquier hora'
-};
-
-const MEAL_ICONS = {
-    BREAKFAST: Coffee,
-    SNACK1: Apple,
-    LUNCH: Sun,
-    SNACK2: Apple,
-    DINNER: Moon,
-    SMOOTHIE: GlassWater,
-    DRINKS: GlassWater
 };
 
 function getMondayOfCurrentWeek(now: Date) {
@@ -182,7 +168,11 @@ async function getPortalData() {
         }
     });
 
-    const days = protocol?.weeksPlan[0]?.days ?? [];
+    if (!protocol) {
+        return null;
+    }
+
+    const days = protocol.weeksPlan[0]?.days ?? [];
     const monday = getMondayOfCurrentWeek(new Date());
 
     const weekDays = days.map((_, index) => {
@@ -213,9 +203,7 @@ async function getPortalData() {
             return {
                 id: meal.id,
                 name: MEAL_LABELS[meal.mealType] || meal.mealType,
-                icon:
-                    MEAL_ICONS[meal.mealType as keyof typeof MEAL_ICONS] ||
-                    Coffee,
+                iconName: meal.mealType,
                 time: MEAL_TIMES[meal.mealType] || 'Cualquier hora',
                 calories: Math.round(nutrition.calories),
                 items: [
@@ -278,22 +266,26 @@ const portalCards = [
     {
         title: 'Informacion personal',
         description: 'Consulta y actualiza los detalles de tu perfil',
-        icon: User
+        icon: User,
+        path: '/portal/perfil'
     },
     {
         title: 'Menu',
         description: 'Consulta tu plan de nutricion personalizado',
-        icon: CalendarDays
+        icon: CalendarDays,
+        path: '/portal/menu'
     },
     {
         title: 'Documentos',
         description: 'Accede a tus expedientes y reportes medicos',
-        icon: FileText
+        icon: FileText,
+        path: '/portal/documentos'
     },
     {
         title: 'Lista de compras',
         description: 'Lista de compras basada en tu plan de comidas',
-        icon: ShoppingBag
+        icon: ShoppingBag,
+        path: '/portal/compras'
     }
 ];
 
@@ -303,11 +295,6 @@ export default async function PatientPortal() {
     const patientName = data
         ? `${data.patient.user.firstName} ${data.patient.user.lastName}`.trim()
         : 'Paciente';
-    const menu = data?.menu ?? [];
-    const totalCalories = data?.totals.calories ?? 0;
-    const totalProtein = data?.totals.protein ?? 0;
-    const totalCarbs = data?.totals.carbs ?? 0;
-    const totalFat = data?.totals.fat ?? 0;
 
     return (
         <main className='min-h-screen bg-background'>
@@ -316,25 +303,38 @@ export default async function PatientPortal() {
                     <LogoutButton />
                 </div>
 
-                <CalorieProgress
-                    consumed={totalCalories}
-                    goal={totalCalories}
-                    logs={menu.length}
-                    protein={{current: totalProtein, max: totalProtein}}
-                    carbs={{current: totalCarbs, max: totalCarbs}}
-                    fat={{current: totalFat, max: totalFat}}
-                />
+                {data ? (
+                    <>
+                        <CalorieProgress
+                            consumed={data.totals.calories}
+                            goal={data.totals.calories}
+                            logs={data.menu.length}
+                            protein={{
+                                current: data.totals.protein,
+                                max: data.totals.protein
+                            }}
+                            carbs={{
+                                current: data.totals.carbs,
+                                max: data.totals.carbs
+                            }}
+                            fat={{
+                                current: data.totals.fat,
+                                max: data.totals.fat
+                            }}
+                        />
 
-                <div className='mt-8'>
-                    <WeekSelector
-                        days={data?.weekDays}
-                        initialSelectedIndex={data?.todayIndex || 0}
-                    />
-                </div>
+                        <div className='mt-8'>
+                            <WeekSelector
+                                days={data.weekDays}
+                                initialSelectedIndex={data.todayIndex || 0}
+                            />
+                        </div>
 
-                <div className='mt-8'>
-                    <MealSlider meals={menu} />
-                </div>
+                        <div className='mt-8'>
+                            <MealSlider meals={data.menu} />
+                        </div>
+                    </>
+                ) : null}
 
                 <header className='mb-10 mt-12'>
                     <h1 className='text-3xl font-semibold tracking-tight text-foreground'>
@@ -348,7 +348,8 @@ export default async function PatientPortal() {
 
                 <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
                     {portalCards.map(card => (
-                        <article
+                        <Link
+                            href={card.path}
                             key={card.title}
                             className='group cursor-pointer rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-md'>
                             <div className='mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10'>
@@ -360,7 +361,7 @@ export default async function PatientPortal() {
                             <p className='mt-1 text-sm text-muted-foreground'>
                                 {card.description}
                             </p>
-                        </article>
+                        </Link>
                     ))}
                 </div>
             </div>

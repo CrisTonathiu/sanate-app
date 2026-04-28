@@ -21,3 +21,13 @@ export interface PatientEditData {
     allergic: string;
     note: string;
 }
+
+export interface Document {
+    id: string;
+    name: string;
+    type: 'pdf' | 'image';
+    size: string | number;
+    uploadedAt: string;
+    storagePath?: string;
+    publicUrl?: string;
+}
