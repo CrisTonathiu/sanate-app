@@ -251,6 +251,33 @@ export async function getPendingPatientIntakes() {
     }
 }
 
+export async function getPatientIntakeByPatientId(patientId: string) {
+    try {
+        const intake = await prisma.patientIntake.findFirst({
+            where: {patientId},
+            orderBy: {createdAt: 'desc'}
+        });
+
+        if (!intake) {
+            return {
+                success: false,
+                message: 'Patient intake not found'
+            };
+        }
+
+        return {
+            success: true,
+            data: intake
+        };
+    } catch (error) {
+        return {
+            success: false,
+            message: 'Error fetching patient intake',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+}
+
 export async function acceptPatientIntake(
     intakeId: string,
     nutritionistId: string

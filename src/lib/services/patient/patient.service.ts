@@ -121,6 +121,7 @@ export async function getPatientProfile(patientId: string) {
                 initialWeight: true,
                 user: {
                     select: {
+                        avatarUrl: true,
                         firstName: true,
                         lastName: true,
                         email: true,
@@ -161,6 +162,7 @@ export async function getPatientProfile(patientId: string) {
             success: true,
             data: {
                 ...patient,
+                avatarUrl: patient.user.avatarUrl,
                 firstName: patient.user.firstName,
                 lastName: patient.user.lastName,
                 email: patient.user.email,

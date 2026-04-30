@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useRouter} from 'next/navigation';
 import {motion, AnimatePresence} from 'framer-motion';
 import {Cog, MoreVertical, Pencil, Trash2} from 'lucide-react';
@@ -86,7 +86,7 @@ export default function ClientPage({patientId}: ClientPageProps) {
             // case 'treatments':
             //     return <NextTreatmentTab />;
             case 'records':
-                return <MedicalRecordsTab />;
+                return <MedicalRecordsTab patient={patient} />;
         }
     };
 
@@ -105,8 +105,9 @@ export default function ClientPage({patientId}: ClientPageProps) {
                     <div className='relative'>
                         <Avatar className='h-16 w-16 border-2 border-border'>
                             <AvatarImage
-                                src='/images/patient-avatar.jpg'
-                                alt='Willie Jennie'
+                                src={patient.avatarUrl || undefined}
+                                alt={patient.firstName}
+                                className='h-full w-full object-cover'
                             />
                             <AvatarFallback className='bg-gradient-to-br from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] text-lg font-semibold text-primary-foreground'>
                                 {patient.firstName.charAt(0).toUpperCase()}

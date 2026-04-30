@@ -1,15 +1,15 @@
 export type Role = 'ADMIN' | 'NUTRITIONIST' | 'PATIENT';
 
 export type User = {
-    id: number;
+    id: string;
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
+    phone: string | null;
     whatsappNumber: string | null;
     role: Role;
-    createdAt: string;
-    updatedAt: string;
-    lastLoginAt: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+    lastLoginAt: string | Date | null;
     isActive: boolean;
 };
