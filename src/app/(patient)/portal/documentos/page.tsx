@@ -1,25 +1,10 @@
-import {getCurrentUser} from '@/lib/auth/getCurrentUser';
-import {prisma} from '@/lib/prisma';
 import PatientDocumentClient from './client';
-
-async function getPatientData() {
-    const user = await getCurrentUser();
-    if (!user || user.role !== 'PATIENT') {
-        return null;
-    }
-
-    const patient = await prisma.patient.findUnique({
-        where: {userId: user.id},
-        select: {id: true}
-    });
-
-    return patient;
-}
+import {getPatientData} from '@/lib/auth/patient-access';
 
 export default async function PatientDocumentPage() {
-    const patient = await getPatientData();
+    const patientData = await getPatientData();
 
-    if (!patient) {
+    if (!patientData?.patient) {
         return (
             <div className='flex items-center justify-center min-h-screen'>
                 <p>No tienes acceso a esta página</p>
@@ -27,5 +12,5 @@ export default async function PatientDocumentPage() {
         );
     }
 
-    return <PatientDocumentClient patientId={patient.id} />;
+    return <PatientDocumentClient patientId={patientData.patient.id} />;
 }

@@ -33,6 +33,7 @@ export interface PatientProfileDTO {
     id: string;
 
     // Static Patient Info
+    avatarUrl: string | null;
     firstName: string;
     lastName: string;
     email?: string;

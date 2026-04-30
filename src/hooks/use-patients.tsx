@@ -18,6 +18,7 @@ export interface PatientIntakeDTO {
     source: string;
     processed: boolean;
     patientId?: string | null;
+    data: Record<string, unknown>;
     createdAt: string;
 }
 
@@ -97,6 +98,27 @@ export function useGetPatientIntakes() {
             const resData = await res.json();
             return (resData.data ?? []) as PatientIntakeDTO[];
         }
+    });
+}
+
+export function useGetPatientIntake(patientId?: string) {
+    return useQuery<PatientIntakeDTO | null>({
+        queryKey: ['patientIntake', patientId],
+        enabled: !!patientId,
+        queryFn: async () => {
+            const res = await fetch(`/api/patients/${patientId}/intake`);
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message || 'Failed to fetch patient intake'
+                );
+            }
+
+            const resData = await res.json();
+            return resData.data ?? null;
+        },
+        staleTime: 1000 * 60 * 5
     });
 }
 

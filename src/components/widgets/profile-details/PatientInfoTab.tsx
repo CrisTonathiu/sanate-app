@@ -67,19 +67,6 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
         {label: 'Teléfono', value: patient.phone || 'N/A'}
     ];
 
-    // const MEDICAL_DATA = [
-    //     {label: 'Género', value: patient.gender || 'N/A'},
-    //     {
-    //         label: 'Estatura',
-    //         value: patient.height ? `${patient.height} cm` : 'N/A'
-    //     },
-    //     {
-    //         label: 'Peso',
-    //         value: patient.vital?.weightKg
-    //             ? `${patient.vital.weightKg} kg`
-    //             : 'N/A'
-    //     }
-    // ];
     return (
         <motion.div
             key='info'
@@ -124,16 +111,6 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
                     </p>
                 )}
             </div>
-
-            {/* Medical Data */}
-            {/* <div className='flex flex-col gap-4'>
-                <SectionHeading
-                    title='Datos médicos'
-                    subtitle='Última actualización 12 de junio de 2025'
-                    delay={0.2}
-                />
-                <DataGrid fields={MEDICAL_DATA} delay={0.25} />
-            </div> */}
         </motion.div>
     );
 }

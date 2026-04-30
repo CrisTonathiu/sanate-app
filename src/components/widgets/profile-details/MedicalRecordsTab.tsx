@@ -1,23 +1,18 @@
-import {motion} from 'framer-motion';
-import {FileText} from 'lucide-react';
-import SectionHeading from '../SectionHeading';
-import {Badge} from '@/components/ui/badge';
+'use client';
 
-export default function MedicalRecordsTab() {
-    const RECORDS = [
-        {
-            name: 'Resultados de Electrocardiograma',
-            date: '12 Junio 2025',
-            type: 'Imagen',
-            size: '2.3 MB'
-        },
-        {
-            name: 'Resultados de Análisis de Sangre',
-            date: '5 Mayo 2025',
-            type: 'PDF',
-            size: '1.1 MB'
-        }
-    ];
+import {motion} from 'framer-motion';
+import SectionHeading from '../SectionHeading';
+import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
+import {useGetPatientIntake} from '@/hooks/use-patients';
+import DataGrid from '../DataGrid';
+
+interface MedicalRecordsTabProps {
+    patient: PatientProfileDTO;
+}
+
+export default function MedicalRecordsTab({patient}: MedicalRecordsTabProps) {
+    const {data: patientIntake, isPending: isLoadingPatientIntake} =
+        useGetPatientIntake(patient.id);
     return (
         <motion.div
             key='records'
@@ -26,7 +21,7 @@ export default function MedicalRecordsTab() {
             exit={{opacity: 0, y: -12}}
             transition={{duration: 0.35}}
             className='flex flex-col gap-4'>
-            <SectionHeading title='Historial médico' delay={0.1} />
+            {/* <SectionHeading title='Historial médico' delay={0.1} />
             <div className='flex flex-col gap-3'>
                 {RECORDS.map((rec, i) => (
                     <motion.div
@@ -60,6 +55,59 @@ export default function MedicalRecordsTab() {
                         </div>
                     </motion.div>
                 ))}
+            </div> */}
+
+            <div className='flex flex-col gap-4'>
+                <SectionHeading
+                    title='Formulario historial del paciente'
+                    subtitle='Respuestas enviadas por el paciente en su formulario inicial de Google Forms.'
+                    delay={0.2}
+                />
+
+                {isLoadingPatientIntake ? (
+                    <p className='text-sm text-muted-foreground'>
+                        Cargando datos del paciente...
+                    </p>
+                ) : patientIntake ? (
+                    <>
+                        <div className='rounded-xl border border-border bg-secondary/50 p-4 text-sm'>
+                            <p className='font-medium text-foreground'>
+                                Enviado el{' '}
+                                {new Date(
+                                    patientIntake.createdAt
+                                ).toLocaleString('es-MX', {
+                                    day: '2-digit',
+                                    month: 'long',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        </div>
+                        <DataGrid
+                            fields={Object.entries(
+                                patientIntake.data ?? {}
+                            ).map(([label, value]) => ({
+                                label,
+                                value:
+                                    value === null ||
+                                    value === undefined ||
+                                    value === ''
+                                        ? 'N/A'
+                                        : Array.isArray(value)
+                                          ? value.join(', ')
+                                          : typeof value === 'object'
+                                            ? JSON.stringify(value)
+                                            : String(value)
+                            }))}
+                            delay={0.35}
+                        />
+                    </>
+                ) : (
+                    <p className='text-sm text-muted-foreground'>
+                        No se encontró un intake vinculado a este paciente.
+                    </p>
+                )}
             </div>
         </motion.div>
     );

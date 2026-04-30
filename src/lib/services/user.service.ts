@@ -69,3 +69,23 @@ export async function getUsers() {
         };
     }
 }
+
+export async function updateUserAvatarUrl(userId: string, avatarUrl: string) {
+    try {
+        const user = await prisma.user.update({
+            where: {id: userId},
+            data: {avatarUrl}
+        });
+
+        return {
+            success: true,
+            data: user
+        };
+    } catch (error) {
+        return {
+            success: false,
+            message: 'Error al actualizar el avatar del usuario',
+            error: error instanceof Error ? error.message : 'Error desconocido'
+        };
+    }
+}
