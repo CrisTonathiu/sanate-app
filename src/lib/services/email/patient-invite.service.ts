@@ -20,8 +20,11 @@ function resolveUrl(template: string, patientId: string) {
     return template.replace('{{patientId}}', patientId);
 }
 
-function getCreateAccountUrl() {
-    return process.env.PATIENT_ACCOUNT_SETUP_URL || `${getAppUrl()}/login`;
+function getCreateAccountUrl(email: string) {
+    return (
+        process.env.PATIENT_ACCOUNT_SETUP_URL ||
+        `${getAppUrl()}/registro?email=${encodeURIComponent(email)}`
+    );
 }
 
 function getProfileUrl(patientId: string) {
@@ -43,7 +46,7 @@ export async function sendPatientInviteEmail({
         subject: 'Tu cuenta en Sanate',
         react: createElement(PatientInviteEmail, {
             firstName,
-            createAccountUrl: getCreateAccountUrl(),
+            createAccountUrl: getCreateAccountUrl(patientEmail),
             profileUrl: getProfileUrl(patientId)
         })
     });
