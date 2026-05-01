@@ -76,6 +76,7 @@ model User {
   deletedAt   DateTime?
   lastLoginAt DateTime?
   isActive    Boolean   @default(true)
+  isClaimed   Boolean   @default(false)
 
   @@index([role])
 }
