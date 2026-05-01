@@ -115,9 +115,6 @@ export function PatientInviteEmail({
                                 style={primaryButtonStyle}>
                                 Crear cuenta
                             </a>
-                            <a href={profileUrl} style={secondaryButtonStyle}>
-                                Ver perfil
-                            </a>
                         </div>
 
                         <p
@@ -138,7 +135,6 @@ export function PatientInviteEmail({
                             <p style={{margin: '8px 0 0'}}>
                                 {createAccountUrl}
                             </p>
-                            <p style={{margin: '4px 0 0'}}>{profileUrl}</p>
                         </div>
                     </div>
                 </div>
