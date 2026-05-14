@@ -1,189 +1,229 @@
 'use client';
 
-import {useState, useRef} from 'react';
+import {useState, useRef, useEffect} from 'react';
 import {
     Coffee,
     Sun,
     Moon,
-    Apple,
-    GlassWater,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Clock,
+    Flame
 } from 'lucide-react';
+import Image from 'next/image';
+import {RecipeModal} from './RecipeModal';
+import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
 
-const ICON_MAP = {
-    BREAKFAST: Coffee,
-    SNACK1: Apple,
-    LUNCH: Sun,
-    SNACK2: Apple,
-    DINNER: Moon,
-    SMOOTHIE: GlassWater,
-    DRINKS: GlassWater
-};
-
-export interface MealData {
+interface MealTypeInfo {
     id: string;
     name: string;
-    iconName: string;
-    time: string;
-    calories: number;
-    items: string[];
+    icon: typeof Coffee;
+    timeRange: string;
 }
 
-const defaultMeals: MealData[] = [
-    {
+const mealTypeInfo: Record<string, MealTypeInfo> = {
+    breakfast: {
         id: 'breakfast',
-        name: 'Breakfast',
-        iconName: 'BREAKFAST',
-        time: '7:00 - 9:00',
-        calories: 450,
-        items: ['Oatmeal with berries', 'Greek yogurt', 'Orange juice']
+        name: 'Desayuno',
+        icon: Coffee,
+        timeRange: '7:00 - 9:00'
     },
-    {
-        id: 'lunch',
-        name: 'Lunch',
-        iconName: 'LUNCH',
-        time: '12:00 - 14:00',
-        calories: 650,
-        items: ['Grilled chicken salad', 'Quinoa', 'Sparkling water']
-    },
-    {
+    lunch: {id: 'lunch', name: 'Comida', icon: Sun, timeRange: '12:00 - 14:00'},
+    dinner: {
         id: 'dinner',
-        name: 'Dinner',
-        iconName: 'DINNER',
-        time: '18:00 - 20:00',
-        calories: 550,
-        items: ['Salmon fillet', 'Steamed vegetables', 'Brown rice']
+        name: 'Cena',
+        icon: Moon,
+        timeRange: '18:00 - 20:00'
     }
-];
+};
 
-interface MealSliderProps {
-    meals?: MealData[];
+function chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+        chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
 }
 
-export function MealSlider({meals = defaultMeals}: MealSliderProps) {
+type MealSliderProps = {
+    recipes: MealSliderRecipe[];
+};
+
+export function MealSlider({recipes}: MealSliderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [selectedRecipe, setSelectedRecipe] =
+        useState<MealSliderRecipe | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const hasMeals = meals.length > 0;
+
+    const recipeIdsKey = recipes.map(r => r.id).join('|');
+
+    useEffect(() => {
+        setCurrentIndex(0);
+    }, [recipeIdsKey]);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const recipesPerSlide = isMobile ? 2 : 3;
+    const slides = chunkArray(recipes, recipesPerSlide);
+    const totalSlides = slides.length;
+
+    useEffect(() => {
+        // Reset to first slide when screen size changes to avoid being on a non-existent slide
+        if (currentIndex >= totalSlides) {
+            setCurrentIndex(0);
+        }
+    }, [totalSlides, currentIndex]);
 
     const scroll = (direction: 'left' | 'right') => {
-        if (scrollRef.current && hasMeals) {
-            const newIndex =
-                direction === 'left'
-                    ? Math.max(0, currentIndex - 1)
-                    : Math.min(meals.length - 1, currentIndex + 1);
-            setCurrentIndex(newIndex);
+        if (!scrollRef.current || totalSlides === 0) return;
+        const maxIndex = totalSlides - 1;
+        const newIndex =
+            direction === 'left'
+                ? Math.max(0, currentIndex - 1)
+                : Math.min(maxIndex, currentIndex + 1);
+        setCurrentIndex(newIndex);
+        const cardWidth = scrollRef.current.offsetWidth;
+        scrollRef.current.scrollTo({
+            left: newIndex * cardWidth,
+            behavior: 'smooth'
+        });
+    };
+
+    const goToSlide = (index: number) => {
+        setCurrentIndex(index);
+        if (scrollRef.current) {
             const cardWidth = scrollRef.current.offsetWidth;
             scrollRef.current.scrollTo({
-                left: newIndex * cardWidth,
+                left: index * cardWidth,
                 behavior: 'smooth'
             });
         }
     };
 
+    if (recipes.length === 0) {
+        return null;
+    }
+
     return (
-        <div className='relative'>
-            <div className='mb-4 flex items-center justify-between'>
-                <h3 className='text-lg font-semibold text-foreground'>
-                    Today&apos;s Meals
-                </h3>
-                <div className='flex gap-2'>
-                    <button
-                        onClick={() => scroll('left')}
-                        disabled={!hasMeals || currentIndex === 0}
-                        className='flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40'>
-                        <ChevronLeft className='h-4 w-4' />
-                    </button>
-                    <button
-                        onClick={() => scroll('right')}
-                        disabled={
-                            !hasMeals || currentIndex === meals.length - 1
-                        }
-                        className='flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40'>
-                        <ChevronRight className='h-4 w-4' />
-                    </button>
+        <>
+            <div className='relative'>
+                <div className='mb-4 flex items-center justify-between'>
+                    <h3 className='text-lg font-semibold text-foreground'>
+                        Menú de hoy
+                    </h3>
+                    <div className='flex gap-2'>
+                        <button
+                            onClick={() => scroll('left')}
+                            disabled={currentIndex === 0 || totalSlides === 0}
+                            className='flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40'>
+                            <ChevronLeft className='h-4 w-4' />
+                        </button>
+                        <button
+                            onClick={() => scroll('right')}
+                            disabled={
+                                totalSlides === 0 ||
+                                currentIndex >= totalSlides - 1
+                            }
+                            className='flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-40'>
+                            <ChevronRight className='h-4 w-4' />
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    ref={scrollRef}
+                    className='flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scrollbar-hide p-2'
+                    style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                    {slides.map((slideRecipes, slideIndex) => (
+                        <div
+                            key={slideIndex}
+                            className='min-w-full snap-center'>
+                            <div className='flex gap-3'>
+                                {slideRecipes.map(recipe => {
+                                    const mealInfo =
+                                        mealTypeInfo[recipe.mealType];
+                                    const Icon = mealInfo.icon;
+
+                                    return (
+                                        <button
+                                            key={recipe.id}
+                                            onClick={() =>
+                                                setSelectedRecipe(recipe)
+                                            }
+                                            className='group flex-1 overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md'>
+                                            <div className='relative h-28 w-full overflow-hidden'>
+                                                <Image
+                                                    src={recipe.image}
+                                                    alt={recipe.name}
+                                                    fill
+                                                    className='object-cover transition-transform group-hover:scale-105'
+                                                />
+                                                <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
+
+                                                {/* Meal type badge on top */}
+                                                <div className='absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm'>
+                                                    <Icon className='h-3 w-3 text-amber-400' />
+                                                    <span className='text-xs font-medium text-white'>
+                                                        {mealInfo.name}
+                                                    </span>
+                                                </div>
+
+                                                {/* Recipe name at bottom */}
+                                                <div className='absolute bottom-2 left-2 right-2'>
+                                                    <h4 className='truncate text-sm font-medium text-white'>
+                                                        {recipe.name.toUpperCase()}
+                                                    </h4>
+                                                </div>
+                                            </div>
+
+                                            <div className='flex items-center justify-between p-2.5'>
+                                                <div className='flex items-center gap-1 text-xs text-muted-foreground'>
+                                                    <Clock className='h-3 w-3' />
+                                                    <span>{recipe.time}</span>
+                                                </div>
+                                                <div className='flex items-center gap-1 text-xs text-muted-foreground'>
+                                                    <Flame className='h-3 w-3 text-amber-500' />
+                                                    <span>
+                                                        {recipe.calories} kcal
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className='mt-4 flex justify-center gap-2'>
+                    {slides.map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => goToSlide(index)}
+                            className={`h-2 rounded-full transition-all ${
+                                index === currentIndex
+                                    ? 'bg-amber-400 w-4'
+                                    : 'bg-muted-foreground/30 w-2'
+                            }`}
+                            aria-label={`Go to slide ${index + 1}`}
+                        />
+                    ))}
                 </div>
             </div>
 
-            <div
-                ref={scrollRef}
-                className='flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth scrollbar-hide'
-                style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
-                {hasMeals ? (
-                    meals.map(meal => {
-                        const IconComponent =
-                            ICON_MAP[meal.iconName as keyof typeof ICON_MAP] ||
-                            Coffee;
-                        return (
-                            <div
-                                key={meal.id}
-                                className='min-w-full snap-center rounded-2xl border border-border bg-card p-5'>
-                                <div className='mb-4 flex items-center justify-between'>
-                                    <div className='flex items-center gap-3'>
-                                        <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-accent/20'>
-                                            <IconComponent className='h-5 w-5 text-accent-foreground' />
-                                        </div>
-                                        <div>
-                                            <h4 className='font-semibold text-card-foreground'>
-                                                {meal.name}
-                                            </h4>
-                                            <p className='text-sm text-muted-foreground'>
-                                                {meal.time}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className='text-right'>
-                                        <p className='text-lg font-semibold text-card-foreground'>
-                                            {meal.calories}
-                                        </p>
-                                        <p className='text-xs text-muted-foreground'>
-                                            kcal
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <ul className='space-y-2'>
-                                    {meal.items.map((item, index) => (
-                                        <li
-                                            key={index}
-                                            className='flex items-center gap-2 text-sm text-muted-foreground'>
-                                            <span className='h-1.5 w-1.5 rounded-full bg-accent-foreground' />
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        );
-                    })
-                ) : (
-                    <div className='min-w-full snap-center rounded-2xl border border-border bg-card p-5 text-center text-sm text-muted-foreground'>
-                        No menu is available yet.
-                    </div>
-                )}
-            </div>
-
-            <div className='mt-4 flex justify-center gap-2'>
-                {meals.map((_, index) => (
-                    <button
-                        key={index}
-                        onClick={() => {
-                            setCurrentIndex(index);
-                            if (scrollRef.current) {
-                                const cardWidth = scrollRef.current.offsetWidth;
-                                scrollRef.current.scrollTo({
-                                    left: index * cardWidth,
-                                    behavior: 'smooth'
-                                });
-                            }
-                        }}
-                        className={`h-2 w-2 rounded-full transition-all ${
-                            index === currentIndex
-                                ? 'bg-accent-foreground w-4'
-                                : 'bg-muted-foreground/30'
-                        }`}
-                    />
-                ))}
-            </div>
-        </div>
+            <RecipeModal
+                recipe={selectedRecipe}
+                onClose={() => setSelectedRecipe(null)}
+            />
+        </>
     );
 }

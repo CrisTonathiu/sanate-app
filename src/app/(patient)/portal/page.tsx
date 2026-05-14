@@ -13,23 +13,20 @@ import {prisma} from '@/lib/prisma';
 import {CalorieProgress} from '@/components/widgets/patient-portal/CalorieProgress';
 import {LogoutButton} from '@/components/widgets/patient-portal/LogoutButton';
 import {WeekSelector} from '@/components/widgets/patient-portal/WeekSelector';
-import {
-    MealData,
-    MealSlider
-} from '@/components/widgets/patient-portal/MealSlider';
+import {MealSlider} from '@/components/widgets/patient-portal/MealSlider';
 import Link from 'next/link';
+import PortalHeader from '@/components/widgets/patient-portal/PortalHeader';
+import {calculateRecipeNutrition} from '@/lib/patient-portal/calculate-recipe-nutrition';
+import {
+    mapProtocolDayMealsToSliderRecipes,
+    sortProtocolMealsByPlanOrder,
+    validateProtocolWeekDays,
+    type MealSliderRecipe
+} from '@/lib/patient-portal/protocol-meal-slider-map';
+import {AffiliateProducts} from '@/components/widgets/patient-portal/AffiliateProducts';
+import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
 
 const DAY_SHORT_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-const MEAL_ORDER = [
-    'BREAKFAST',
-    'SNACK1',
-    'LUNCH',
-    'SNACK2',
-    'DINNER',
-    'SMOOTHIE',
-    'DRINKS'
-] as const;
 
 const MEAL_LABELS: Record<string, string> = {
     BREAKFAST: 'Desayuno',
@@ -51,42 +48,28 @@ const MEAL_TIMES: Record<string, string> = {
     DRINKS: 'Cualquier hora'
 };
 
+function parseAffiliateLinks(value: unknown): AffiliateLink[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value.filter(
+        (item): item is AffiliateLink =>
+            typeof item === 'object' &&
+            item !== null &&
+            typeof item.id === 'string' &&
+            typeof item.name === 'string' &&
+            typeof item.url === 'string' &&
+            item.name.trim().length > 0 &&
+            item.url.trim().length > 0
+    );
+}
+
 function getMondayOfCurrentWeek(now: Date) {
     const start = new Date(now);
     const mondayIndex = (now.getDay() + 6) % 7;
     start.setDate(now.getDate() - mondayIndex);
     return start;
-}
-
-function calculateRecipeNutrition(
-    ingredients: Array<{
-        grams: number;
-        ingredient: {
-            food: {
-                caloriesPer100g: number | null;
-                proteinPer100g: number | null;
-                carbsPer100g: number | null;
-                fatPer100g: number | null;
-            } | null;
-        };
-    }>
-) {
-    return ingredients.reduce(
-        (acc, item) => {
-            const food = item.ingredient.food;
-            if (!food) return acc;
-
-            const factor = (item.grams || 0) / 100;
-
-            acc.calories += (food.caloriesPer100g || 0) * factor;
-            acc.protein += (food.proteinPer100g || 0) * factor;
-            acc.carbs += (food.carbsPer100g || 0) * factor;
-            acc.fat += (food.fatPer100g || 0) * factor;
-
-            return acc;
-        },
-        {calories: 0, protein: 0, carbs: 0, fat: 0}
-    );
 }
 
 async function getPortalData() {
@@ -103,7 +86,8 @@ async function getPortalData() {
                 select: {
                     firstName: true,
                     lastName: true,
-                    email: true
+                    email: true,
+                    avatarUrl: true
                 }
             }
         }
@@ -120,6 +104,7 @@ async function getPortalData() {
         },
         orderBy: {createdAt: 'desc'},
         select: {
+            affiliateLinks: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
                 take: 1,
@@ -127,6 +112,7 @@ async function getPortalData() {
                     days: {
                         orderBy: {dayIndex: 'asc'},
                         select: {
+                            id: true,
                             dayIndex: true,
                             meals: {
                                 select: {
@@ -134,10 +120,14 @@ async function getPortalData() {
                                     mealType: true,
                                     recipe: {
                                         select: {
+                                            id: true,
                                             title: true,
+                                            imageUrl: true,
                                             ingredients: {
                                                 select: {
                                                     grams: true,
+                                                    quantity: true,
+                                                    unit: true,
                                                     ingredient: {
                                                         select: {
                                                             name: true,
@@ -157,6 +147,12 @@ async function getPortalData() {
                                                 select: {
                                                     name: true
                                                 }
+                                            },
+                                            steps: {
+                                                select: {
+                                                    stepNumber: true,
+                                                    instruction: true
+                                                }
                                             }
                                         }
                                     }
@@ -174,45 +170,51 @@ async function getPortalData() {
     }
 
     const days = protocol.weeksPlan[0]?.days ?? [];
+    validateProtocolWeekDays(days);
     const monday = getMondayOfCurrentWeek(new Date());
 
-    const weekDays = days.map((_, index) => {
+    const weekDays = Array.from({length: 7}, (_, dayIndex) => {
         const date = new Date(monday);
-        date.setDate(monday.getDate() + index);
+        date.setDate(monday.getDate() + dayIndex);
 
         return {
-            dayName: DAY_SHORT_NAMES[index] || `Dia ${index + 1}`,
+            dayName: DAY_SHORT_NAMES[dayIndex] || `Dia ${dayIndex + 1}`,
             date: date.getDate()
         };
     });
 
     const todayIndex = (new Date().getDay() + 6) % 7;
     const selectedDay =
-        days.find(day => day.dayIndex === todayIndex) ?? days[0];
+        days.find(day => day.dayIndex === todayIndex) ??
+        days.find(day => day.dayIndex === 0) ??
+        days[0];
 
-    const menu: MealData[] = (selectedDay?.meals ?? [])
-        .filter(meal => Boolean(meal.recipe))
-        .sort(
-            (a, b) =>
-                MEAL_ORDER.indexOf(a.mealType as (typeof MEAL_ORDER)[number]) -
-                MEAL_ORDER.indexOf(b.mealType as (typeof MEAL_ORDER)[number])
-        )
-        .map(meal => {
-            const recipe = meal.recipe!;
-            const nutrition = calculateRecipeNutrition(recipe.ingredients);
+    const sortedMealsForDay = sortProtocolMealsByPlanOrder(
+        (selectedDay?.meals ?? []).filter(meal => Boolean(meal.recipe))
+    );
 
-            return {
-                id: meal.id,
-                name: MEAL_LABELS[meal.mealType] || meal.mealType,
-                iconName: meal.mealType,
-                time: MEAL_TIMES[meal.mealType] || 'Cualquier hora',
-                calories: Math.round(nutrition.calories),
-                items: [
-                    ...recipe.ingredients.map(item => item.ingredient.name),
-                    ...recipe.extraIngredients.map(item => item.name)
-                ]
-            };
-        });
+    const sliderRecipes: MealSliderRecipe[] =
+        mapProtocolDayMealsToSliderRecipes(
+            selectedDay?.meals ?? [],
+            MEAL_TIMES
+        );
+
+    const menu = sortedMealsForDay.map(meal => {
+        const recipe = meal.recipe!;
+        const nutrition = calculateRecipeNutrition(recipe.ingredients);
+
+        return {
+            id: meal.id,
+            name: MEAL_LABELS[meal.mealType] || meal.mealType,
+            iconName: meal.mealType,
+            time: MEAL_TIMES[meal.mealType] || 'Cualquier hora',
+            calories: Math.round(nutrition.calories),
+            items: [
+                ...recipe.ingredients.map(item => item.ingredient.name),
+                ...recipe.extraIngredients.map(item => item.name)
+            ]
+        };
+    });
 
     const totals = menu.reduce(
         (acc, meal) => {
@@ -249,6 +251,8 @@ async function getPortalData() {
         return sum + nutrition.fat;
     }, 0);
 
+    const affiliateLinks = parseAffiliateLinks(protocol.affiliateLinks);
+
     return {
         patient,
         weekDays,
@@ -259,7 +263,9 @@ async function getPortalData() {
             protein: Math.round(protein),
             carbs: Math.round(carbs),
             fat: Math.round(fat)
-        }
+        },
+        sliderRecipes,
+        affiliateLinks
     };
 }
 
@@ -300,12 +306,13 @@ export default async function PatientPortal() {
     return (
         <main className='min-h-screen bg-background'>
             <div className='mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8'>
-                <div className='mb-6 flex justify-end'>
-                    <LogoutButton />
-                </div>
+                <PortalHeader
+                    avatarUrl={data?.patient.user.avatarUrl ?? ''}
+                    name={patientName}
+                />
 
                 {data ? (
-                    <>
+                    <div className='mt-6'>
                         <CalorieProgress
                             consumed={data.totals.calories}
                             goal={data.totals.calories}
@@ -324,47 +331,55 @@ export default async function PatientPortal() {
                             }}
                         />
 
-                        <div className='mt-8'>
+                        <section className='mt-8'>
                             <WeekSelector
                                 days={data.weekDays}
                                 initialSelectedIndex={data.todayIndex || 0}
                             />
-                        </div>
+                        </section>
 
-                        <div className='mt-8'>
-                            <MealSlider meals={data.menu} />
-                        </div>
-                    </>
+                        <section
+                            className='mt-8'
+                            data-slider-meals={data.sliderRecipes.length}
+                            key={data.sliderRecipes.map(r => r.id).join('|')}>
+                            <MealSlider recipes={data.sliderRecipes} />
+                        </section>
+                    </div>
                 ) : null}
 
-                <header className='mb-10 mt-12'>
-                    <h1 className='text-3xl font-semibold tracking-tight text-foreground'>
-                        Portal del paciente
-                    </h1>
-                    <p className='mt-2 text-muted-foreground'>
-                        Bienvenido de nuevo, {patientName}. Gestiona tu
-                        informacion de salud y tu plan de nutricion.
-                    </p>
-                </header>
+                <AffiliateProducts
+                    affiliateLinks={data?.affiliateLinks ?? []}
+                />
 
-                <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
-                    {portalCards.map(card => (
-                        <Link
-                            href={card.path}
-                            key={card.title}
-                            className='group cursor-pointer rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-md'>
-                            <div className='mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10'>
-                                <card.icon className='h-6 w-6 text-primary' />
-                            </div>
-                            <h2 className='text-lg font-medium text-card-foreground'>
-                                {card.title}
+                <section className='mt-8'>
+                    <div className='mb-4 flex items-center justify-between'>
+                        <div>
+                            <h2 className='text-lg font-semibold text-foreground'>
+                                Productos recomendados
                             </h2>
-                            <p className='mt-1 text-sm text-muted-foreground'>
-                                {card.description}
-                            </p>
-                        </Link>
-                    ))}
-                </div>
+                            <p className='text-sm text-muted-foreground'></p>
+                        </div>
+                    </div>
+
+                    <div className='grid gap-6 sm:grid-cols-2 lg:grid-cols-3'>
+                        {portalCards.map(card => (
+                            <Link
+                                href={card.path}
+                                key={card.title}
+                                className='group cursor-pointer rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-md'>
+                                <div className='mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10'>
+                                    <card.icon className='h-6 w-6 text-primary' />
+                                </div>
+                                <h2 className='text-lg font-medium text-card-foreground'>
+                                    {card.title}
+                                </h2>
+                                <p className='mt-1 text-sm text-muted-foreground'>
+                                    {card.description}
+                                </p>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
             </div>
         </main>
     );

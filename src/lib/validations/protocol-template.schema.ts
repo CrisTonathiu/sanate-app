@@ -55,6 +55,12 @@ const mealSlotSchema = z.object({
     ingredientPortions: z.array(mealIngredientPortionSchema).optional()
 });
 
+export const affiliateLinkSchema = z.object({
+    id: z.string(),
+    name: z.string().trim(),
+    url: z.string().trim()
+});
+
 const dayMealsSchema = z.object({
     day: z.string().trim().min(1),
     smoothie: mealSlotSchema.optional(),
@@ -82,8 +88,11 @@ export const createProtocolTemplateSchema = z.object({
     mealPercentages: z.record(z.string(), z.number().finite()).optional(),
     macroMealPercentages: z
         .record(z.string(), z.record(z.string(), z.number().finite()))
-        .optional()
+        .optional(),
+    affiliateLinks: z.array(affiliateLinkSchema).optional()
 });
+
+export type AffiliateLinkInput = z.infer<typeof affiliateLinkSchema>;
 
 export type CreateProtocolTemplateInput = z.infer<
     typeof createProtocolTemplateSchema

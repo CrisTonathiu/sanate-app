@@ -1,6 +1,8 @@
 import {requireRole} from '@/lib/auth/requireRole';
 import {prisma} from '@/lib/prisma';
-import {MealType, ProtocolStatus} from '@prisma/client';
+import {affiliateLinkSchema} from '@/lib/validations/protocol-template.schema';
+import {MealType, Prisma, ProtocolStatus} from '@prisma/client';
+import {z} from 'zod';
 
 type DayMealPayload = {
     id?: string;
@@ -83,6 +85,25 @@ export async function POST(
         const weekPlan = Array.isArray(body?.weekPlan)
             ? (body.weekPlan as DayPlanPayload[])
             : [];
+        const affiliateLinksResult = z
+            .array(affiliateLinkSchema)
+            .optional()
+            .safeParse(body?.affiliateLinks);
+
+        if (!affiliateLinksResult.success) {
+            return Response.json(
+                {
+                    success: false,
+                    message: 'Enlaces de afiliado no válidos',
+                    errors: affiliateLinksResult.error.flatten()
+                },
+                {status: 400}
+            );
+        }
+
+        const affiliateLinks = affiliateLinksResult.data?.length
+            ? (affiliateLinksResult.data as Prisma.InputJsonValue)
+            : undefined;
 
         if (title.length < 3) {
             return Response.json(
@@ -111,6 +132,7 @@ export async function POST(
                 weekCount,
                 patientId,
                 status,
+                affiliateLinks,
                 weeksPlan: {
                     create: [
                         {
