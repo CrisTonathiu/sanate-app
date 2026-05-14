@@ -100,7 +100,7 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
                             <Badge
                                 key={item.id}
                                 variant='outline'
-                                className='rounded-lg border-amber-200 bg-amber-50 px-3 py-1 text-amber-800'>
+                                className='rounded-lg border-amber-200 bg-accent px-3 py-1 text-amber-800'>
                                 {item.food}
                             </Badge>
                         ))}

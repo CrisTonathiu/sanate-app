@@ -5,7 +5,8 @@ import {
     Activity,
     Pill,
     MessageSquare,
-    ShoppingBag
+    ShoppingBag,
+    Video
 } from 'lucide-react';
 import {getCurrentUser} from '@/lib/auth/getCurrentUser';
 import {prisma} from '@/lib/prisma';
@@ -270,10 +271,10 @@ const portalCards = [
         path: '/portal/perfil'
     },
     {
-        title: 'Menu',
-        description: 'Consulta tu plan de nutricion personalizado',
-        icon: CalendarDays,
-        path: '/portal/menu'
+        title: 'Videos',
+        description: 'Accede a videos educativos sobre nutricion y bienestar',
+        icon: Video,
+        path: '/portal/videos'
     },
     {
         title: 'Documentos',

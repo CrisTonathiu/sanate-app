@@ -209,7 +209,7 @@ export default function LoginPage() {
                                             initial={{scaleX: 0}}
                                             animate={{scaleX: 1}}
                                             exit={{scaleX: 0}}
-                                            className='absolute bottom-0 left-4 right-4 h-px origin-left bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)]'
+                                            className='absolute bottom-0 left-4 right-4 h-px origin-left '
                                         />
                                     )}
                                 </AnimatePresence>
@@ -320,7 +320,7 @@ export default function LoginPage() {
                                             initial={{scaleX: 0}}
                                             animate={{scaleX: 1}}
                                             exit={{scaleX: 0}}
-                                            className='absolute bottom-0 left-4 right-4 h-px origin-left bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)]'
+                                            className='absolute bottom-0 left-4 right-4 h-px origin-left '
                                         />
                                     )}
                                 </AnimatePresence>

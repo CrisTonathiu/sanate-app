@@ -67,7 +67,7 @@ export default function StepIndicator({
                                         className={cn(
                                             'flex items-center justify-center px-4 py-2 rounded-xl transition-all duration-300 min-w-12',
                                             isActive &&
-                                                'bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] text-primary-foreground hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]',
+                                                ' text-primary-foreground hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]',
                                             isCompleted &&
                                                 'bg-secondary text-foreground',
                                             !isActive &&

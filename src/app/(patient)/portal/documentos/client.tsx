@@ -353,7 +353,7 @@ export default function PatientDocumentClient({
             <Button
                 onClick={() => setShowUpload(!showUpload)}
                 disabled={isUploading}
-                className='mb-4 w-full rounded-xl bg-amber-500 py-6 text-base font-medium text-black hover:bg-amber-400 disabled:opacity-50'>
+                className='mb-4 w-full rounded-xl bg-accent py-6 text-base font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50'>
                 <Upload className='mr-2 h-5 w-5' />
                 Subir Documento
                 {showUpload ? (
@@ -388,11 +388,11 @@ export default function PatientDocumentClient({
                     onDrop={handleDrop}
                     className={`rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${
                         isDragging
-                            ? 'border-amber-400 bg-amber-400/10'
-                            : 'border-muted-foreground/30 bg-card hover:border-amber-400/50'
+                            ? 'border-accent bg-accent/10'
+                            : 'border-muted-foreground/30 bg-card hover:border-accent/50'
                     } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <div className='mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/20'>
-                        <FileType className='h-7 w-7 text-amber-400' />
+                    <div className='mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/20'>
+                        <FileType className='h-7 w-7 text-accent-foreground' />
                     </div>
                     <p className='mb-2 text-sm font-medium text-foreground'>
                         {isUploading

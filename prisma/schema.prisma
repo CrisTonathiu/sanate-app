@@ -70,6 +70,7 @@ model User {
   patientProfile       Patient?       @relation("UserPatient")
   consultations        Consultation[]
   protocolTemplates    ProtocolTemplate[]
+  videos               Video[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -529,4 +530,24 @@ model Organization {
   users User[]
 
   createdAt DateTime @default(now())
+}
+
+model Video {
+  id          String @id @default(cuid())
+  title       String
+  description String
+  category    String
+  fileName    String?
+  size        Int    @default(0)
+  storagePath String
+  publicUrl   String?
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([uploadedById])
+  @@index([category])
 }

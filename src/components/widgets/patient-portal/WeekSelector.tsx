@@ -55,7 +55,7 @@ export function WeekSelector({
                         <div
                             className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all ${
                                 isSelected
-                                    ? 'bg-amber-400 text-amber-950'
+                                    ? 'bg-accent text-accent-foreground'
                                     : 'bg-background text-foreground hover:bg-muted'
                             }`}>
                             {day.date}

@@ -6,6 +6,7 @@ import {
     LayoutDashboard,
     Settings,
     Users,
+    Video,
     X
 } from 'lucide-react';
 import {ScrollArea} from '../ui/scroll-area';
@@ -36,11 +37,11 @@ const sidebarItems = [
         items: [{title: 'Lista de Pacientes', url: '/pacientes'}]
     },
     {
-        title: 'Dietas',
-        icon: <Apple className='size-4' />,
+        title: 'Videos',
+        icon: <Video className='size-4' />,
         items: [
-            {title: 'Mis Dietas', url: '/dietas'},
-            {title: 'Crear Dieta', url: '/dietas/nueva'}
+            {title: 'Mis Videos', url: '/videos'},
+            {title: 'Subir Video', url: '/videos/subir'}
         ]
     },
     {

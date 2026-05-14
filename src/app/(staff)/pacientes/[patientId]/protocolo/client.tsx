@@ -737,7 +737,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     </p>
                     <Button
                         onClick={() => router.push('/pacientes')}
-                        className='mt-4 bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)]'>
+                        className='mt-4 '>
                         Volver a la lista
                     </Button>
                 </div>

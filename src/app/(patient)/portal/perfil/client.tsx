@@ -129,7 +129,7 @@ export function PatientProfileClient({profileData}: PatientProfileClientProps) {
                         </div>
                         <label
                             htmlFor='avatar-upload'
-                            className='absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-amber-500 text-black shadow-lg'
+                            className='absolute -bottom-1 -right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg'
                             aria-label='Subir avatar'>
                             <Camera className='h-4 w-4' />
                         </label>

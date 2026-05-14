@@ -60,7 +60,7 @@ export default function ClientPage({patientId}: ClientPageProps) {
                     </p>
                     <Button
                         onClick={() => router.push('/pacientes')}
-                        className='mt-4 bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)]'>
+                        className='mt-4 '>
                         Volver a la lista
                     </Button>
                 </div>
@@ -140,11 +140,11 @@ export default function ClientPage({patientId}: ClientPageProps) {
                         onClick={() =>
                             router.push(`/pacientes/${patientId}/protocolo`)
                         }
-                        className='h-10 rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
+                        className='h-10 rounded-xl  px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
                         <Pencil className='mr-2 h-4 w-4' />
                         Crear Protocolo
                     </Button>
-                    {/* <Button className='h-10 rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
+                    {/* <Button className='h-10 rounded-xl  px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
                         <Pencil className='mr-2 h-4 w-4' />
                         Agendar Consulta
                     </Button> */}
@@ -192,7 +192,7 @@ export default function ClientPage({patientId}: ClientPageProps) {
                             {activeTab === tab.key && (
                                 <motion.div
                                     layoutId='active-tab-indicator'
-                                    className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)]'
+                                    className='absolute bottom-0 left-0 right-0 h-0.5 '
                                     transition={{
                                         type: 'spring',
                                         stiffness: 400,

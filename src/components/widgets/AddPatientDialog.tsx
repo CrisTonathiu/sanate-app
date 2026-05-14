@@ -293,7 +293,7 @@ export default function AddPatientDialog({
                                 <Button
                                     type='submit'
                                     disabled={isSubmitting}
-                                    className='h-10 rounded-xl bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] px-6 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
+                                    className='h-10 rounded-xl  px-6 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25]'>
                                     <AnimatePresence mode='wait'>
                                         {isSubmitting ? (
                                             <motion.span

@@ -99,7 +99,11 @@ const normalizeUiUnit = (value?: string): IngredientUiUnit => {
 
     const normalized = value.trim().toLowerCase();
 
-    if (normalized === 'gram' || normalized === 'gramo' || normalized === 'gramos') {
+    if (
+        normalized === 'gram' ||
+        normalized === 'gramo' ||
+        normalized === 'gramos'
+    ) {
         return 'g';
     }
 
@@ -603,7 +607,7 @@ export function RecipeForm(props: RecipeFormProps) {
                     {isDirty && (
                         <Badge
                             variant='outline'
-                            className='ml-2 text-amber-600 border-amber-500/30 bg-amber-500/10'>
+                            className='ml-2 text-foreground border-accent/30 bg-accent/10'>
                             Cambios sin guardar
                         </Badge>
                     )}
@@ -924,14 +928,14 @@ export function RecipeForm(props: RecipeFormProps) {
                             <div className='flex items-center justify-between'>
                                 <div>
                                     <CardTitle className='text-base flex items-center gap-2'>
-                                        <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10'>
-                                            <Salad className='h-4 w-4 text-amber-500' />
+                                        <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10'>
+                                            <Salad className='h-4 w-4 text-accent-foreground' />
                                         </div>
                                         Extras / al gusto
                                         {extraIngredients.length > 0 && (
                                             <Badge
                                                 variant='outline'
-                                                className='ml-2 border-amber-500/30 text-amber-600 dark:text-amber-400'>
+                                                className='ml-2 border-accent/30 text-accent-foreground dark:text-accent-400'>
                                                 {extraIngredients.length}
                                             </Badge>
                                         )}
@@ -946,9 +950,9 @@ export function RecipeForm(props: RecipeFormProps) {
                         <CardContent className='pt-5'>
                             <AnimatePresence mode='popLayout'>
                                 {extraIngredients.length === 0 ? (
-                                    <div className='flex flex-col items-center justify-center py-8 px-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5'>
-                                        <div className='flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10 mb-3'>
-                                            <Salad className='h-6 w-6 text-amber-500' />
+                                    <div className='flex flex-col items-center justify-center py-8 px-4 rounded-xl border border-dashed border-accent/30 bg-accent/5'>
+                                        <div className='flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 mb-3'>
+                                            <Salad className='h-6 w-6 text-accent-foreground' />
                                         </div>
                                         <p className='text-sm font-medium text-foreground mb-1'>
                                             Sin extras
@@ -988,7 +992,7 @@ export function RecipeForm(props: RecipeFormProps) {
                             <Button
                                 variant='outline'
                                 onClick={addExtraIngredient}
-                                className='w-full mt-4 h-11 border-dashed border-amber-500/30 hover:border-amber-500 hover:bg-amber-500/5 text-amber-600 dark:text-amber-400'>
+                                className='w-full mt-4 h-11 border-dashed border-accent/30 hover:border-accent hover:bg-accent/5 text-accent-foreground dark:text-accent-400'>
                                 <Plus className='h-4 w-4 mr-2' />
                                 Agregar extra
                             </Button>
