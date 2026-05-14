@@ -4,17 +4,17 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Textarea} from '@/components/ui/textarea';
 import {motion} from 'framer-motion';
 import {Apple, Droplets, Lightbulb, Pill} from 'lucide-react';
-import {AffiliateLinksCard} from './AffiliateLinksCard';
-import {useState} from 'react';
+import {AffiliateLinksCard, type AffiliateLink} from './AffiliateLinksCard';
 
-interface AffiliateLink {
-    id: string;
-    name: string;
-    url: string;
+interface RecommendationsCardProps {
+    affiliateLinks: AffiliateLink[];
+    setAffiliateLinks: (links: AffiliateLink[]) => void;
 }
 
-export default function RecommendationsCard() {
-    const [affiliateLinks, setAffiliateLinks] = useState<AffiliateLink[]>([]);
+export default function RecommendationsCard({
+    affiliateLinks,
+    setAffiliateLinks
+}: RecommendationsCardProps) {
 
     return (
         <motion.div

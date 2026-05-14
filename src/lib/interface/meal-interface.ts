@@ -43,6 +43,7 @@ export interface Recipe {
         | 'any';
     calories: number;
     protein: number;
+    time: string;
 }
 
 export interface DayMeals {

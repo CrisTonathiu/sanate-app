@@ -42,7 +42,8 @@ export async function createProtocolTemplate(
                 macroPercents: validatedInput.macroPercents,
                 enabledMeals: validatedInput.enabledMeals,
                 mealPercentages: validatedInput.mealPercentages,
-                macroMealPercentages: validatedInput.macroMealPercentages
+                macroMealPercentages: validatedInput.macroMealPercentages,
+                affiliateLinks: validatedInput.affiliateLinks
             }
         });
 

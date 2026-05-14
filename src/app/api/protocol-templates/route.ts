@@ -82,7 +82,8 @@ export async function POST(request: Request) {
         macroPercents: body.macroPercents,
         enabledMeals: body.enabledMeals,
         mealPercentages: body.mealPercentages,
-        macroMealPercentages: body.macroMealPercentages
+        macroMealPercentages: body.macroMealPercentages,
+        affiliateLinks: body.affiliateLinks
     });
 
     return Response.json(result, {status: result.success ? 200 : 400});

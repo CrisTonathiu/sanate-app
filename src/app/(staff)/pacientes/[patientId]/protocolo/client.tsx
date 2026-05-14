@@ -35,6 +35,7 @@ import {
 } from '@/lib/config/meal-config';
 import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
 import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
+import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
 
 interface ClientPageProps {
     patientId: string;
@@ -67,6 +68,7 @@ type ProtocolTemplateRecord = {
     macroMealPercentages?: Partial<
         Record<keyof MacroMealPercentages, Partial<MealPercentages>>
     > | null;
+    affiliateLinks?: AffiliateLink[] | null;
 };
 
 const DEFAULT_MACRO_PERCENTS: MacroPercents = {
@@ -175,6 +177,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     >(null);
 
     const [weekPlan, setWeekPlan] = useState<DayMeals[]>([]);
+    const [affiliateLinks, setAffiliateLinks] = useState<AffiliateLink[]>([]);
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
 
     const [selectedDayMeal, setSelectedDayMeal] = useState<{
@@ -282,6 +285,11 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     ...(template.macroMealPercentages?.fat ?? {})
                 }
             }));
+            setAffiliateLinks(
+                Array.isArray(template.affiliateLinks)
+                    ? template.affiliateLinks
+                    : []
+            );
             setCurrentStep(1);
             setSelectedTemplateName(template.name);
             setIsStartDialogOpen(false);
@@ -301,7 +309,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             macroPercents,
             enabledMeals,
             mealPercentages,
-            macroMealPercentages
+            macroMealPercentages,
+            affiliateLinks
         };
 
         try {
@@ -479,7 +488,12 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         />
                     );
                 case 5:
-                    return <RecommendationsCard />;
+                    return (
+                        <RecommendationsCard
+                            affiliateLinks={affiliateLinks}
+                            setAffiliateLinks={setAffiliateLinks}
+                        />
+                    );
                 case 6:
                     return (
                         <ProtocolPreview
@@ -684,7 +698,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         title: protocolTitle,
                         weekCount: 1,
                         status: 'ACTIVE',
-                        weekPlan
+                        weekPlan,
+                        affiliateLinks
                     })
                 }
             );

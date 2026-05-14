@@ -8,7 +8,7 @@ import {AnimatePresence, motion} from 'framer-motion';
 import {ExternalLink, Link2, Plus, Trash2} from 'lucide-react';
 import {useState} from 'react';
 
-interface AffiliateLink {
+export interface AffiliateLink {
     id: string;
     name: string;
     url: string;
