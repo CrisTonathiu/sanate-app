@@ -56,6 +56,13 @@ export async function uploadFileToSupabaseStorage(
             upsert
         });
 
+    console.log('Supabase upload response:', {
+        bucket,
+        filePath,
+        contentType: file.type,
+        upsert,
+        uploadError
+    });
     if (uploadError) {
         return {
             success: false,

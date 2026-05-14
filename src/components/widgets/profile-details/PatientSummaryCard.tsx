@@ -128,7 +128,7 @@ export default function PatientSummaryCard({
             className='rounded-2xl border border-border bg-card p-6'>
             <div className='flex items-start gap-4 mb-6'>
                 <Avatar className='h-14 w-14 border-2 border-border'>
-                    <AvatarFallback className='bg-gradient-to-r from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)] text-primary-foreground hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25] text-lg font-semibold text-primary-foreground'>
+                    <AvatarFallback className=' text-primary-foreground hover:shadow-lg hover:shadow-[hsl(262,80%,60%)/0.25] text-lg font-semibold text-primary-foreground'>
                         {name
                             .split(' ')
                             .map(part => part[0])

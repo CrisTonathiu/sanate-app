@@ -120,8 +120,8 @@ export function MealSlider({meals = defaultMeals}: MealSliderProps) {
                                 className='min-w-full snap-center rounded-2xl border border-border bg-card p-5'>
                                 <div className='mb-4 flex items-center justify-between'>
                                     <div className='flex items-center gap-3'>
-                                        <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400/20'>
-                                            <IconComponent className='h-5 w-5 text-amber-500' />
+                                        <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-accent/20'>
+                                            <IconComponent className='h-5 w-5 text-accent-foreground' />
                                         </div>
                                         <div>
                                             <h4 className='font-semibold text-card-foreground'>
@@ -147,7 +147,7 @@ export function MealSlider({meals = defaultMeals}: MealSliderProps) {
                                         <li
                                             key={index}
                                             className='flex items-center gap-2 text-sm text-muted-foreground'>
-                                            <span className='h-1.5 w-1.5 rounded-full bg-amber-400' />
+                                            <span className='h-1.5 w-1.5 rounded-full bg-accent-foreground' />
                                             {item}
                                         </li>
                                     ))}
@@ -178,7 +178,7 @@ export function MealSlider({meals = defaultMeals}: MealSliderProps) {
                         }}
                         className={`h-2 w-2 rounded-full transition-all ${
                             index === currentIndex
-                                ? 'bg-amber-400 w-4'
+                                ? 'bg-accent-foreground w-4'
                                 : 'bg-muted-foreground/30'
                         }`}
                     />

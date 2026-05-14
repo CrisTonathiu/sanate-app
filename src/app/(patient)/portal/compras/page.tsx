@@ -287,8 +287,8 @@ export default function ShoppingListPage() {
             <div className='mb-6 rounded-2xl bg-card p-5'>
                 <div className='flex items-center justify-between'>
                     <div className='flex items-center gap-4'>
-                        <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20'>
-                            <ShoppingCart className='h-6 w-6 text-amber-400' />
+                        <div className='flex h-12 w-12 items-center justify-center rounded-xl bg-accent/20'>
+                            <ShoppingCart className='h-6 w-6 text-accent-foreground' />
                         </div>
                         <div>
                             <p className='text-2xl font-semibold text-foreground'>
@@ -321,7 +321,7 @@ export default function ShoppingListPage() {
                             <button
                                 onClick={() => toggleWeek(week.id)}
                                 className='flex flex-1 items-center gap-3'>
-                                <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-amber-400'>
+                                <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-accent-foreground'>
                                     {week.weekNumber}
                                 </div>
                                 <div className='text-left'>
@@ -345,7 +345,7 @@ export default function ShoppingListPage() {
                             </button>
                             <button
                                 onClick={() => handleDownload(week)}
-                                className='ml-3 flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-medium text-black transition-colors hover:bg-amber-400'>
+                                className='ml-3 flex items-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs font-medium text-accent-foreground transition-colors hover:bg-accent/90'>
                                 <Download className='h-3.5 w-3.5' />
                                 <span className='hidden sm:inline'>
                                     Descargar

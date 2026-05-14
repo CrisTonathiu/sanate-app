@@ -33,7 +33,7 @@ export function NutritionCard({nutrition}: {nutrition: NutritionData}) {
             unit: 'g',
             icon: Wheat,
             color: 'text-amber-400',
-            bg: 'bg-amber-400/10'
+            bg: 'bg-accent/10'
         },
         {
             label: 'Grasas',
