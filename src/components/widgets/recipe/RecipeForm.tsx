@@ -657,15 +657,7 @@ export function RecipeForm(props: RecipeFormProps) {
                             } // Disable if not dirty in edit mode
                             className='h-10 px-6 disabled:opacity-50'>
                             {isSaving ? (
-                                <motion.div
-                                    animate={{rotate: 360}}
-                                    transition={{
-                                        duration: 1,
-                                        repeat: Infinity,
-                                        ease: 'linear'
-                                    }}>
-                                    <Loader2 className='h-4 w-4 mr-2 animate-spin' />
-                                </motion.div>
+                                <Loader2 className='h-4 w-4 mr-2 animate-spin' />
                             ) : (
                                 <Save className='h-4 w-4 mr-2' />
                             )}
@@ -915,7 +907,7 @@ export function RecipeForm(props: RecipeFormProps) {
                             <Button
                                 variant='outline'
                                 onClick={addIngredient}
-                                className='w-full mt-4 h-11 border-dashed hover:border-primary hover:bg-primary/5'>
+                                className='w-full mt-4 h-11 border-dashed hover:border-primary'>
                                 <Plus className='h-4 w-4 mr-2' />
                                 Agregar Ingrediente
                             </Button>
@@ -929,13 +921,13 @@ export function RecipeForm(props: RecipeFormProps) {
                                 <div>
                                     <CardTitle className='text-base flex items-center gap-2'>
                                         <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10'>
-                                            <Salad className='h-4 w-4 text-accent-foreground' />
+                                            <Salad className='h-4 w-4 text-primary' />
                                         </div>
                                         Extras / al gusto
                                         {extraIngredients.length > 0 && (
                                             <Badge
-                                                variant='outline'
-                                                className='ml-2 border-accent/30 text-accent-foreground dark:text-accent-400'>
+                                                variant='secondary'
+                                                className='ml-2'>
                                                 {extraIngredients.length}
                                             </Badge>
                                         )}
@@ -992,9 +984,9 @@ export function RecipeForm(props: RecipeFormProps) {
                             <Button
                                 variant='outline'
                                 onClick={addExtraIngredient}
-                                className='w-full mt-4 h-11 border-dashed border-accent/30 hover:border-accent hover:bg-accent/5 text-accent-foreground dark:text-accent-400'>
+                                className='w-full mt-4 h-11 border-dashed hover:border-primary'>
                                 <Plus className='h-4 w-4 mr-2' />
-                                Agregar extra
+                                Agregar Extra
                             </Button>
                         </CardContent>
                     </Card>
@@ -1051,7 +1043,7 @@ export function RecipeForm(props: RecipeFormProps) {
                             <Button
                                 variant='outline'
                                 onClick={addStep}
-                                className='w-full mt-4 h-11 border-dashed hover:border-primary hover:bg-primary/5'>
+                                className='w-full mt-4 h-11 border-dashed hover:border-primary'>
                                 <Plus className='h-4 w-4 mr-2' />
                                 Agregar Paso
                             </Button>

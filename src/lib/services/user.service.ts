@@ -12,6 +12,14 @@ const claimUserSchema = z.object({
         .min(8, 'La contraseña debe tener al menos 8 caracteres')
 });
 
+function getAppUrl() {
+    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
+function getAuthCallbackUrl() {
+    return `${getAppUrl()}/auth/callback?next=/portal`;
+}
+
 export async function createUser(input: CreateUserInput) {
     try {
         // Validate input with Zod
@@ -88,7 +96,10 @@ export async function claimUser(input: unknown) {
         const supabase = await createClient();
         const {error} = await supabase.auth.signUp({
             email: validatedInput.email,
-            password: validatedInput.password
+            password: validatedInput.password,
+            options: {
+                emailRedirectTo: getAuthCallbackUrl()
+            }
         });
 
         if (error) {
@@ -98,15 +109,10 @@ export async function claimUser(input: unknown) {
             };
         }
 
-        // @ts-ignore
-        await prisma.user.update({
-            where: {email: validatedInput.email},
-            data: {isClaimed: true}
-        });
-
         return {
             success: true,
-            message: 'Registro exitoso. Ya puedes iniciar sesión'
+            message:
+                'Registro exitoso. Revisa tu correo para confirmar tu cuenta.'
         };
     } catch (error) {
         if (error instanceof ZodError) {
