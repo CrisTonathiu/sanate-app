@@ -331,12 +331,17 @@ export async function acceptPatientIntake(
         let emailError: string | undefined;
 
         try {
-            await sendPatientInviteEmail({
+            const {error} = await sendPatientInviteEmail({
                 patientId: result.patient.id,
                 patientEmail: result.user.email,
                 firstName: result.user.firstName
             });
-            emailSent = true;
+
+            if (error) {
+                emailError = error.message;
+            } else {
+                emailSent = true;
+            }
         } catch (error) {
             emailError =
                 error instanceof Error ? error.message : 'Unknown email error';

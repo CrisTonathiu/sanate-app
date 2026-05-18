@@ -52,10 +52,15 @@ export default function RegisterPage() {
 
     useEffect(() => {
         const urlEmail = searchParams?.get('email')?.trim();
+        const urlError = searchParams?.get('error')?.trim();
 
         if (urlEmail) {
             setEmail(urlEmail);
             setIsEmailBlocked(true);
+        }
+
+        if (urlError) {
+            setFormError(urlError);
         }
     }, [searchParams]);
 
@@ -65,7 +70,9 @@ export default function RegisterPage() {
         },
         onSuccess: () => {
             setFormError(null);
-            router.push('/');
+            router.push(
+                `/registro/confirmacion?email=${encodeURIComponent(email)}`
+            );
         },
         mutationFn: async () => {
             const res = await fetch('/api/auth/register', {
