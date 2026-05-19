@@ -70,6 +70,7 @@ export function mapMealTypeToSliderMealType(
         case 'SMOOTHIE':
         case 'BREAKFAST':
             return 'breakfast';
+        case 'SNACK':
         case 'SNACK1':
         case 'LUNCH':
             return 'lunch';

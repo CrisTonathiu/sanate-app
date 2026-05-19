@@ -113,6 +113,7 @@ function buildMealCalorieSplit(
     const split: Record<MealType, number> = {
         SMOOTHIE: 0,
         BREAKFAST: 0,
+        SNACK: 0,
         SNACK1: 0,
         SNACK2: 0,
         LUNCH: 0,
@@ -312,8 +313,12 @@ function buildMealCatalog(recipes: RecipeSummary[]) {
     for (const recipe of recipes) {
         if (recipe.mealType === 'SMOOTHIE') catalog.smoothie.push(recipe);
         if (recipe.mealType === 'BREAKFAST') catalog.breakfast.push(recipe);
-        if (recipe.mealType === 'SNACK1') catalog.snack1.push(recipe);
-        if (recipe.mealType === 'SNACK2') catalog.snack2.push(recipe);
+        if (recipe.mealType === 'SNACK' || recipe.mealType === 'SNACK1') {
+            catalog.snack1.push(recipe);
+        }
+        if (recipe.mealType === 'SNACK' || recipe.mealType === 'SNACK2') {
+            catalog.snack2.push(recipe);
+        }
         if (recipe.mealType === 'LUNCH') catalog.lunch.push(recipe);
         if (recipe.mealType === 'DINNER') catalog.dinner.push(recipe);
         if (recipe.mealType === 'DRINKS') catalog.drinks.push(recipe);
