@@ -1,4 +1,13 @@
 import {
+    classifyWhatsAppIntent,
+    enrichClassifiedWhatsAppIntent,
+    replyForWhatsAppIntent
+} from '@/lib/webhooks/classify-whatsapp-intent';
+import {
+    replyForWhatsAppUserLookup,
+    resolveWhatsAppUser
+} from '@/lib/webhooks/resolve-whatsapp-user';
+import {
     parseTwilioWhatsAppWebhook,
     parseWhatsAppWebhook,
     type ParsedWhatsAppMessage
@@ -100,13 +109,40 @@ export async function POST(request: Request) {
 
         const twiml = new twilio.twiml.MessagingResponse();
 
-        for (const {phoneNumber, message, media} of messages) {
+        for (const parsed of messages) {
+            const lookup = await resolveWhatsAppUser(parsed.phoneNumber);
+
+            if (lookup.status !== 'active') {
+                console.log('[whatsapp/webhook] user lookup failed', {
+                    phoneNumber: parsed.phoneNumber,
+                    status: lookup.status
+                });
+                twiml.message(replyForWhatsAppUserLookup(lookup));
+                continue;
+            }
+
+            const classified = await enrichClassifiedWhatsAppIntent(
+                classifyWhatsAppIntent(parsed),
+                lookup.userId
+            );
+
             console.log('[whatsapp/webhook] incoming message', {
-                phoneNumber,
-                message,
-                media
+                phoneNumber: parsed.phoneNumber,
+                userId: lookup.userId,
+                message: parsed.message,
+                media: parsed.media,
+                intent: classified.intent,
+                meal: classified.meal,
+                todayMeal: classified.todayMeal
+                    ? {
+                          id: classified.todayMeal.id,
+                          name: classified.todayMeal.name,
+                          image: classified.todayMeal.image
+                      }
+                    : null
             });
-            twiml.message(`You said: ${message ?? '(no text)'}`);
+
+            twiml.message(replyForWhatsAppIntent(classified));
         }
 
         return new Response(twiml.toString(), {
