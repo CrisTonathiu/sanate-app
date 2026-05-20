@@ -1,6 +1,8 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+    // Allow ngrok (and similar) tunnels to load /_next/* assets in dev.
+    allowedDevOrigins: ['*.ngrok-free.dev', '*.ngrok.io', '*.ngrok.app'],
     experimental: {
         optimizePackageImports: [
             'framer-motion',
