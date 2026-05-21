@@ -142,7 +142,7 @@ export async function POST(request: Request) {
                     : null
             });
 
-            twiml.message(replyForWhatsAppIntent(classified));
+            twiml.message(await replyForWhatsAppIntent(classified));
         }
 
         return new Response(twiml.toString(), {

@@ -2,45 +2,10 @@ import type {MealType} from '@prisma/client';
 import {PROTOCOL_MEAL_TIMES} from '@/lib/config/protocol-meal-times';
 import {
     mapProtocolMealToSliderRecipe,
-    sortProtocolMealsByPlanOrder,
     type MealSliderRecipe
 } from '@/lib/patient-portal/protocol-meal-slider-map';
+import {loadTodayProtocolMeals} from '@/lib/services/patient/patient-meal-by-type.service';
 import {prisma} from '@/lib/prisma';
-
-const protocolMealRecipeSelect = {
-    id: true,
-    title: true,
-    imageUrl: true,
-    ingredients: {
-        select: {
-            grams: true,
-            quantity: true,
-            unit: true,
-            ingredient: {
-                select: {
-                    name: true,
-                    food: {
-                        select: {
-                            caloriesPer100g: true,
-                            proteinPer100g: true,
-                            carbsPer100g: true,
-                            fatPer100g: true
-                        }
-                    }
-                }
-            }
-        }
-    },
-    extraIngredients: {
-        select: {name: true}
-    },
-    steps: {
-        select: {
-            stepNumber: true,
-            instruction: true
-        }
-    }
-} as const;
 
 function minutesSinceMidnight(date: Date): number {
     return date.getHours() * 60 + date.getMinutes();
@@ -104,73 +69,32 @@ export async function getPatientCurrentTodayMeal(
     userId: string,
     now: Date = new Date()
 ): Promise<PatientTodayMealResult> {
-    const patient = await prisma.patient.findUnique({
-        where: {userId},
-        select: {id: true}
-    });
+    const {patient, meals} = await loadTodayProtocolMeals(userId, now);
 
     if (!patient) {
         return {success: false, reason: 'no_patient'};
     }
 
-    const protocol = await prisma.protocol.findFirst({
-        where: {
-            patientId: patient.id,
-            status: 'ACTIVE'
-        },
-        orderBy: {createdAt: 'desc'},
-        select: {
-            weeksPlan: {
-                orderBy: {weekNumber: 'asc'},
-                take: 1,
-                select: {
-                    days: {
-                        orderBy: {dayIndex: 'asc'},
-                        select: {
-                            dayIndex: true,
-                            meals: {
-                                select: {
-                                    id: true,
-                                    mealType: true,
-                                    recipe: {
-                                        select: protocolMealRecipeSelect
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    if (meals.length === 0) {
+        const hasProtocol = await prisma.protocol.findFirst({
+            where: {patientId: patient.id, status: 'ACTIVE'},
+            select: {id: true}
+        });
+
+        if (!hasProtocol) {
+            return {success: false, reason: 'no_protocol'};
         }
-    });
 
-    if (!protocol) {
-        return {success: false, reason: 'no_protocol'};
-    }
-
-    const days = protocol.weeksPlan[0]?.days ?? [];
-    const todayIndex = (now.getDay() + 6) % 7;
-    const selectedDay =
-        days.find(day => day.dayIndex === todayIndex) ??
-        days.find(day => day.dayIndex === 0) ??
-        days[0];
-
-    const mealsWithRecipe = sortProtocolMealsByPlanOrder(
-        (selectedDay?.meals ?? []).filter(meal => meal.recipe !== null)
-    );
-
-    if (mealsWithRecipe.length === 0) {
         return {success: false, reason: 'no_meals_today'};
     }
 
     const currentMealType = pickCurrentMealType(
-        mealsWithRecipe.map(meal => meal.mealType),
+        meals.map(meal => meal.mealType),
         now
     );
 
     const currentMeal =
-        mealsWithRecipe.find(meal => meal.mealType === currentMealType) ??
-        mealsWithRecipe[0];
+        meals.find(meal => meal.mealType === currentMealType) ?? meals[0];
 
     const mapped = mapProtocolMealToSliderRecipe(
         currentMeal,
