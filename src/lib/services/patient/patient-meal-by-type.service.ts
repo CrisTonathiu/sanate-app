@@ -63,14 +63,31 @@ export const GENERIC_SNACK_PROTOCOL_TYPES: ProtocolMealType[] = [
     'SNACK'
 ];
 
-export async function loadTodayProtocolMeals(userId: string, now: Date = new Date()) {
+const WEEK_DAY_NAMES = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo'
+] as const;
+
+export type WeekDayMealPlan = {
+    dayIndex: number;
+    dayLabel: string;
+    isToday: boolean;
+    meals: MealSliderRecipe[];
+};
+
+async function loadActiveProtocolWeekDays(userId: string) {
     const patient = await prisma.patient.findUnique({
         where: {userId},
         select: {id: true}
     });
 
     if (!patient) {
-        return {patient: null, meals: []};
+        return {patient: null, days: []};
     }
 
     const protocol = await prisma.protocol.findFirst({
@@ -105,10 +122,60 @@ export async function loadTodayProtocolMeals(userId: string, now: Date = new Dat
     });
 
     if (!protocol) {
-        return {patient, meals: []};
+        return {patient, days: []};
     }
 
-    const days = protocol.weeksPlan[0]?.days ?? [];
+    return {patient, days: protocol.weeksPlan[0]?.days ?? []};
+}
+
+export async function loadWeekProtocolMeals(
+    userId: string,
+    now: Date = new Date()
+): Promise<{patient: {id: string} | null; weekPlan: WeekDayMealPlan[]}> {
+    const {patient, days} = await loadActiveProtocolWeekDays(userId);
+    const todayIndex = (now.getDay() + 6) % 7;
+
+    const weekPlan = days
+        .map(day => {
+            const mealsWithRecipe = sortProtocolMealsByPlanOrder(
+                day.meals.filter(
+                    (
+                        meal
+                    ): meal is typeof meal & {
+                        recipe: NonNullable<typeof meal.recipe>;
+                    } => meal.recipe !== null
+                )
+            );
+
+            const meals = mealsWithRecipe
+                .map(meal =>
+                    mapProtocolMealToSliderRecipe(
+                        meal,
+                        PROTOCOL_MEAL_TIMES[meal.mealType] ?? 'Cualquier hora'
+                    )
+                )
+                .filter((meal): meal is MealSliderRecipe => Boolean(meal));
+
+            return {
+                dayIndex: day.dayIndex,
+                dayLabel: WEEK_DAY_NAMES[day.dayIndex] ?? `Día ${day.dayIndex + 1}`,
+                isToday: day.dayIndex === todayIndex,
+                meals
+            };
+        })
+        .filter(day => day.meals.length > 0)
+        .sort((a, b) => a.dayIndex - b.dayIndex);
+
+    return {patient, weekPlan};
+}
+
+export async function loadTodayProtocolMeals(userId: string, now: Date = new Date()) {
+    const {patient, days} = await loadActiveProtocolWeekDays(userId);
+
+    if (!patient) {
+        return {patient: null, meals: []};
+    }
+
     const todayIndex = (now.getDay() + 6) % 7;
     const selectedDay =
         days.find(day => day.dayIndex === todayIndex) ??

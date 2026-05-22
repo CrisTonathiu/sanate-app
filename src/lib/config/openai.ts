@@ -21,3 +21,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export const OPENAI_MODEL = 'gpt-5-nano' as const;
+
+/** Vision + menu analysis: faster model with reliable image input support. */
+export const OPENAI_MENU_VISION_MODEL =
+    process.env.OPENAI_MENU_VISION_MODEL?.trim() || 'gpt-4o-mini';
