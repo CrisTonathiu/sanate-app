@@ -1,12 +1,19 @@
 import {MEAL_CONFIG, type MealType} from '@/lib/config/meal-config';
+import {analyzeMenuPhotoAgainstPlan} from '@/lib/services/ai/analyzeMenuPhoto';
 import {formatMealResponse} from '@/lib/services/ai/formatMealResponse';
 import {
     getPatientTodayMealByType,
-    type PatientMealByTypeResult
+    loadWeekProtocolMeals,
+    type PatientMealByTypeResult,
+    type WeekDayMealPlan
 } from '@/lib/services/patient/patient-meal-by-type.service';
 import {getPatientCurrentTodayMeal} from '@/lib/services/patient/patient-today-meal.service';
 import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
-import type {ParsedWhatsAppMessage} from '@/lib/webhooks/parse-whatsapp-webhook';
+import type {
+    ParsedWhatsAppMessage,
+    WhatsAppWebhookMedia
+} from '@/lib/webhooks/parse-whatsapp-webhook';
+import {fetchWhatsAppImageAsDataUrl} from '@/lib/webhooks/resolve-whatsapp-media';
 
 export const WHATSAPP_INTENTS = [
     'TODAY_MEALS',
@@ -26,12 +33,18 @@ export type ClassifiedWhatsAppIntent = {
     meal: MealType | null;
     /** Loaded recipe when intent is TODAY_MEALS or MEAL_TYPE_MENU. */
     todayMeal: MealSliderRecipe | null;
+    /** Weekly plan when intent is MENU_ANALYSIS. */
+    weekPlan: WeekDayMealPlan[] | null;
     /** Set when MEAL_TYPE_MENU enrichment could not load a recipe. */
     mealLoadReason?: Extract<
         PatientMealByTypeResult,
         {success: false}
     >['reason'];
     text: string | null;
+};
+
+export type WhatsAppIntentReplyContext = {
+    media: WhatsAppWebhookMedia | null;
 };
 
 const MEAL_ALIASES: {meal: MealType; patterns: RegExp[]}[] = [
@@ -232,15 +245,33 @@ export function classifyWhatsAppIntent(
     const normalized = text ? normalizeText(text) : '';
 
     if (isMenuAnalysis(message)) {
-        return {intent: 'MENU_ANALYSIS', meal: null, todayMeal: null, text};
+        return {
+            intent: 'MENU_ANALYSIS',
+            meal: null,
+            todayMeal: null,
+            weekPlan: null,
+            text
+        };
     }
 
     if (normalized && isHelpIntent(normalized)) {
-        return {intent: 'HELP', meal: null, todayMeal: null, text};
+        return {
+            intent: 'HELP',
+            meal: null,
+            todayMeal: null,
+            weekPlan: null,
+            text
+        };
     }
 
     if (normalized && isSubstitutionIntent(normalized)) {
-        return {intent: 'SUBSTITUTION', meal: null, todayMeal: null, text};
+        return {
+            intent: 'SUBSTITUTION',
+            meal: null,
+            todayMeal: null,
+            weekPlan: null,
+            text
+        };
     }
 
     if (normalized && isMealMacrosIntent(normalized)) {
@@ -248,6 +279,7 @@ export function classifyWhatsAppIntent(
             intent: 'MEAL_MACROS',
             meal: detectMeal(normalized),
             todayMeal: null,
+            weekPlan: null,
             text
         };
     }
@@ -257,15 +289,28 @@ export function classifyWhatsAppIntent(
             intent: 'MEAL_TYPE_MENU',
             meal: detectMeal(normalized),
             todayMeal: null,
+            weekPlan: null,
             text
         };
     }
 
     if (normalized && isTodayMealsIntent(normalized)) {
-        return {intent: 'TODAY_MEALS', meal: null, todayMeal: null, text};
+        return {
+            intent: 'TODAY_MEALS',
+            meal: null,
+            todayMeal: null,
+            weekPlan: null,
+            text
+        };
     }
 
-    return {intent: 'UNKNOWN', meal: null, todayMeal: null, text};
+    return {
+        intent: 'UNKNOWN',
+        meal: null,
+        todayMeal: null,
+        weekPlan: null,
+        text
+    };
 }
 
 /** Loads patient meal data for intents that need it. */
@@ -301,6 +346,12 @@ export async function enrichClassifiedWhatsAppIntent(
         };
     }
 
+    if (classified.intent === 'MENU_ANALYSIS') {
+        const {weekPlan} = await loadWeekProtocolMeals(userId);
+
+        return {...classified, weekPlan};
+    }
+
     return classified;
 }
 
@@ -318,9 +369,9 @@ function mealLabelForIntent(meal: MealType, normalized: string): string {
     return genericColacion ? 'Colación' : mealLabel(meal);
 }
 
-/** Placeholder replies until intent handlers are wired to patient data. */
 export async function replyForWhatsAppIntent(
-    classified: ClassifiedWhatsAppIntent
+    classified: ClassifiedWhatsAppIntent,
+    context: WhatsAppIntentReplyContext
 ): Promise<string> {
     switch (classified.intent) {
         case 'TODAY_MEALS': {
@@ -360,8 +411,29 @@ export async function replyForWhatsAppIntent(
         }
         case 'SUBSTITUTION':
             return 'Cuéntame qué alimento quieres cambiar y por cuál, y reviso si encaja en tu plan.';
-        case 'MENU_ANALYSIS':
-            return 'Recibí tu imagen. Voy a analizar el menú y te comparto un resumen.';
+        case 'MENU_ANALYSIS': {
+            if (!context.media || context.media.type !== 'image') {
+                return 'Envía una foto del menú del restaurante para revisar qué opciones encajan con tu plan de hoy.';
+            }
+
+            const weekPlan = classified.weekPlan ?? [];
+            if (weekPlan.length === 0) {
+                return 'No encontré comidas en tu plan semanal. Si acabas de recibir tu protocolo, pide a tu nutrióloga que lo active.';
+            }
+
+            try {
+                const imageDataUrl = await fetchWhatsAppImageAsDataUrl(
+                    context.media
+                );
+                return await analyzeMenuPhotoAgainstPlan(imageDataUrl, weekPlan);
+            } catch (error) {
+                console.error(
+                    '[whatsapp] MENU_ANALYSIS failed',
+                    error instanceof Error ? error.message : error
+                );
+                return 'No pude analizar la foto del menú. Intenta enviar una imagen más clara o vuelve a intentar en un momento.';
+            }
+        }
         case 'HELP':
             return [
                 'Puedo ayudarte con:',
