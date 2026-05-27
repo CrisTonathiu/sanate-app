@@ -85,7 +85,7 @@ export function PatientInviteEmail({
                                 margin: 0,
                                 textTransform: 'uppercase'
                             }}>
-                            Sanate
+                            Zanate
                         </p>
                         <h1
                             style={{
@@ -106,7 +106,7 @@ export function PatientInviteEmail({
                             }}>
                             {greetingName}, tu solicitud de ingreso fue
                             aceptada. Ya puedes crear tu cuenta para entrar a
-                            Sanate y revisar tu perfil.
+                            Zanate y revisar tu perfil.
                         </p>
 
                         <div style={buttonRowStyle}>

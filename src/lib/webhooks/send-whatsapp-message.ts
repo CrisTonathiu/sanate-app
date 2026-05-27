@@ -1,3 +1,4 @@
+import {splitWhatsAppBody} from '@/lib/webhooks/split-whatsapp-body';
 import twilio from 'twilio';
 
 function twilioClient() {
@@ -24,9 +25,10 @@ export async function sendWhatsAppMessage(input: {
         throw new Error('Missing Twilio WhatsApp from/to addresses');
     }
 
-    await twilioClient().messages.create({
-        from,
-        to,
-        body: input.body
-    });
+    const client = twilioClient();
+    const parts = splitWhatsAppBody(input.body);
+
+    for (const body of parts) {
+        await client.messages.create({from, to, body});
+    }
 }

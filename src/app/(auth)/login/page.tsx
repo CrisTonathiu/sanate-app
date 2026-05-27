@@ -152,7 +152,7 @@ export default function LoginPage() {
                                 animate={{opacity: 1}}
                                 transition={{delay: 0.3}}
                                 className='text-2xl font-bold tracking-tight text-foreground'>
-                                Sanate App
+                                Zanate App
                             </motion.h1>
                             <motion.p
                                 initial={{opacity: 0}}

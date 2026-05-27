@@ -79,7 +79,7 @@ export default function DesktopSidebar({sidebarOpen}: DesktopSidebarProps) {
                             <Apple className='size-5' />
                         </div>
                         <div>
-                            <h2 className='font-semibold'>Sanate App</h2>
+                            <h2 className='font-semibold'>Zanate App</h2>
                             <p className='text-xs text-muted-foreground'>
                                 Gestion Nutricional
                             </p>

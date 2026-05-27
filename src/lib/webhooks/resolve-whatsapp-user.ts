@@ -102,6 +102,6 @@ export function replyForWhatsAppUserLookup(
         case 'inactive':
             return 'Tu cuenta no está activa. Contacta a tu nutrióloga para reactivarla.';
         case 'not_found':
-            return 'No encontramos tu número registrado. Si eres paciente de Sanate, pide a tu nutrióloga que actualice tu teléfono en el sistema.';
+            return 'No encontramos tu número registrado. Si eres paciente de Zanate, pide a tu nutrióloga que actualice tu teléfono en el sistema.';
     }
 }

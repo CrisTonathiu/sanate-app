@@ -13,7 +13,7 @@ function getAppUrl() {
 }
 
 function getFromEmail() {
-    return process.env.RESEND_FROM_EMAIL || 'Sanate <onboarding@resend.dev>';
+    return process.env.RESEND_FROM_EMAIL || 'Zanate <hola@zanate.mx>';
 }
 
 function resolveUrl(template: string, patientId: string) {
@@ -43,7 +43,7 @@ export async function sendPatientInviteEmail({
     return resend.emails.send({
         from: getFromEmail(),
         to: patientEmail,
-        subject: 'Tu cuenta en Sanate',
+        subject: 'Tu cuenta en Zanate',
         react: createElement(PatientInviteEmail, {
             firstName,
             createAccountUrl: getCreateAccountUrl(patientEmail),

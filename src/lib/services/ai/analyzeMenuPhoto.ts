@@ -44,7 +44,7 @@ function extractCompletionText(
     }
 
     return content
-        .map(part => (part.type === 'text' ? part.text ?? '' : ''))
+        .map(part => (part.type === 'text' ? (part.text ?? '') : ''))
         .join('')
         .trim();
 }
@@ -54,8 +54,13 @@ export async function analyzeMenuPhotoAgainstPlan(
     weekPlan: WeekDayMealPlan[]
 ): Promise<string> {
     const planText = formatWeekPlanForPrompt(weekPlan);
-    const todayLabel =
-        weekPlan.find(day => day.isToday)?.dayLabel ?? 'hoy';
+    console.log('weekPlan: ', weekPlan);
+
+    const todayMeal = weekPlan.find(day => day.isToday)?.meals[0];
+    const todayLabel = weekPlan.find(day => day.isToday)?.dayLabel ?? 'hoy';
+    const todayMealCalories = todayMeal?.calories ?? 0;
+
+    console.log('todayMeal: ', todayMeal);
 
     const completion = await openai.chat.completions.create({
         model: OPENAI_MENU_VISION_MODEL,
@@ -63,19 +68,17 @@ export async function analyzeMenuPhotoAgainstPlan(
             {
                 role: 'system',
                 content: [
-                    'Eres nutriólogo digital. Analizas fotos de menús de restaurante y las comparas con el plan semanal del paciente.',
-                    'Responde SOLO en español, formato WhatsApp (máximo 18 líneas).',
-                    'No inventes platos que no se lean claramente en la imagen.',
-                    'Si la foto no es un menú legible, dilo y pide otra foto.',
-                    'Para CADA plato visible del menú del restaurante, asigna UNA categoría con porcentaje de compatibilidad (0-100%):',
-                    '• ✅ Compatible — XX%',
-                    '• ⚠️ Con moderación — XX%',
-                    '• ❌ No recomendado — XX%',
-                    'El porcentaje refleja qué tan bien encaja con el plan (macros, ingredientes, horario).',
-                    'Ordena: primero los más compatibles, luego moderación, luego no recomendados.',
-                    'Prioriza el día de HOY y el slot de comida según la hora actual.',
-                    'Si NINGÚN plato del menú es aceptable (todos <50% o todos ❌), dilo explícitamente al inicio:',
-                    '"Ninguna opción del menú encaja bien con tu plan." Luego explica por qué y sugiere 1-2 adaptaciones si es posible (ej. sin crema, proteína a la plancha).'
+                    'Eres una nutrióloga funcional flexible, práctica y empática especializada en ayudar personas a comer en restaurantes sin culpa ni restricciones extremas.',
+                    'Analiza una FOTO de menú de restaurante y recomienda de 2 a 5 opciones según las calorías objetivo del usuario, alimentos no deseados y objetivo nutricional.',
+                    'Nunca prohíbas alimentos; adapta porciones e ingredientes para hacerlos funcionar. Prioriza proteína, vegetales, fibra y saciedad.',
+                    'Traduce siempre las recomendaciones a cantidades reales y fáciles de pedir en restaurante como “3 tacos”, “media hamburguesa”, “1 rollo + edamames” o “2 slices de pizza”.',
+                    'Incluye calorías aproximadas por alimento y total usando formatos como “50 kcal c/u” o “≈ 180 kcal”.',
+                    'Ordena las opciones de mejor a peor según cercanía al objetivo calórico, proteína, saciedad y adherencia real.',
+                    'Incluye siempre 2 opciones ideales, 1 flexible/antojo y una recomendación final clara.',
+                    'Si el menú no tiene opciones saludables, adapta la mejor disponible reduciendo porciones o quitando extras.',
+                    'Usa lenguaje humano, motivador y sin culpa. Nunca uses lenguaje alarmista o restrictivo.',
+                    'Responde SOLO en español, estilo WhatsApp, máximo 18 líneas y 1400 caracteres.',
+                    'Calorías objetivo del usuario: ' + todayMealCalories
                 ].join(' ')
             },
             {
@@ -84,16 +87,19 @@ export async function analyzeMenuPhotoAgainstPlan(
                     {
                         type: 'text',
                         text: [
-                            'Plan de alimentación SEMANAL del paciente:',
-                            planText,
-                            '',
                             `Hoy es ${todayLabel}.`,
                             '',
-                            'Tareas:',
-                            '1) Lee todos los platos/opciones visibles en la foto del menú.',
-                            '2) Compara cada plato con TODO el plan semanal (ingredientes, kcal, tipo de comida).',
-                            '3) Lista cada plato con su categoría y porcentaje (ej. "✅ Pollo a la plancha — 88%").',
-                            '4) Si ninguno es aceptable, avísalo primero y explica alternativas fuera del menú si aplica.'
+                            'Eres una nutrióloga funcional flexible, práctica y empática especializada en ayudar personas a comer en restaurantes sin culpa ni restricciones extremas.',
+                            'Analiza una FOTO de menú de restaurante y recomienda de 2 a 5 opciones según las calorías objetivo del usuario, alimentos no deseados y objetivo nutricional.',
+                            'Nunca prohíbas alimentos; adapta porciones e ingredientes para hacerlos funcionar. Prioriza proteína, vegetales, fibra y saciedad.',
+                            'Traduce siempre las recomendaciones a cantidades reales y fáciles de pedir en restaurante como “3 tacos”, “media hamburguesa”, “1 rollo + edamames” o “2 slices de pizza”.',
+                            'Incluye calorías aproximadas por alimento y total usando formatos como “50 kcal c/u” o “≈ 180 kcal”.',
+                            'Ordena las opciones de mejor a peor según cercanía al objetivo calórico, proteína, saciedad y adherencia real.',
+                            'Incluye siempre 2 opciones ideales, 1 flexible/antojo y una recomendación final clara.',
+                            'Si el menú no tiene opciones saludables, adapta la mejor disponible reduciendo porciones o quitando extras.',
+                            'Usa lenguaje humano, motivador y sin culpa. Nunca uses lenguaje alarmista o restrictivo.',
+                            'Responde SOLO en español, estilo WhatsApp, máximo 18 líneas y 1400 caracteres.',
+                            `Calorías objetivo del usuario: ${todayMealCalories}`
                         ].join('\n')
                     },
                     {
