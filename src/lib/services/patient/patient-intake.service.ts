@@ -202,10 +202,18 @@ function extractPatientInput(data: PatientIntakeData): CreatePatientInput {
     };
 }
 
+const LOG_PREFIX = '[patient-intake]';
+
 export async function createPatientIntake(input: any) {
+    console.log(LOG_PREFIX, 'createPatientIntake:start', {
+        inputKeys: Object.keys((input ?? {}) as object)
+    });
+
     try {
         const payload = (input ?? {}) as PatientIntakeData;
         const extractedPatient = extractPatientInput(payload);
+
+        console.log(LOG_PREFIX, 'createPatientIntake:extracted', extractedPatient);
 
         const intake = await prisma.patientIntake.create({
             data: {
@@ -217,12 +225,16 @@ export async function createPatientIntake(input: any) {
             }
         });
 
+        console.log(LOG_PREFIX, 'createPatientIntake:success', {intakeId: intake.id});
+
         return {
             success: true,
             message: 'Patient intake created successfully',
             data: intake
         };
     } catch (error) {
+        console.error(LOG_PREFIX, 'createPatientIntake:error', error);
+
         return {
             success: false,
             message: 'Error creating patient intake',
@@ -282,12 +294,30 @@ export async function acceptPatientIntake(
     intakeId: string,
     nutritionistId: string
 ) {
+    console.log(LOG_PREFIX, 'acceptPatientIntake:start', {
+        intakeId,
+        nutritionistId
+    });
+
     try {
         const intake = await prisma.patientIntake.findUnique({
             where: {id: intakeId}
         });
 
+        console.log(LOG_PREFIX, 'acceptPatientIntake:intake', {
+            found: !!intake,
+            processed: intake?.processed,
+            storedEmail: intake?.email,
+            storedFirstName: intake?.firstName,
+            storedLastName: intake?.lastName,
+            dataKeys:
+                intake?.data && typeof intake.data === 'object'
+                    ? Object.keys(intake.data as object)
+                    : []
+        });
+
         if (!intake) {
+            console.warn(LOG_PREFIX, 'acceptPatientIntake:abort', 'not found');
             return {
                 success: false,
                 message: 'Patient intake not found'
@@ -295,16 +325,26 @@ export async function acceptPatientIntake(
         }
 
         if (intake.processed) {
+            console.warn(LOG_PREFIX, 'acceptPatientIntake:abort', 'already processed', {
+                patientId: intake.patientId
+            });
             return {
                 success: false,
                 message: 'Patient intake already processed'
             };
         }
 
-        const patientInput = extractPatientInput(
-            intake.data as unknown as PatientIntakeData
-        );
+        const intakeData = intake.data as unknown as PatientIntakeData;
+        const patientInput = extractPatientInput(intakeData);
+
+        console.log(LOG_PREFIX, 'acceptPatientIntake:extracted', {
+            patientInput,
+            rawData: intakeData
+        });
+
         const validatedInput = createPatientSchema.parse(patientInput);
+
+        console.log(LOG_PREFIX, 'acceptPatientIntake:validated', validatedInput);
 
         const result = await prisma.$transaction(async tx => {
             const created = await createPatientInTransaction(
@@ -327,6 +367,12 @@ export async function acceptPatientIntake(
             };
         });
 
+        console.log(LOG_PREFIX, 'acceptPatientIntake:transaction', {
+            patientId: result.patient.id,
+            userId: result.user.id,
+            userEmail: result.user.email
+        });
+
         let emailSent = false;
         let emailError: string | undefined;
 
@@ -339,13 +385,17 @@ export async function acceptPatientIntake(
 
             if (error) {
                 emailError = error.message;
+                console.warn(LOG_PREFIX, 'acceptPatientIntake:emailFailed', error);
             } else {
                 emailSent = true;
             }
         } catch (error) {
             emailError =
                 error instanceof Error ? error.message : 'Unknown email error';
+            console.warn(LOG_PREFIX, 'acceptPatientIntake:emailError', error);
         }
+
+        console.log(LOG_PREFIX, 'acceptPatientIntake:success', {emailSent, emailError});
 
         return {
             success: true,
@@ -358,12 +408,18 @@ export async function acceptPatientIntake(
         };
     } catch (error) {
         if (error instanceof ZodError) {
+            console.warn(LOG_PREFIX, 'acceptPatientIntake:validationFailed', {
+                issues: error.issues,
+                flattened: error.flatten()
+            });
             return {
                 success: false,
                 message: 'Error de validación',
                 errors: error.flatten()
             };
         }
+
+        console.error(LOG_PREFIX, 'acceptPatientIntake:error', error);
 
         return {
             success: false,
