@@ -83,7 +83,7 @@ export function AuthEmail({
                                 margin: 0,
                                 textTransform: 'uppercase'
                             }}>
-                            Sanate
+                            Zanate
                         </p>
                         <h1
                             style={{

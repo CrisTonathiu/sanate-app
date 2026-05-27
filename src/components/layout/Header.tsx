@@ -54,7 +54,7 @@ export default function Header({
                 <PanelLeft className='h-5 w-5' />
             </Button>
             <div className='flex flex-1 items-center justify-between'>
-                <h1 className='text-xl font-semibold'>Sanate App</h1>
+                <h1 className='text-xl font-semibold'>Zanate App</h1>
                 <div className='flex items-center gap-3'>
                     <TooltipProvider>
                         <Tooltip>

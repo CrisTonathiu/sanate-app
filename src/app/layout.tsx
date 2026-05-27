@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: 'Sanate App',
+    title: 'Zanate App',
     description: 'Plataforma de gestión nutricional.'
 };
 
