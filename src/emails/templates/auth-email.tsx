@@ -109,19 +109,6 @@ export function AuthEmail({
                             {ctaLabel}
                         </a>
 
-                        {token ? (
-                            <p
-                                style={{
-                                    fontSize: '14px',
-                                    lineHeight: 1.7,
-                                    margin: '24px 0 0'
-                                }}>
-                                Tambien puedes ingresar este codigo:
-                                <br />
-                                <span style={codeStyle}>{token}</span>
-                            </p>
-                        ) : null}
-
                         <div style={footerStyle}>
                             <p style={{margin: 0}}>
                                 Si el boton no funciona, copia y pega este
