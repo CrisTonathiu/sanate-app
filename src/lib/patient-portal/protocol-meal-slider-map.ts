@@ -1,5 +1,9 @@
 import type {MealType} from '@prisma/client';
 import {calculateRecipeNutrition, type RecipeIngredientForNutrition} from './calculate-recipe-nutrition';
+import {
+    mapStoredPortionsToSliderIngredients,
+    type StoredProtocolMealPortions
+} from '@/lib/services/protocol/protocol-meal-portions.mapper';
 
 /**
  * Shape aligned with MealSlider / RecipeModal (name, image, time, calories,
@@ -12,6 +16,9 @@ export type MealSliderRecipe = {
     image: string;
     time: string;
     calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
     ingredients: {
         name: string;
         amount: string;
@@ -124,6 +131,7 @@ type ProtocolMealForSlider = {
     id: string;
     mealType: MealType;
     recipe: ProtocolRecipeForSlider | null;
+    portions?: StoredProtocolMealPortions | null;
 };
 
 export function mapProtocolMealToSliderRecipe(
@@ -133,25 +141,39 @@ export function mapProtocolMealToSliderRecipe(
     const recipe = meal.recipe;
     if (!recipe) return null;
 
-    const nutrition = calculateRecipeNutrition(
-        recipe.ingredients as RecipeIngredientForNutrition[]
-    );
+    const storedPortions = meal.portions;
 
-    const ingredients: MealSliderRecipe['ingredients'] =
-        recipe.ingredients.map(row => {
-            const {amount, unit} = formatIngredientAmount(
-                row.grams,
-                row.quantity,
-                row.unit
-            );
-            return {
-                name: row.ingredient.name,
-                amount,
-                unit
-            };
-        });
+    const nutrition = storedPortions
+        ? {
+              calories: storedPortions.actualCalories,
+              protein: storedPortions.actualProtein,
+              carbs: storedPortions.actualCarbs,
+              fat: storedPortions.actualFat
+          }
+        : calculateRecipeNutrition(
+              recipe.ingredients as RecipeIngredientForNutrition[]
+          );
+
+    const ingredients: MealSliderRecipe['ingredients'] = storedPortions
+        ? mapStoredPortionsToSliderIngredients(storedPortions)
+        : recipe.ingredients.map(row => {
+              const {amount, unit} = formatIngredientAmount(
+                  row.grams,
+                  row.quantity,
+                  row.unit
+              );
+              return {
+                  name: row.ingredient.name,
+                  amount,
+                  unit
+              };
+          });
 
     for (const extra of recipe.extraIngredients) {
+        if (storedPortions) {
+            continue;
+        }
+
         ingredients.push({
             name: extra.name,
             amount: '1',
@@ -170,6 +192,9 @@ export function mapProtocolMealToSliderRecipe(
         image: recipe.imageUrl?.trim() || DEFAULT_SLIDER_IMAGE,
         time: mealTimeLabel,
         calories: Math.round(nutrition.calories),
+        protein: Math.round(nutrition.protein),
+        carbs: Math.round(nutrition.carbs),
+        fat: Math.round(nutrition.fat),
         ingredients,
         instructions,
         mealType: mapMealTypeToSliderMealType(meal.mealType)

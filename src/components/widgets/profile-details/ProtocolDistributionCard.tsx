@@ -99,7 +99,10 @@ export function ProtocolDistributionCard({
             sum + mealPercentages[key as keyof typeof mealPercentages],
         0
     );
-    const isMealDistributionValid = totalPercentage === 100;
+    const totalAssignedKcal = enabledMealsList.reduce((sum, key) => {
+        const pct = mealPercentages[key as keyof typeof mealPercentages] ?? 0;
+        return sum + (planCalories * pct) / 100;
+    }, 0);
     const totalMacroPercentages = macros.reduce(
         (acc, macro) => {
             acc[macro] = enabledMealsList.reduce(
@@ -336,7 +339,7 @@ export function ProtocolDistributionCard({
                                             {/* Percentage Input */}
                                             <div className='space-y-1.5'>
                                                 <Label className='text-xs text-muted-foreground'>
-                                                    Porcentaje
+                                                    Porcentaje de kcal
                                                 </Label>
                                                 <div className='relative'>
                                                     <Input
@@ -550,7 +553,15 @@ export function ProtocolDistributionCard({
                             {
                                 label: 'Calorias totales',
                                 icon: PieChart,
-                                value: totalPercentage,
+                                value:
+                                    planCalories > 0
+                                        ? (totalAssignedKcal / planCalories) *
+                                          100
+                                        : 0,
+                                centerText:
+                                    planCalories > 0
+                                        ? `${Math.round(totalAssignedKcal)}`
+                                        : '0',
                                 color: 'primary'
                             },
                             {
@@ -575,34 +586,30 @@ export function ProtocolDistributionCard({
                             const isComplete = item.value === 100;
                             const isOver = item.value > 100;
                             const Icon = item.icon;
-                            const colorClasses = {
-                                primary: 'text-primary',
+                            const underStrokeByColor = {
+                                primary: '#f59e0b',
+                                amber: '#f59e0b',
+                                red: '#ef4444',
+                                blue: '#3b82f6'
+                            } as const;
+                            const underTextByColor = {
+                                primary: 'text-amber-500',
                                 amber: 'text-amber-500',
                                 red: 'text-red-500',
                                 blue: 'text-blue-500'
-                            };
-                            const strokeColors = {
-                                primary: isComplete
-                                    ? '#22c55e'
-                                    : isOver
-                                      ? '#ef4444'
-                                      : 'hsl(var(--primary))',
-                                amber: isComplete
-                                    ? '#22c55e'
-                                    : isOver
-                                      ? '#ef4444'
-                                      : '#f59e0b',
-                                red: isComplete
-                                    ? '#22c55e'
-                                    : isOver
-                                      ? '#ef4444'
-                                      : '#ef4444',
-                                blue: isComplete
-                                    ? '#22c55e'
-                                    : isOver
-                                      ? '#ef4444'
-                                      : '#3b82f6'
-                            };
+                            } as const;
+                            const colorKey =
+                                item.color as keyof typeof underStrokeByColor;
+                            const strokeColor = isComplete
+                                ? '#22c55e'
+                                : isOver
+                                  ? '#ef4444'
+                                  : underStrokeByColor[colorKey];
+                            const statusTextClass = isComplete
+                                ? 'text-green-500'
+                                : isOver
+                                  ? 'text-red-500'
+                                  : underTextByColor[colorKey];
 
                             const circumference = 2 * Math.PI * 36;
                             const progress = Math.min(item.value, 100);
@@ -633,11 +640,7 @@ export function ProtocolDistributionCard({
                                                 cy='40'
                                                 r='36'
                                                 fill='none'
-                                                stroke={
-                                                    strokeColors[
-                                                        item.color as keyof typeof strokeColors
-                                                    ]
-                                                }
+                                                stroke={strokeColor}
                                                 strokeWidth='6'
                                                 strokeLinecap='round'
                                                 initial={{
@@ -662,22 +665,27 @@ export function ProtocolDistributionCard({
                                             <Icon
                                                 className={cn(
                                                     'h-5 w-5 mb-0.5',
-                                                    colorClasses[
-                                                        item.color as keyof typeof colorClasses
-                                                    ]
+                                                    statusTextClass
                                                 )}
                                             />
                                             <span
                                                 className={cn(
                                                     'text-sm font-bold',
-                                                    isComplete
-                                                        ? 'text-green-500'
-                                                        : isOver
-                                                          ? 'text-destructive'
-                                                          : 'text-foreground'
+                                                    statusTextClass
                                                 )}>
-                                                {item.value.toFixed(0)}%
+                                                {'centerText' in item &&
+                                                typeof item.centerText ===
+                                                    'string'
+                                                    ? item.centerText
+                                                    : `${item.value.toFixed(0)}%`}
                                             </span>
+                                            {'centerText' in item &&
+                                                typeof item.centerText ===
+                                                    'string' && (
+                                                    <span className='text-[11px] text-muted-foreground'>
+                                                        kcal
+                                                    </span>
+                                                )}
                                         </div>
                                     </div>
 
@@ -688,10 +696,19 @@ export function ProtocolDistributionCard({
 
                                     {/* Status indicator */}
                                     {!isComplete && (
-                                        <span className='mt-1 text-xs text-destructive'>
-                                            {item.value < 100
-                                                ? `Falta ${(100 - item.value).toFixed(1)}%`
-                                                : `+${(item.value - 100).toFixed(1)}%`}
+                                        <span
+                                            className={cn(
+                                                'mt-1 text-xs',
+                                                statusTextClass
+                                            )}>
+                                            {'centerText' in item &&
+                                            typeof item.centerText === 'string'
+                                                ? item.value < 100
+                                                    ? `Falta ${Math.round(planCalories - totalAssignedKcal)} kcal`
+                                                    : `+${Math.round(totalAssignedKcal - planCalories)} kcal`
+                                                : item.value < 100
+                                                  ? `Falta ${(100 - item.value).toFixed(1)}%`
+                                                  : `+${(item.value - 100).toFixed(1)}%`}
                                         </span>
                                     )}
                                     {isComplete && (
@@ -704,58 +721,8 @@ export function ProtocolDistributionCard({
                             );
                         })}
                     </div>
-
-                    {/* Summary */}
-                    {/* {isMealDistributionValid && areMacroDistributionsValid && (
-                        <motion.div
-                            initial={{opacity: 0}}
-                            animate={{opacity: 1}}
-                            className='p-4 rounded-xl bg-green-500/10 border border-green-500/20'>
-                            <div className='flex items-center gap-2 mb-2'>
-                                <Check className='h-4 w-4 text-green-500' />
-                                <span className='text-sm font-medium text-green-600 dark:text-green-400'>
-                                    Distribucion completa
-                                </span>
-                            </div>
-                            <div className='grid grid-cols-2 sm:grid-cols-4 gap-2'>
-                                {MEAL_CONFIG.filter(
-                                    m => enabledMeals[m.key]
-                                ).map(({key, label}) => (
-                                    <div key={key} className='text-center'>
-                                        <span className='text-xs text-muted-foreground'>
-                                            {label}
-                                        </span>
-                                        <p className='font-semibold text-foreground'>
-                                            {Math.round(
-                                                (planCalories *
-                                                    mealPercentages[key]) /
-                                                    100
-                                            )}{' '}
-                                            kcal
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )} */}
                 </CardContent>
             </Card>
-            {/* <Button
-                onClick={submitGeneration}
-                disabled={isGenerating}
-                className='w-full h-12 rounded-xl bg-gradient-to-r text-primary-foreground font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all'>
-                {isGenerating ? (
-                    <>
-                        <Loader2 className='mr-2 h-5 w-5 animate-spin' />
-                        Generando plan de comidas...
-                    </>
-                ) : (
-                    <>
-                        <Sparkles className='mr-2 h-5 w-5' />
-                        Generar plan de comidas
-                    </>
-                )}
-            </Button> */}
         </motion.div>
     );
 }

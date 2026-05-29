@@ -11,7 +11,7 @@ import {
     useGetPatientFoodDislikes,
     useGetPatientProfile
 } from '@/hooks/use-patients';
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import StepIndicator from '@/components/widgets/profile-details/StepIndicator';
 import {StepKey} from '@/lib/types/patient-type';
 import PatientSummaryCard from '@/components/widgets/profile-details/PatientSummaryCard';
@@ -177,6 +177,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     >(null);
 
     const [weekPlan, setWeekPlan] = useState<DayMeals[]>([]);
+    const [activeProtocolId, setActiveProtocolId] = useState<string | null>(
+        null
+    );
     const [affiliateLinks, setAffiliateLinks] = useState<AffiliateLink[]>([]);
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
 
@@ -195,12 +198,64 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const handleMealUpdate = (
         day: string,
         mealType: MealType,
-        updatedMeal: MealSlot
+        updatedMeal: MealSlot,
+        options?: {applyToAllDays?: boolean}
     ) => {
         setWeekPlan(prev =>
-            prev.map(d => (d.day === day ? {...d, [mealType]: updatedMeal} : d))
+            prev.map(d => {
+                if (options?.applyToAllDays) {
+                    const slot = d[mealType];
+                    if (slot?.id === updatedMeal.id) {
+                        return {...d, [mealType]: updatedMeal};
+                    }
+                    return d;
+                }
+
+                return d.day === day ? {...d, [mealType]: updatedMeal} : d;
+            })
         );
     };
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadSavedWeekPlan = async () => {
+            try {
+                const response = await fetch(
+                    `/api/patients/${patientId}/protocols`,
+                    {credentials: 'include'}
+                );
+                const result = await response.json();
+                const savedPlan = result?.data?.weekPlan as
+                    | DayMeals[]
+                    | undefined;
+                const savedProtocolId =
+                    typeof result?.data?.protocolId === 'string'
+                        ? result.data.protocolId
+                        : null;
+
+                if (!cancelled && response.ok && result?.success) {
+                    if (savedProtocolId) {
+                        setActiveProtocolId(savedProtocolId);
+                    }
+
+                    if (Array.isArray(savedPlan) && savedPlan.length > 0) {
+                        setWeekPlan(savedPlan);
+                        setIsStartDialogOpen(false);
+                        setCurrentStep(4);
+                    }
+                }
+            } catch {
+                // Keep empty planner when no saved protocol exists yet.
+            }
+        };
+
+        loadSavedWeekPlan();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [patientId]);
 
     const fetchProtocolTemplates = async (force = false) => {
         if (isLoadingTemplates) {
@@ -243,6 +298,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const handleStartCleanProtocol = () => {
         setSelectedTemplateName(null);
+        setActiveProtocolId(null);
+        setWeekPlan([]);
         setIsStartDialogOpen(false);
     };
 
@@ -459,6 +516,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         <ProtocolConfigCard
                             height={patient.height || 0}
                             age={getAgeFromDateString(patient.birthDate) || 0}
+                            initialWeight={patient.initialWeight || 0}
                             gender={patient.gender as 'MALE' | 'FEMALE'}
                             planCalories={planCalories}
                             setPlanCalories={setPlanCalories}
@@ -687,19 +745,24 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setIsSavingProtocol(true);
 
         try {
+            const isUpdate = Boolean(activeProtocolId);
             const response = await fetch(
                 `/api/patients/${patientId}/protocols`,
                 {
-                    method: 'POST',
+                    method: isUpdate ? 'PUT' : 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({
                         title: protocolTitle,
                         weekCount: 1,
                         status: 'ACTIVE',
                         weekPlan,
-                        affiliateLinks
+                        affiliateLinks,
+                        ...(activeProtocolId
+                            ? {protocolId: activeProtocolId}
+                            : {})
                     })
                 }
             );
@@ -708,17 +771,36 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
             if (!response.ok || !result?.success) {
                 throw new Error(
-                    result?.message || 'No se pudo generar el protocolo'
+                    result?.message || 'No se pudo guardar el protocolo'
                 );
             }
 
-            window.alert('Protocolo generado correctamente.');
-            router.refresh();
+            const savedWeekPlan = result?.data?.weekPlan as
+                | DayMeals[]
+                | undefined;
+            const savedProtocolId =
+                typeof result?.data?.protocolId === 'string'
+                    ? result.data.protocolId
+                    : null;
+
+            if (savedProtocolId) {
+                setActiveProtocolId(savedProtocolId);
+            }
+
+            if (Array.isArray(savedWeekPlan) && savedWeekPlan.length > 0) {
+                setWeekPlan(savedWeekPlan);
+            }
+
+            window.alert(
+                isUpdate
+                    ? 'Protocolo actualizado correctamente.'
+                    : 'Protocolo generado correctamente.'
+            );
         } catch (error) {
             window.alert(
                 error instanceof Error
                     ? error.message
-                    : 'No se pudo generar el protocolo'
+                    : 'No se pudo guardar el protocolo'
             );
         } finally {
             setIsSavingProtocol(false);

@@ -9,14 +9,14 @@ const optionalTrimmedStringSchema = z.preprocess(value => {
     return trimmedValue.length > 0 ? trimmedValue : undefined;
 }, z.string().trim().optional());
 
-const optionalUrlSchema = z.preprocess(value => {
+const optionalImageUrlSchema = z.preprocess(value => {
     if (typeof value !== 'string') {
         return value;
     }
 
     const trimmedValue = value.trim();
     return trimmedValue.length > 0 ? trimmedValue : undefined;
-}, z.string().url().optional());
+}, z.string().trim().optional());
 
 const optionalNumberSchema = z.preprocess(value => {
     if (value === null || value === undefined || value === '') {
@@ -44,7 +44,7 @@ const mealSlotSchema = z.object({
     id: z.string(),
     recipeName: z.string(),
     description: optionalTrimmedStringSchema,
-    imageUrl: optionalUrlSchema,
+    imageUrl: optionalImageUrlSchema,
     calories: z.number().finite(),
     protein: z.number().finite(),
     carbs: optionalNumberSchema,
