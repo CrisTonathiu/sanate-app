@@ -111,6 +111,24 @@ async function loadActiveProtocolWeekDays(userId: string) {
                                     mealType: true,
                                     recipe: {
                                         select: protocolMealRecipeSelect
+                                    },
+                                    portions: {
+                                        select: {
+                                            actualCalories: true,
+                                            actualProtein: true,
+                                            actualCarbs: true,
+                                            actualFat: true,
+                                            ingredients: {
+                                                select: {
+                                                    ingredientName: true,
+                                                    unit: true,
+                                                    baseQuantity: true,
+                                                    targetQuantity: true,
+                                                    baseGrams: true,
+                                                    targetGrams: true
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

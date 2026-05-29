@@ -11,13 +11,25 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import {Separator} from '@/components/ui/separator';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger
+} from '@/components/ui/tooltip';
 import {calculateGEB, calculateGEBMifflin} from '@/lib/helpers';
 import {motion} from 'framer-motion';
-import {useEffect, useMemo, useState} from 'react';
+import {Ruler, Scale, User} from 'lucide-react';
+import {useEffect, useMemo, useRef, useState} from 'react';
+
+function formatMetricValue(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
 
 interface ProtocolConfigCardProps {
     height: number;
     age: number;
+    initialWeight: number;
     gender: 'MALE' | 'FEMALE';
     planCalories: number;
     setPlanCalories: (calories: number) => void;
@@ -40,13 +52,18 @@ const FATS_PER_KG_MULTIPLIER = 9;
 export default function ProtocolConfigCard({
     height,
     age,
+    initialWeight,
     gender,
     planCalories,
     setPlanCalories,
     macroPercents,
     setMacroPercents
 }: ProtocolConfigCardProps) {
-    const [weight, setWeight] = useState(76.0);
+    const [weight, setWeight] = useState(initialWeight);
+    const [isEditingWeight, setIsEditingWeight] = useState(false);
+    const [weightDraft, setWeightDraft] = useState('');
+    const weightInputRef = useRef<HTMLInputElement>(null);
+    const weightBeforeEditRef = useRef(initialWeight);
     const [activityLevel, setActivityLevel] = useState<any>('moderado');
     const [formula, setFormula] = useState<'mifflin' | 'harris'>('mifflin');
 
@@ -61,8 +78,49 @@ export default function ProtocolConfigCard({
     const isMacroPercentValid = macroPercentTotal === 100;
 
     useEffect(() => {
-        console.log('Recalculating macros with calories:', planCalories);
-    }, [planCalories]);
+        setWeight(initialWeight);
+    }, [initialWeight]);
+
+    useEffect(() => {
+        if (isEditingWeight) {
+            weightInputRef.current?.focus();
+            weightInputRef.current?.select();
+        }
+    }, [isEditingWeight]);
+
+    const startEditingWeight = () => {
+        weightBeforeEditRef.current = weight;
+        setWeightDraft(formatMetricValue(weight));
+        setIsEditingWeight(true);
+    };
+
+    const finishEditingWeight = () => {
+        const parsed = parseFloat(weightDraft);
+        if (Number.isFinite(parsed) && parsed > 0) {
+            setWeight(parsed);
+        } else {
+            setWeight(weightBeforeEditRef.current);
+        }
+        setIsEditingWeight(false);
+    };
+
+    const cancelEditingWeight = () => {
+        setWeight(weightBeforeEditRef.current);
+        setIsEditingWeight(false);
+    };
+
+    const handleWeightChipKeyDown = (
+        e: React.KeyboardEvent<HTMLInputElement>
+    ) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            weightInputRef.current?.blur();
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEditingWeight();
+        }
+    };
 
     // Calculate macros based on plan calories
     const carbsGrams =
@@ -106,6 +164,89 @@ export default function ProtocolConfigCard({
             initial={{opacity: 0, y: 10}}
             animate={{opacity: 1, y: 0}}
             className='space-y-6'>
+            <TooltipProvider>
+                <div className='flex flex-wrap items-center justify-end gap-2'>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type='button'
+                                className='inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60'>
+                                <User
+                                    className='h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
+                                    aria-hidden
+                                />
+                                <span className='font-medium text-foreground tabular-nums'>
+                                    {formatMetricValue(age)}
+                                </span>
+                                <span>años</span>
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>
+                            Edad del paciente
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type='button'
+                                className='inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60'>
+                                <Ruler
+                                    className='h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
+                                    aria-hidden
+                                />
+                                <span className='font-medium text-foreground tabular-nums'>
+                                    {formatMetricValue(height)}
+                                </span>
+                                <span>cm</span>
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side='bottom'>
+                            Altura en centímetros
+                        </TooltipContent>
+                    </Tooltip>
+                    {isEditingWeight ? (
+                        <span className='inline-flex items-center gap-1 rounded-md border border-ring/60 bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground ring-2 ring-ring/30'>
+                            <Scale
+                                className='h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
+                                aria-hidden
+                            />
+                            <input
+                                ref={weightInputRef}
+                                type='text'
+                                inputMode='decimal'
+                                value={weightDraft}
+                                onChange={e => setWeightDraft(e.target.value)}
+                                onBlur={finishEditingWeight}
+                                onKeyDown={handleWeightChipKeyDown}
+                                aria-label='Peso en kilogramos'
+                                className='w-12 min-w-0 border-0 bg-transparent p-0 text-xs font-medium text-foreground tabular-nums outline-none focus:ring-0'
+                            />
+                            <span>kg</span>
+                        </span>
+                    ) : (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    type='button'
+                                    onClick={startEditingWeight}
+                                    className='inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60'>
+                                    <Scale
+                                        className='h-3.5 w-3.5 shrink-0 text-muted-foreground/80'
+                                        aria-hidden
+                                    />
+                                    <span className='font-medium text-foreground tabular-nums'>
+                                        {formatMetricValue(weight)}
+                                    </span>
+                                    <span>kg</span>
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side='bottom'>
+                                Clic para editar el peso
+                            </TooltipContent>
+                        </Tooltip>
+                    )}
+                </div>
+            </TooltipProvider>
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
                 {/* Left Card - Datos y calorias del plan */}
                 <Card className='border-border bg-card'>
@@ -254,15 +395,15 @@ export default function ProtocolConfigCard({
                                 <div className='w-full'>
                                     <Input
                                         type='number'
-                                        min={0}
                                         value={planCalories}
                                         onChange={e => {
                                             const parsed = parseInt(
                                                 e.target.value,
                                                 10
                                             );
+
                                             if (!Number.isFinite(parsed)) {
-                                                setPlanCalories(0);
+                                                setPlanCalories(1);
                                                 return;
                                             }
 

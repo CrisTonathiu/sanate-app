@@ -10,13 +10,20 @@ import MealEditModal from './MealEditModal';
 export default function MealCell({
     meal,
     mealType,
+    dayLabel,
+    mealTypeLabel,
     onReplace,
     onEdit
 }: {
     meal: MealSlot;
     mealType: MealType;
+    dayLabel?: string;
+    mealTypeLabel?: string;
     onReplace: () => void;
-    onEdit: (updatedMeal: MealSlot) => void;
+    onEdit: (
+        updatedMeal: MealSlot,
+        options?: {applyToAllDays?: boolean}
+    ) => void;
 }) {
     const mealIcons = {
         smoothie: Coffee,
@@ -92,7 +99,7 @@ export default function MealCell({
     return (
         <>
             <div
-                className={`group relative flex flex-col rounded-xl border bg-card/50 overflow-hidden transition-all hover:shadow-md hover:shadow-primary/5 ${meal.isRealistic === false ? 'border-red-500 hover:border-red-400' : 'border-border hover:border-primary/40'}`}>
+                className={`group relative flex w-full min-w-48 flex-col rounded-xl border bg-card/50 overflow-hidden transition-all hover:shadow-md hover:shadow-primary/5 ${meal.isRealistic === false ? 'border-red-500 hover:border-red-400' : 'border-border hover:border-primary/40'}`}>
                 {/* Recipe Image */}
                 <div className='relative h-20 w-full overflow-hidden rounded-t-xl bg-secondary/30'>
                     <img
@@ -200,8 +207,10 @@ export default function MealCell({
                 meal={meal}
                 open={editOpen}
                 onOpen={setEditOpen}
-                onSave={updatedMeal => {
-                    onEdit(updatedMeal);
+                dayLabel={dayLabel}
+                mealTypeLabel={mealTypeLabel}
+                onSave={(updatedMeal, options) => {
+                    onEdit(updatedMeal, options);
                 }}
             />
         </>

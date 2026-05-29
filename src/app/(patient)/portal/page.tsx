@@ -1,34 +1,14 @@
-import {
-    User,
-    CalendarDays,
-    FileText,
-    Activity,
-    Pill,
-    MessageSquare,
-    ShoppingBag,
-    Video
-} from 'lucide-react';
+import {User, FileText, ShoppingBag, Video} from 'lucide-react';
 import {getCurrentUser} from '@/lib/auth/getCurrentUser';
-import {prisma} from '@/lib/prisma';
-import {CalorieProgress} from '@/components/widgets/patient-portal/CalorieProgress';
-import {LogoutButton} from '@/components/widgets/patient-portal/LogoutButton';
-import {WeekSelector} from '@/components/widgets/patient-portal/WeekSelector';
-import {MealSlider} from '@/components/widgets/patient-portal/MealSlider';
+import {PortalDailyMeals} from '@/components/widgets/patient-portal/PortalDailyMeals';
 import Link from 'next/link';
 import PortalHeader from '@/components/widgets/patient-portal/PortalHeader';
-import {calculateRecipeNutrition} from '@/lib/patient-portal/calculate-recipe-nutrition';
-import {
-    mapProtocolDayMealsToSliderRecipes,
-    sortProtocolMealsByPlanOrder,
-    validateProtocolWeekDays,
-    type MealSliderRecipe
-} from '@/lib/patient-portal/protocol-meal-slider-map';
+import {loadWeekProtocolMeals} from '@/lib/services/patient/patient-meal-by-type.service';
 import {AffiliateProducts} from '@/components/widgets/patient-portal/AffiliateProducts';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
-import {
-    PROTOCOL_MEAL_LABELS,
-    PROTOCOL_MEAL_TIMES
-} from '@/lib/config/protocol-meal-times';
+import {prisma} from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 const DAY_SHORT_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -88,64 +68,7 @@ async function getPortalData() {
         },
         orderBy: {createdAt: 'desc'},
         select: {
-            affiliateLinks: true,
-            weeksPlan: {
-                orderBy: {weekNumber: 'asc'},
-                take: 1,
-                select: {
-                    days: {
-                        orderBy: {dayIndex: 'asc'},
-                        select: {
-                            id: true,
-                            dayIndex: true,
-                            meals: {
-                                select: {
-                                    id: true,
-                                    mealType: true,
-                                    recipe: {
-                                        select: {
-                                            id: true,
-                                            title: true,
-                                            imageUrl: true,
-                                            ingredients: {
-                                                select: {
-                                                    grams: true,
-                                                    quantity: true,
-                                                    unit: true,
-                                                    ingredient: {
-                                                        select: {
-                                                            name: true,
-                                                            food: {
-                                                                select: {
-                                                                    caloriesPer100g: true,
-                                                                    proteinPer100g: true,
-                                                                    carbsPer100g: true,
-                                                                    fatPer100g: true
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            extraIngredients: {
-                                                select: {
-                                                    name: true
-                                                }
-                                            },
-                                            steps: {
-                                                select: {
-                                                    stepNumber: true,
-                                                    instruction: true
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            affiliateLinks: true
         }
     });
 
@@ -153,10 +76,13 @@ async function getPortalData() {
         return null;
     }
 
-    const days = protocol.weeksPlan[0]?.days ?? [];
-    validateProtocolWeekDays(days);
-    const monday = getMondayOfCurrentWeek(new Date());
+    const {weekPlan} = await loadWeekProtocolMeals(user.id);
 
+    if (weekPlan.length === 0) {
+        return null;
+    }
+
+    const monday = getMondayOfCurrentWeek(new Date());
     const weekDays = Array.from({length: 7}, (_, dayIndex) => {
         const date = new Date(monday);
         date.setDate(monday.getDate() + dayIndex);
@@ -168,87 +94,13 @@ async function getPortalData() {
     });
 
     const todayIndex = (new Date().getDay() + 6) % 7;
-    const selectedDay =
-        days.find(day => day.dayIndex === todayIndex) ??
-        days.find(day => day.dayIndex === 0) ??
-        days[0];
-
-    const sortedMealsForDay = sortProtocolMealsByPlanOrder(
-        (selectedDay?.meals ?? []).filter(meal => Boolean(meal.recipe))
-    );
-
-    const sliderRecipes: MealSliderRecipe[] =
-        mapProtocolDayMealsToSliderRecipes(
-            selectedDay?.meals ?? [],
-            PROTOCOL_MEAL_TIMES
-        );
-
-    const menu = sortedMealsForDay.map(meal => {
-        const recipe = meal.recipe!;
-        const nutrition = calculateRecipeNutrition(recipe.ingredients);
-
-        return {
-            id: meal.id,
-            name: PROTOCOL_MEAL_LABELS[meal.mealType] || meal.mealType,
-            iconName: meal.mealType,
-            time: PROTOCOL_MEAL_TIMES[meal.mealType] || 'Cualquier hora',
-            calories: Math.round(nutrition.calories),
-            items: [
-                ...recipe.ingredients.map(item => item.ingredient.name),
-                ...recipe.extraIngredients.map(item => item.name)
-            ]
-        };
-    });
-
-    const totals = menu.reduce(
-        (acc, meal) => {
-            acc.calories += meal.calories;
-            return acc;
-        },
-        {calories: 0}
-    );
-
-    const protein = menu.reduce((sum, meal) => {
-        const mealRecord = selectedDay?.meals.find(item => item.id === meal.id);
-        if (!mealRecord?.recipe) return sum;
-        const nutrition = calculateRecipeNutrition(
-            mealRecord.recipe.ingredients
-        );
-        return sum + nutrition.protein;
-    }, 0);
-
-    const carbs = menu.reduce((sum, meal) => {
-        const mealRecord = selectedDay?.meals.find(item => item.id === meal.id);
-        if (!mealRecord?.recipe) return sum;
-        const nutrition = calculateRecipeNutrition(
-            mealRecord.recipe.ingredients
-        );
-        return sum + nutrition.carbs;
-    }, 0);
-
-    const fat = menu.reduce((sum, meal) => {
-        const mealRecord = selectedDay?.meals.find(item => item.id === meal.id);
-        if (!mealRecord?.recipe) return sum;
-        const nutrition = calculateRecipeNutrition(
-            mealRecord.recipe.ingredients
-        );
-        return sum + nutrition.fat;
-    }, 0);
-
     const affiliateLinks = parseAffiliateLinks(protocol.affiliateLinks);
 
     return {
         patient,
+        weekPlan,
         weekDays,
         todayIndex,
-        menu,
-        totals: {
-            calories: Math.round(totals.calories),
-            protein: Math.round(protein),
-            carbs: Math.round(carbs),
-            fat: Math.round(fat)
-        },
-        sliderRecipes,
         affiliateLinks
     };
 }
@@ -296,39 +148,11 @@ export default async function PatientPortal() {
                 />
 
                 {data ? (
-                    <div className='mt-6'>
-                        <CalorieProgress
-                            consumed={data.totals.calories}
-                            goal={data.totals.calories}
-                            logs={data.menu.length}
-                            protein={{
-                                current: data.totals.protein,
-                                max: data.totals.protein
-                            }}
-                            carbs={{
-                                current: data.totals.carbs,
-                                max: data.totals.carbs
-                            }}
-                            fat={{
-                                current: data.totals.fat,
-                                max: data.totals.fat
-                            }}
-                        />
-
-                        <section className='mt-8'>
-                            <WeekSelector
-                                days={data.weekDays}
-                                initialSelectedIndex={data.todayIndex || 0}
-                            />
-                        </section>
-
-                        <section
-                            className='mt-8'
-                            data-slider-meals={data.sliderRecipes.length}
-                            key={data.sliderRecipes.map(r => r.id).join('|')}>
-                            <MealSlider recipes={data.sliderRecipes} />
-                        </section>
-                    </div>
+                    <PortalDailyMeals
+                        weekPlan={data.weekPlan}
+                        weekDays={data.weekDays}
+                        initialDayIndex={data.todayIndex || 0}
+                    />
                 ) : null}
 
                 <AffiliateProducts

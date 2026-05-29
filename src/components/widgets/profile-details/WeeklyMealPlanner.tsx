@@ -1,10 +1,14 @@
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
-import {DEFAULT_ENABLED_MEALS, MealType} from '@/lib/config/meal-config';
+import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
-import {Apple, Calendar, Coffee, Moon, Sun} from 'lucide-react';
+import {Calendar} from 'lucide-react';
 import MealCell from './MealCell';
-import {useState} from 'react';
+
+const DAY_WIDTH_PX = 96;
+const MEAL_MIN_WIDTH_PX = 256;
+const DAY_COLUMN_CLASS = 'w-24';
+const MEAL_COLUMN_CLASS = 'min-w-64';
 
 interface WeeklyMealPlannerProps {
     weekPlan: DayMeals[];
@@ -12,7 +16,8 @@ interface WeeklyMealPlannerProps {
     onMealUpdate?: (
         day: string,
         mealType: MealType,
-        updatedMeal: MealSlot
+        updatedMeal: MealSlot,
+        options?: {applyToAllDays?: boolean}
     ) => void;
 }
 
@@ -21,7 +26,11 @@ export default function WeeklyMealPlanner({
     onOpenRecipeModal,
     onMealUpdate
 }: WeeklyMealPlannerProps) {
-    const [enabledMeals, setEnabledMeals] = useState(DEFAULT_ENABLED_MEALS);
+    const mealColumns = MEAL_CONFIG.filter(({key}) =>
+        weekPlan.some(day => key in day)
+    );
+    const tableMinWidth =
+        DAY_WIDTH_PX + mealColumns.length * MEAL_MIN_WIDTH_PX;
 
     return (
         <motion.div
@@ -35,74 +44,38 @@ export default function WeeklyMealPlanner({
                 </h3>
             </div>
 
-            <div className='overflow-x-auto'>
-                <table className='w-full min-w-[800px] table-fixed'>
+            <div className='w-full overflow-x-auto overscroll-x-contain'>
+                <table
+                    className='w-full table-fixed border-separate border-spacing-0'
+                    style={{minWidth: tableMinWidth}}>
+                    <colgroup>
+                        <col style={{width: DAY_WIDTH_PX}} />
+                        {mealColumns.map(({key}) => (
+                            <col key={key} />
+                        ))}
+                    </colgroup>
                     <thead>
                         <tr className='border-b border-border bg-secondary/20'>
-                            <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24'>
+                            <th
+                                className={cn(
+                                    DAY_COLUMN_CLASS,
+                                    'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+                                )}>
                                 Dia
                             </th>
-                            {enabledMeals.smoothie && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
+                            {mealColumns.map(({key, label, icon: Icon}) => (
+                                <th
+                                    key={key}
+                                    className={cn(
+                                        MEAL_COLUMN_CLASS,
+                                        'px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+                                    )}>
                                     <span className='flex items-center gap-1.5'>
-                                        <Coffee className='h-3.5 w-3.5' />
-                                        Batido
+                                        <Icon className='h-3.5 w-3.5' />
+                                        {label}
                                     </span>
                                 </th>
-                            )}
-                            {enabledMeals.breakfast && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                    <span className='flex items-center gap-1.5'>
-                                        <Coffee className='h-3.5 w-3.5' />
-                                        Desayuno
-                                    </span>
-                                </th>
-                            )}
-
-                            {enabledMeals.snack1 && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                    <span className='flex items-center gap-1.5'>
-                                        <Apple className='h-3.5 w-3.5' />
-                                        Colación 1
-                                    </span>
-                                </th>
-                            )}
-
-                            {enabledMeals.lunch && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                    <span className='flex items-center gap-1.5'>
-                                        <Sun className='h-3.5 w-3.5' />
-                                        Comida
-                                    </span>
-                                </th>
-                            )}
-
-                            {enabledMeals.snack2 && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                    <span className='flex items-center gap-1.5'>
-                                        <Apple className='h-3.5 w-3.5' />
-                                        Colación 2
-                                    </span>
-                                </th>
-                            )}
-
-                            {enabledMeals.dinner && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                    <span className='flex items-center gap-1.5'>
-                                        <Moon className='h-3.5 w-3.5' />
-                                        Cena
-                                    </span>
-                                </th>
-                            )}
-
-                            {enabledMeals.drinks && (
-                                <th className='px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
-                                    <span className='flex items-center gap-1.5'>
-                                        <Moon className='h-3.5 w-3.5' />
-                                        Bebida
-                                    </span>
-                                </th>
-                            )}
+                            ))}
                         </tr>
                     </thead>
                     <tbody>
@@ -115,162 +88,41 @@ export default function WeeklyMealPlanner({
                                         ? 'bg-background'
                                         : 'bg-secondary/10'
                                 )}>
-                                <td className='px-4 py-3'>
+                                <td
+                                    className={cn(
+                                        DAY_COLUMN_CLASS,
+                                        'px-4 py-3 align-top'
+                                    )}>
                                     <span className='text-sm font-semibold text-foreground'>
                                         {day.day}
                                     </span>
                                 </td>
-                                {enabledMeals.smoothie && (
-                                    <td className='px-2 py-2 align-top'>
+                                {mealColumns.map(({key, label}) => (
+                                    <td
+                                        key={key}
+                                        className={cn(
+                                            MEAL_COLUMN_CLASS,
+                                            'px-2 py-2 align-top'
+                                        )}>
                                         <MealCell
-                                            meal={day.smoothie}
-                                            mealType='smoothie'
+                                            meal={day[key]}
+                                            mealType={key}
+                                            dayLabel={day.day}
+                                            mealTypeLabel={label}
                                             onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'smoothie'
-                                                )
+                                                onOpenRecipeModal(day.day, key)
                                             }
-                                            onEdit={m =>
+                                            onEdit={(m, options) =>
                                                 onMealUpdate?.(
                                                     day.day,
-                                                    'smoothie',
-                                                    m
+                                                    key,
+                                                    m,
+                                                    options
                                                 )
                                             }
                                         />
                                     </td>
-                                )}
-                                {enabledMeals.breakfast && (
-                                    <td className='px-2 py-2 align-top'>
-                                        <MealCell
-                                            meal={day.breakfast}
-                                            mealType='breakfast'
-                                            onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'breakfast'
-                                                )
-                                            }
-                                            onEdit={m =>
-                                                onMealUpdate?.(
-                                                    day.day,
-                                                    'breakfast',
-                                                    m
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                )}
-                                {enabledMeals.snack1 && (
-                                    <td className='px-2 py-2 align-top'>
-                                        <MealCell
-                                            meal={day.snack1}
-                                            mealType='snack1'
-                                            onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'snack1'
-                                                )
-                                            }
-                                            onEdit={m =>
-                                                onMealUpdate?.(
-                                                    day.day,
-                                                    'snack1',
-                                                    m
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                )}
-
-                                {enabledMeals.lunch && (
-                                    <td className='px-2 py-2 align-top'>
-                                        <MealCell
-                                            meal={day.lunch}
-                                            mealType='lunch'
-                                            onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'lunch'
-                                                )
-                                            }
-                                            onEdit={m =>
-                                                onMealUpdate?.(
-                                                    day.day,
-                                                    'lunch',
-                                                    m
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                )}
-
-                                {enabledMeals.snack2 && (
-                                    <td className='px-2 py-2 align-top'>
-                                        <MealCell
-                                            meal={day.snack2}
-                                            mealType='snack2'
-                                            onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'snack2'
-                                                )
-                                            }
-                                            onEdit={m =>
-                                                onMealUpdate?.(
-                                                    day.day,
-                                                    'snack2',
-                                                    m
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                )}
-
-                                {enabledMeals.dinner && (
-                                    <td className='px-2 py-2 align-top'>
-                                        <MealCell
-                                            meal={day.dinner}
-                                            mealType='dinner'
-                                            onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'dinner'
-                                                )
-                                            }
-                                            onEdit={m =>
-                                                onMealUpdate?.(
-                                                    day.day,
-                                                    'dinner',
-                                                    m
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                )}
-
-                                {enabledMeals.drinks && (
-                                    <td className='px-2 py-2 align-top'>
-                                        <MealCell
-                                            meal={day.drinks}
-                                            mealType='drinks'
-                                            onReplace={() =>
-                                                onOpenRecipeModal(
-                                                    day.day,
-                                                    'drinks'
-                                                )
-                                            }
-                                            onEdit={m =>
-                                                onMealUpdate?.(
-                                                    day.day,
-                                                    'drinks',
-                                                    m
-                                                )
-                                            }
-                                        />
-                                    </td>
-                                )}
+                                ))}
                             </tr>
                         ))}
                     </tbody>
