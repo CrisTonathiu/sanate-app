@@ -12,6 +12,26 @@ const claimUserSchema = z.object({
         .min(8, 'La contraseña debe tener al menos 8 caracteres')
 });
 
+const CLAIM_USER_LOG_PREFIX = '[user.claim]';
+
+function getZodValidationMessage(error: ZodError): string {
+    const {fieldErrors, formErrors} = error.flatten();
+    const errorsByField = fieldErrors as Partial<
+        Record<keyof z.infer<typeof claimUserSchema>, string[]>
+    >;
+    const passwordMessage = errorsByField.password?.[0];
+    if (passwordMessage) return passwordMessage;
+
+    const firstFieldMessage = Object.values(fieldErrors)
+        .flat()
+        .find((msg): msg is string => typeof msg === 'string');
+    if (firstFieldMessage) return firstFieldMessage;
+
+    if (formErrors[0]) return formErrors[0];
+
+    return 'Error de validación';
+}
+
 function getAppUrl() {
     return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 }
@@ -60,7 +80,13 @@ export async function createUser(input: CreateUserInput) {
 
 export async function claimUser(input: unknown) {
     try {
+        console.log(CLAIM_USER_LOG_PREFIX, 'claimUser:start');
+
         const validatedInput = claimUserSchema.parse(input);
+
+        console.log(CLAIM_USER_LOG_PREFIX, 'claimUser:validated', {
+            email: validatedInput.email
+        });
 
         const user = await prisma.user.findUnique({
             where: {email: validatedInput.email},
@@ -71,7 +97,16 @@ export async function claimUser(input: unknown) {
             }
         });
 
+        console.log(CLAIM_USER_LOG_PREFIX, 'claimUser:lookup', {
+            found: Boolean(user),
+            role: user?.role,
+            isClaimed: user?.isClaimed
+        });
+
         if (!user) {
+            console.warn(CLAIM_USER_LOG_PREFIX, 'claimUser:abort', 'user not found', {
+                email: validatedInput.email
+            });
             return {
                 success: false,
                 message:
@@ -80,6 +115,9 @@ export async function claimUser(input: unknown) {
         }
 
         if (user?.isClaimed) {
+            console.warn(CLAIM_USER_LOG_PREFIX, 'claimUser:abort', 'already claimed', {
+                email: validatedInput.email
+            });
             return {
                 success: false,
                 message: 'Este usuario ya fue reclamado'
@@ -87,6 +125,10 @@ export async function claimUser(input: unknown) {
         }
 
         if (user.role !== 'PATIENT') {
+            console.warn(CLAIM_USER_LOG_PREFIX, 'claimUser:abort', 'invalid role', {
+                email: validatedInput.email,
+                role: user.role
+            });
             return {
                 success: false,
                 message: 'Solo los pacientes invitados pueden registrarse aquí'
@@ -94,6 +136,11 @@ export async function claimUser(input: unknown) {
         }
 
         const supabase = await createClient();
+        console.log(CLAIM_USER_LOG_PREFIX, 'claimUser:signUp', {
+            email: validatedInput.email,
+            emailRedirectTo: getAuthCallbackUrl()
+        });
+
         const {error} = await supabase.auth.signUp({
             email: validatedInput.email,
             password: validatedInput.password,
@@ -103,11 +150,19 @@ export async function claimUser(input: unknown) {
         });
 
         if (error) {
+            console.warn(CLAIM_USER_LOG_PREFIX, 'claimUser:signUpFailed', {
+                email: validatedInput.email,
+                message: error.message
+            });
             return {
                 success: false,
                 message: error.message
             };
         }
+
+        console.log(CLAIM_USER_LOG_PREFIX, 'claimUser:success', {
+            email: validatedInput.email
+        });
 
         return {
             success: true,
@@ -116,12 +171,19 @@ export async function claimUser(input: unknown) {
         };
     } catch (error) {
         if (error instanceof ZodError) {
+            const validationMessage = getZodValidationMessage(error);
+            console.warn(CLAIM_USER_LOG_PREFIX, 'claimUser:validationFailed', {
+                message: validationMessage,
+                errors: error.flatten()
+            });
             return {
                 success: false,
-                message: 'Error de validación',
+                message: validationMessage,
                 errors: error.flatten()
             };
         }
+
+        console.error(CLAIM_USER_LOG_PREFIX, 'claimUser:error', error);
 
         return {
             success: false,
