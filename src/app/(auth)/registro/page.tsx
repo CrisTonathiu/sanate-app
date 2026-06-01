@@ -48,6 +48,9 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [focusedField, setFocusedField] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [confirmPasswordError, setConfirmPasswordError] = useState<
+        string | null
+    >(null);
     const [isEmailBlocked, setIsEmailBlocked] = useState(false);
 
     useEffect(() => {
@@ -66,10 +69,24 @@ export default function RegisterPage() {
 
     const registerMutation = useMutation({
         onError: (error: Error) => {
+            const passwordFieldError = (
+                error as Error & {
+                    passwordFieldError?: string;
+                }
+            ).passwordFieldError;
+
+            if (passwordFieldError) {
+                setConfirmPasswordError(passwordFieldError);
+                setFormError(null);
+                return;
+            }
+
             setFormError(error.message);
+            setConfirmPasswordError(null);
         },
         onSuccess: () => {
             setFormError(null);
+            setConfirmPasswordError(null);
             router.push(
                 `/registro/confirmacion?email=${encodeURIComponent(email)}`
             );
@@ -84,8 +101,18 @@ export default function RegisterPage() {
             });
 
             if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.message);
+                const data = await res.json();
+                const passwordFieldError =
+                    data.errors?.fieldErrors?.password?.[0];
+                const err = new Error(
+                    passwordFieldError || data.message || 'Error al registrarse'
+                ) as Error & {passwordFieldError?: string};
+
+                if (passwordFieldError) {
+                    err.passwordFieldError = passwordFieldError;
+                }
+
+                throw err;
             }
 
             return res.json();
@@ -97,11 +124,13 @@ export default function RegisterPage() {
         if (registerMutation.isPending) return;
 
         if (password !== confirmPassword) {
-            setFormError('Las contraseñas no coinciden');
+            setConfirmPasswordError('Las contraseñas no coinciden');
+            setFormError(null);
             return;
         }
 
         setFormError(null);
+        setConfirmPasswordError(null);
         registerMutation.mutate();
     };
 
@@ -275,7 +304,12 @@ export default function RegisterPage() {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder='Ingresa tu contraseña'
                                     value={password}
-                                    onChange={e => setPassword(e.target.value)}
+                                    onChange={e => {
+                                        setPassword(e.target.value);
+                                        if (confirmPasswordError) {
+                                            setConfirmPasswordError(null);
+                                        }
+                                    }}
                                     onFocus={() => setFocusedField('password')}
                                     onBlur={() => setFocusedField(null)}
                                     required
@@ -379,9 +413,12 @@ export default function RegisterPage() {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder='Repite tu contraseña'
                                     value={confirmPassword}
-                                    onChange={e =>
-                                        setConfirmPassword(e.target.value)
-                                    }
+                                    onChange={e => {
+                                        setConfirmPassword(e.target.value);
+                                        if (confirmPasswordError) {
+                                            setConfirmPasswordError(null);
+                                        }
+                                    }}
                                     onFocus={() =>
                                         setFocusedField('confirmPassword')
                                     }
@@ -404,6 +441,13 @@ export default function RegisterPage() {
                                     )}
                                 </AnimatePresence>
                             </div>
+                            {confirmPasswordError && (
+                                <p
+                                    role='alert'
+                                    className='text-sm text-destructive'>
+                                    {confirmPasswordError}
+                                </p>
+                            )}
                         </motion.div>
 
                         {/* Sign in button */}
