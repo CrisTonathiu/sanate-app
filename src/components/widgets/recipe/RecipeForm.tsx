@@ -49,6 +49,11 @@ import {
     AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import {NutritionData, RecipeFormData, Step} from '@/lib/types/recipe-type';
+import {
+    gramsPerIngredientUnit,
+    parseIngredientQuantity,
+    resolveIngredientNutritionGrams
+} from '@/lib/utils/ingredient-quantity';
 
 // --- Constants ---
 const MEAL_TYPES = [
@@ -128,6 +133,8 @@ const toDbUnit = (value?: string): IngredientUnit => {
     return UI_TO_DB_UNIT[uiUnit];
 };
 
+const normalizeFoodId = (value?: string | null) => value?.trim() || undefined;
+
 export function RecipeForm(props: RecipeFormProps) {
     const {mode, initialData, isLoading, onSave, onDelete, onCancel} = props;
 
@@ -170,15 +177,19 @@ export function RecipeForm(props: RecipeFormProps) {
     const nutrition: NutritionData = (() => {
         const totals = ingredients.reduce(
             (acc, ing) => {
-                const gramsUsed = (() => {
-                    if (
-                        normalizeUiUnit(ing.unit) === 'g' &&
-                        ing.quantity &&
-                        (ing.quantity as number) > 0
-                    )
-                        return ing.quantity as number;
-                    return 100;
-                })();
+                const uiUnit = normalizeUiUnit(ing.unit);
+                const dbUnit = toDbUnit(uiUnit);
+                const parsedQuantity = parseIngredientQuantity(ing.quantity);
+                const referenceGramsPerUnit =
+                    uiUnit === 'g'
+                        ? parsedQuantity
+                        : (ing.gramsPerUnit ??
+                          gramsPerIngredientUnit(dbUnit));
+                const gramsUsed = resolveIngredientNutritionGrams(
+                    parsedQuantity,
+                    dbUnit,
+                    referenceGramsPerUnit
+                );
                 const factor = gramsUsed / 100;
                 return {
                     calories:
@@ -205,19 +216,31 @@ export function RecipeForm(props: RecipeFormProps) {
             setMealType(initialData.mealType || '');
             setIngredients(
                 (initialData.ingredients || []).map(item => {
+                    const normalizedFoodId = normalizeFoodId(item.foodId) ?? '';
                     const matchedFood = allFoods.find(
                         food =>
-                            food.id === item.foodId ||
+                            food.id === normalizedFoodId ||
                             food.name.toLowerCase() ===
-                                item.foodId.toLowerCase()
+                                normalizedFoodId.toLowerCase()
                     );
+
+                    const uiUnit = normalizeUiUnit(item.unit);
+                    const dbUnit = toDbUnit(uiUnit);
 
                     return {
                         id: generateId(),
                         foodId: matchedFood?.id,
-                        name: matchedFood?.name ?? item.foodId,
-                        quantity: item.quantity ?? item.grams ?? 100,
-                        unit: normalizeUiUnit(item.unit),
+                        name: matchedFood?.name ?? normalizedFoodId,
+                        quantity:
+                            item.quantity ??
+                            (uiUnit === 'g' ? (item.grams ?? 100) : 1),
+                        unit: uiUnit,
+                        gramsPerUnit:
+                            uiUnit === 'g'
+                                ? undefined
+                                : item.grams && item.grams > 0
+                                  ? item.grams
+                                  : gramsPerIngredientUnit(dbUnit),
                         caloriesPer100g: matchedFood?.caloriesPer100g ?? 0,
                         carbohydratesPer100g: matchedFood?.carbsPer100g ?? 0,
                         proteinPer100g: matchedFood?.proteinPer100g ?? 0,
@@ -417,12 +440,27 @@ export function RecipeForm(props: RecipeFormProps) {
             ingredients.map(ing => {
                 if (ing.id !== id) return ing;
                 const updated = {...ing, [field]: value};
+                if (field === 'unit' && typeof value === 'string') {
+                    const uiUnit = normalizeUiUnit(value);
+                    if (uiUnit === 'g') {
+                        updated.gramsPerUnit = undefined;
+                    } else {
+                        updated.gramsPerUnit = gramsPerIngredientUnit(
+                            toDbUnit(uiUnit)
+                        );
+                    }
+                }
                 if (field === 'name' && typeof value === 'string') {
+                    const trimmedName = value.trim();
                     const food = allFoods.find(
-                        f => f.name.toLowerCase() === value.toLowerCase()
+                        f =>
+                            f.name.toLowerCase() ===
+                                trimmedName.toLowerCase() ||
+                            f.id === trimmedName
                     );
                     if (food) {
                         updated.foodId = food.id;
+                        updated.name = food.name;
                         updated.caloriesPer100g = food.caloriesPer100g ?? 0;
                         updated.carbohydratesPer100g = food.carbsPer100g ?? 0;
                         updated.proteinPer100g = food.proteinPer100g ?? 0;
@@ -441,14 +479,15 @@ export function RecipeForm(props: RecipeFormProps) {
     };
 
     const selectIngredientFood = (id: string, foodName: string) => {
-        const food = allFoods.find(f => f.name === foodName);
+        const trimmedName = foodName.trim();
+        const food = allFoods.find(f => f.name === trimmedName);
         setIngredients(prev =>
             prev.map(ing =>
                 ing.id === id
                     ? {
                           ...ing,
                           foodId: food?.id,
-                          name: foodName,
+                          name: food?.name ?? trimmedName,
                           caloriesPer100g: food?.caloriesPer100g ?? 0,
                           carbohydratesPer100g: food?.carbsPer100g ?? 0,
                           proteinPer100g: food?.proteinPer100g ?? 0,
@@ -517,21 +556,26 @@ export function RecipeForm(props: RecipeFormProps) {
         }
 
         const payloadIngredients = ingredients
-            .filter(ing => ing.foodId)
+            .filter(ing => normalizeFoodId(ing.foodId))
             .map(ing => {
                 const uiUnit = normalizeUiUnit(ing.unit);
+                const parsedQuantity = parseIngredientQuantity(ing.quantity);
                 const quantity =
-                    typeof ing.quantity === 'number' && ing.quantity > 0
-                        ? ing.quantity
+                    parsedQuantity != null && parsedQuantity > 0
+                        ? parsedQuantity
                         : uiUnit === 'g'
                           ? 100
                           : 1;
 
                 return {
-                    foodId: ing.foodId as string,
+                    foodId: normalizeFoodId(ing.foodId) as string,
                     quantity,
                     unit: toDbUnit(uiUnit),
-                    grams: uiUnit === 'g' ? quantity : 100
+                    grams:
+                        uiUnit === 'g'
+                            ? quantity
+                            : (ing.gramsPerUnit ??
+                              gramsPerIngredientUnit(toDbUnit(uiUnit)))
                 };
             });
 

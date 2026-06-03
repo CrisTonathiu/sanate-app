@@ -76,7 +76,8 @@ async function getPortalData() {
         return null;
     }
 
-    const {weekPlan} = await loadWeekProtocolMeals(user.id);
+    const {weekPlan, protocolWeekCount, activeProtocolWeekIndex} =
+        await loadWeekProtocolMeals(user.id);
 
     if (weekPlan.length === 0) {
         return null;
@@ -101,7 +102,9 @@ async function getPortalData() {
         weekPlan,
         weekDays,
         todayIndex,
-        affiliateLinks
+        affiliateLinks,
+        protocolWeekCount,
+        activeProtocolWeekIndex
     };
 }
 
@@ -148,11 +151,19 @@ export default async function PatientPortal() {
                 />
 
                 {data ? (
-                    <PortalDailyMeals
-                        weekPlan={data.weekPlan}
-                        weekDays={data.weekDays}
-                        initialDayIndex={data.todayIndex || 0}
-                    />
+                    <>
+                        {data.protocolWeekCount > 1 ? (
+                            <p className='mb-4 text-sm text-muted-foreground'>
+                                Semana {data.activeProtocolWeekIndex + 1} de{' '}
+                                {data.protocolWeekCount} de tu plan
+                            </p>
+                        ) : null}
+                        <PortalDailyMeals
+                            weekPlan={data.weekPlan}
+                            weekDays={data.weekDays}
+                            initialDayIndex={data.todayIndex || 0}
+                        />
+                    </>
                 ) : null}
 
                 <AffiliateProducts

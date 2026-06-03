@@ -3,6 +3,7 @@
 import {Button} from '@/components/ui/button';
 import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
+import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
 import {Coffee, Apple, Sun, Moon, Replace, Pencil} from 'lucide-react';
 import {useState} from 'react';
 import MealEditModal from './MealEditModal';
@@ -12,6 +13,7 @@ export default function MealCell({
     mealType,
     dayLabel,
     mealTypeLabel,
+    multiWeekPlan = false,
     onReplace,
     onEdit
 }: {
@@ -19,6 +21,7 @@ export default function MealCell({
     mealType: MealType;
     dayLabel?: string;
     mealTypeLabel?: string;
+    multiWeekPlan?: boolean;
     onReplace: () => void;
     onEdit: (
         updatedMeal: MealSlot,
@@ -70,28 +73,20 @@ export default function MealCell({
     }) => {
         const unitLabel = getUnitLabel(portion.unit);
 
-        if (unitLabel === 'pz') {
-            if (
-                typeof portion.targetQuantity === 'number' &&
-                !Number.isNaN(portion.targetQuantity)
-            ) {
-                return Math.max(1, Math.round(portion.targetQuantity));
-            }
-            return Math.max(1, Math.round(portion.targetGrams));
-        }
+        const unit = portion.unit;
 
         if (unitLabel === 'g') {
-            return portion.targetGrams;
+            return formatIngredientQuantity(portion.targetGrams, unit ?? 'GRAM');
         }
 
         if (
             typeof portion.targetQuantity === 'number' &&
             !Number.isNaN(portion.targetQuantity)
         ) {
-            return portion.targetQuantity;
+            return formatIngredientQuantity(portion.targetQuantity, unit);
         }
 
-        return portion.targetGrams;
+        return formatIngredientQuantity(portion.targetGrams, unit ?? 'GRAM');
     };
 
     if (!meal) return null;
@@ -163,25 +158,25 @@ export default function MealCell({
                             </div>
                         )}
 
-                    {meal.calories && (
+                    {(meal.calories != null && meal.calories > 0) && (
                         <span className='text-xs text-muted-foreground mt-1'>
                             {meal.calories} kcal
                         </span>
                     )}
 
-                    {meal.protein && (
+                    {(meal.protein != null && meal.protein > 0) && (
                         <span className='text-xs text-muted-foreground'>
                             {meal.protein} g proteína
                         </span>
                     )}
 
-                    {meal.carbs && (
+                    {(meal.carbs != null && meal.carbs > 0) && (
                         <span className='text-xs text-muted-foreground'>
                             {meal.carbs} g carbohidratos
                         </span>
                     )}
 
-                    {meal.fat && (
+                    {(meal.fat != null && meal.fat > 0) && (
                         <span className='text-xs text-muted-foreground'>
                             {meal.fat} g grasa
                         </span>
@@ -209,6 +204,7 @@ export default function MealCell({
                 onOpen={setEditOpen}
                 dayLabel={dayLabel}
                 mealTypeLabel={mealTypeLabel}
+                multiWeekPlan={multiWeekPlan}
                 onSave={(updatedMeal, options) => {
                     onEdit(updatedMeal, options);
                 }}

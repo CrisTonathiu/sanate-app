@@ -82,6 +82,7 @@ export const createProtocolTemplateSchema = z.object({
     weeklyPlan: z
         .array(dayMealsSchema)
         .min(1, 'La plantilla debe incluir al menos un día'),
+    weekCount: z.number().int().min(1).max(4).optional(),
     planCalories: z.number().nonnegative().optional(),
     macroPercents: z.record(z.string(), z.number().finite()).optional(),
     enabledMeals: z.record(z.string(), z.boolean()).optional(),

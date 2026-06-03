@@ -5,6 +5,7 @@ import {
     CreateRecipeIngredientInput,
     createRecipeIngredientSchema
 } from '@/lib/validations/ingredient.schema';
+import {gramsPerIngredientUnit} from '@/lib/utils/ingredient-quantity';
 import {ZodError} from 'zod';
 
 export async function addIngredientToRecipe(
@@ -50,7 +51,9 @@ export async function addIngredientToRecipe(
             grams:
                 validatedInput.grams && validatedInput.grams > 0
                     ? validatedInput.grams
-                    : 100
+                    : validatedInput.unit === 'GRAM'
+                      ? 100
+                      : gramsPerIngredientUnit(validatedInput.unit)
         } as unknown as Parameters<
             typeof prisma.recipeIngredient.create
         >[0]['data'];

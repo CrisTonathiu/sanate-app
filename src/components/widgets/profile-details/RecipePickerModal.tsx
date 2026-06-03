@@ -9,6 +9,12 @@ import {
 } from '@/lib/config/meal-config';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
 import {
+    resolveIngredientNutritionGrams,
+    scaleIngredientQuantity,
+    targetGramsForPieceQuantity,
+    usesUnitBasedGramScaling
+} from '@/lib/utils/ingredient-quantity';
+import {
     Dialog,
     DialogContent,
     DialogHeader,
@@ -49,9 +55,13 @@ function computeNutrition(recipe: Recipe) {
         fat = 0;
 
     for (const item of recipe.ingredients) {
-        const grams = item.grams ?? 100;
         const food = item.ingredient?.food;
         if (!food) continue;
+        const grams = resolveIngredientNutritionGrams(
+            item.quantity,
+            item.unit,
+            item.grams
+        );
         const ratio = grams / 100;
         protein += (food.proteinPer100g ?? 0) * ratio;
         carbs += (food.carbsPer100g ?? 0) * ratio;
@@ -85,16 +95,39 @@ function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
             const grams = item.grams ?? 0;
             const qty = item.quantity ?? (item.unit === 'PIECE' ? 1 : grams);
             const unit = item.unit ?? 'GRAM';
+            const baseNutritionGrams = resolveIngredientNutritionGrams(
+                qty,
+                unit,
+                grams
+            );
+            const food = item.ingredient?.food;
+            const kcal =
+                food?.caloriesPer100g != null
+                    ? food.caloriesPer100g
+                    : (food?.proteinPer100g ?? 0) * 4 +
+                      (food?.carbsPer100g ?? 0) * 4 +
+                      (food?.fatPer100g ?? 0) * 9;
+
+            const targetQuantity = scaleIngredientQuantity(qty, scale, unit);
+            const targetGrams = usesUnitBasedGramScaling(unit)
+                ? targetGramsForPieceQuantity(
+                      baseNutritionGrams,
+                      qty,
+                      targetQuantity
+                  )
+                : Math.round(baseNutritionGrams * scale);
+
             return {
                 ingredientName: item.ingredient?.name ?? '',
                 baseQuantity: qty,
-                targetQuantity:
-                    unit === 'PIECE'
-                        ? Math.max(1, Math.round(qty * scale))
-                        : Math.round(qty * scale),
-                baseGrams: grams,
-                targetGrams: Math.round(grams * scale),
-                unit
+                targetQuantity,
+                baseGrams: baseNutritionGrams,
+                targetGrams,
+                unit,
+                baseCalories: kcal ?? 0,
+                baseProtein: food?.proteinPer100g ?? 0,
+                baseCarbs: food?.carbsPer100g ?? 0,
+                baseFat: food?.fatPer100g ?? 0
             };
         }
     );
@@ -116,6 +149,8 @@ interface RecipePickerModalProps {
     open: boolean;
     mealType: MealType;
     targetCalories?: number;
+    /** Recipe IDs already used in other weeks — hidden when replacing in a multi-week plan. */
+    excludedRecipeIds?: string[];
     onClose: () => void;
     onSelect: (meal: MealSlot) => void;
 }
@@ -124,6 +159,7 @@ export default function RecipePickerModal({
     open,
     mealType,
     targetCalories,
+    excludedRecipeIds = [],
     onClose,
     onSelect
 }: RecipePickerModalProps) {
@@ -131,16 +167,22 @@ export default function RecipePickerModal({
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
 
+    const excluded = useMemo(
+        () => new Set(excludedRecipeIds),
+        [excludedRecipeIds]
+    );
+
     const filtered = useMemo(() => {
         const allowed = MEAL_TYPE_MAP[mealType] ?? [];
         return allRecipes
             .filter(r => allowed.includes(r.mealType))
+            .filter(r => !excluded.has(r.id))
             .filter(
                 r =>
                     search.trim() === '' ||
                     r.title.toLowerCase().includes(search.trim().toLowerCase())
             );
-    }, [allRecipes, mealType, search]);
+    }, [allRecipes, mealType, search, excluded]);
 
     function handleSelect(recipe: Recipe) {
         onSelect(recipeToMealSlot(recipe, targetCalories));

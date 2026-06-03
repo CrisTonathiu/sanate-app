@@ -1,4 +1,9 @@
 import {MealIngredientPortion, MealSlot} from '@/lib/interface/meal-interface';
+import {
+    formatIngredientQuantity,
+    resolveIngredientNutritionGrams,
+    snapQuantityForUnit
+} from '@/lib/utils/ingredient-quantity';
 import {IngredientUnit, Prisma} from '@prisma/client';
 
 export function normalizeIngredientUnit(unit?: string | null): IngredientUnit {
@@ -23,14 +28,19 @@ export function normalizeIngredientUnit(unit?: string | null): IngredientUnit {
 }
 
 function mapPortionToDbIngredient(portion: MealIngredientPortion) {
+    const unit = normalizeIngredientUnit(portion.unit);
+    const baseQuantity =
+        portion.baseQuantity ??
+        (unit === 'GRAM' ? portion.baseGrams : portion.targetQuantity) ??
+        1;
+
     return {
         ingredientName: portion.ingredientName,
-        unit: normalizeIngredientUnit(portion.unit),
-        baseQuantity:
-            portion.baseQuantity ??
+        unit,
+        baseQuantity,
+        targetQuantity:
             portion.targetQuantity ??
-            portion.targetGrams,
-        targetQuantity: portion.targetQuantity ?? portion.targetGrams,
+            (unit === 'GRAM' ? portion.targetGrams : baseQuantity),
         baseGrams: portion.baseGrams,
         targetGrams: portion.targetGrams
     };
@@ -111,14 +121,19 @@ export function mapRecipeRowsToMealPortions(
         const unit = normalizeIngredientUnit(item.unit);
         const quantity =
             item.quantity ?? (unit === 'PIECE' ? 1 : grams);
+        const nutritionGrams = resolveIngredientNutritionGrams(
+            quantity,
+            unit,
+            grams
+        );
         const food = item.ingredient.food;
 
         return {
             ingredientName: item.ingredient.name,
             baseQuantity: quantity,
             targetQuantity: quantity,
-            baseGrams: grams,
-            targetGrams: grams,
+            baseGrams: nutritionGrams,
+            targetGrams: nutritionGrams,
             unit,
             baseCalories: food?.caloriesPer100g ?? undefined,
             baseProtein: food?.proteinPer100g ?? undefined,
@@ -222,7 +237,7 @@ export function buildMealSlotFromProtocolMeal(meal: {
     };
 }
 
-const INGREDIENT_UNIT_LABEL: Record<IngredientUnit, string> = {
+export const INGREDIENT_UNIT_LABEL: Record<IngredientUnit, string> = {
     GRAM: 'g',
     PIECE: 'pz',
     CUP: 'taza',
@@ -232,33 +247,84 @@ const INGREDIENT_UNIT_LABEL: Record<IngredientUnit, string> = {
     OZ: 'oz'
 };
 
+type RecipeIngredientBase = {
+    quantity: number | null;
+    grams: number;
+    unit: string | null;
+};
+
+/**
+ * Patient-facing amount for a scaled protocol portion. Uses the base recipe's
+ * unit/quantity/grams to convert targetGrams into the correct count (pz, cda, …).
+ */
+export function formatScaledIngredientDisplay(
+    scaled: {
+        unit: IngredientUnit | string;
+        targetGrams: number;
+        targetQuantity: number;
+    },
+    recipeBase: RecipeIngredientBase
+): {amount: string; unit: string} {
+    const unit = normalizeIngredientUnit(scaled.unit ?? recipeBase.unit);
+    const unitLabel = INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
+
+    if (unit === 'GRAM') {
+        return {
+            amount: formatIngredientQuantity(scaled.targetGrams || 0, 'GRAM'),
+            unit: unitLabel
+        };
+    }
+
+    const baseQty =
+        recipeBase.quantity != null && recipeBase.quantity > 0
+            ? recipeBase.quantity
+            : 1;
+    const baseNutritionGrams = resolveIngredientNutritionGrams(
+        baseQty,
+        recipeBase.unit,
+        recipeBase.grams
+    );
+    const gramsPerUnit = baseNutritionGrams / baseQty;
+    let displayQuantity =
+        gramsPerUnit > 0
+            ? scaled.targetGrams / gramsPerUnit
+            : scaled.targetQuantity;
+
+    displayQuantity = snapQuantityForUnit(displayQuantity, unit);
+
+    return {
+        amount: formatIngredientQuantity(displayQuantity, unit),
+        unit: unitLabel
+    };
+}
+
 export function mapStoredPortionsToSliderIngredients(
-    portions: StoredProtocolMealPortions
+    portions: StoredProtocolMealPortions,
+    recipeIngredients?: Array<
+        RecipeIngredientBase & {ingredient: {name: string}}
+    >
 ) {
     return portions.ingredients.map(row => {
-        const unit = INGREDIENT_UNIT_LABEL[row.unit] ?? row.unit.toLowerCase();
+        const recipeRow = recipeIngredients?.find(
+            item =>
+                item.ingredient.name.trim().toLowerCase() ===
+                row.ingredientName.trim().toLowerCase()
+        );
 
-        if (row.unit === 'GRAM') {
-            const grams = row.targetGrams || 0;
-            const rounded =
-                Math.abs(grams - Math.round(grams)) < 0.05
-                    ? Math.round(grams)
-                    : grams;
+        const recipeBase: RecipeIngredientBase = recipeRow ?? {
+            quantity: row.baseQuantity,
+            grams: row.baseGrams,
+            unit: row.unit
+        };
 
-            return {
-                name: row.ingredientName,
-                amount: Number.isInteger(rounded)
-                    ? String(rounded)
-                    : rounded.toFixed(1),
-                unit
-            };
-        }
-
-        const quantity = row.targetQuantity ?? 1;
-        const amount =
-            Math.abs(quantity - Math.round(quantity)) < 0.001
-                ? String(Math.round(quantity))
-                : String(quantity);
+        const {amount, unit} = formatScaledIngredientDisplay(
+            {
+                unit: row.unit,
+                targetGrams: row.targetGrams,
+                targetQuantity: row.targetQuantity
+            },
+            recipeBase
+        );
 
         return {
             name: row.ingredientName,

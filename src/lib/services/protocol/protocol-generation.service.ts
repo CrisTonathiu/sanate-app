@@ -4,6 +4,14 @@ import {MealType} from '@prisma/client';
 import {prisma} from '@/lib/prisma';
 import {GenerateProtocolPlanInput} from '@/lib/validations/protocol-generation.schema';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
+import {buildWeeklyRecipeSchedule} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {formatDayLabelWithWeek} from '@/lib/utils/protocol-week-plan';
+import {
+    resolveIngredientNutritionGrams,
+    scaleIngredientQuantity,
+    targetGramsForPieceQuantity,
+    usesUnitBasedGramScaling
+} from '@/lib/utils/ingredient-quantity';
 
 // --------------------
 // Types
@@ -209,7 +217,11 @@ function evaluateMealRealism(
 
         // unidades discretas
         if (item.unit === 'PIECE') {
-            const scaledQty = item.quantity * scale;
+            const scaledQty = scaleIngredientQuantity(
+                item.quantity,
+                scale,
+                'PIECE'
+            );
 
             if (scaledQty > 4) {
                 warnings.push(
@@ -255,20 +267,11 @@ function computeRecipeNutrition(recipe: {
     let fat = 0;
 
     for (const item of recipe.ingredients) {
-        const unit = normalizeRecipeIngredientUnit(item.unit);
-        const quantity =
-            typeof item.quantity === 'number' && item.quantity > 0
-                ? item.quantity
-                : unit === 'GRAM'
-                  ? item.grams
-                  : 1;
-
-        const gramsForNutrition =
-            typeof item.grams === 'number' && item.grams > 0
-                ? item.grams
-                : unit === 'GRAM'
-                  ? quantity
-                  : 100;
+        const gramsForNutrition = resolveIngredientNutritionGrams(
+            item.quantity,
+            item.unit,
+            item.grams
+        );
         const ratio = gramsForNutrition / 100;
         const food = item.ingredient.food;
 
@@ -438,11 +441,24 @@ function buildMeal(
     const warnings = [...realism.warnings];
 
     const ingredientPortions = recipe.ingredients.flatMap(item => {
-        const targetQuantity =
-            item.unit === 'PIECE'
-                ? Math.max(1, Math.round(item.quantity * scale))
-                : Math.round(item.quantity * scale);
-        const targetGrams = Math.round(item.grams * scale);
+        const baseNutritionGrams = resolveIngredientNutritionGrams(
+            item.quantity,
+            item.unit,
+            item.grams
+        );
+        const unit = normalizeRecipeIngredientUnit(item.unit);
+        const targetQuantity = scaleIngredientQuantity(
+            item.quantity,
+            scale,
+            unit
+        );
+        const targetGrams = usesUnitBasedGramScaling(unit)
+            ? targetGramsForPieceQuantity(
+                  baseNutritionGrams,
+                  item.quantity,
+                  targetQuantity
+              )
+            : Math.round(baseNutritionGrams * scale);
         const ingredientMacroKcal = getIngredientMacroKcal(item, targetGrams);
         const macroWarnings = getMacroTargetWarnings(
             item.name,
@@ -462,9 +478,9 @@ function buildMeal(
                 ingredientName: item.name,
                 baseQuantity: item.quantity,
                 targetQuantity,
-                baseGrams: item.grams,
+                baseGrams: baseNutritionGrams,
                 targetGrams,
-                unit: normalizeRecipeIngredientUnit(item.unit),
+                unit,
                 baseCalories: item.caloriesPer100g,
                 baseProtein: item.proteinPer100g,
                 baseCarbs: item.carbsPer100g,
@@ -678,41 +694,65 @@ export async function generateProtocolPlanForPatient(
         };
     }
 
+    const weekCount = input.weekCount ?? 1;
+
     const split = buildMealCalorieSplit(
         activeMealOrder,
         input.mealDistribution
     );
 
     const dailyCalories = input.planCalories;
+    const shuffleSeed = patientId
+        .split('')
+        .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+    const weeklySchedulesByMeal = Object.fromEntries(
+        activeMealOrder.map(mealKey => {
+            const key = mealKey.toLowerCase();
+            return [
+                key,
+                buildWeeklyRecipeSchedule(
+                    catalog[key as keyof typeof catalog],
+                    weekCount,
+                    shuffleSeed + key.length
+                )
+            ];
+        })
+    ) as Record<string, RecipeSummary[][]>;
 
     const weekPlan: DayMeals[] = [];
 
-    for (const [dayIndex, day] of DAYS.entries()) {
-        const dayMeals: Partial<DayMeals> & {day: string} = {day};
-
-        for (const mealKey of activeMealOrder) {
-            const key = mealKey.toLowerCase() as keyof Omit<DayMeals, 'day'>;
-            const recipesForMeal = catalog[key];
-            const recipe =
-                recipesForMeal[dayIndex % recipesForMeal.length] ||
-                recipesForMeal[0];
-            const macroMealTarget = getMacroMealTarget(
-                input.macroMealDistribution,
-                mealKey
+    for (let weekIndex = 0; weekIndex < weekCount; weekIndex++) {
+        for (const [dayIndex, day] of DAYS.entries()) {
+            const dayLabel = formatDayLabelWithWeek(
+                day,
+                weekIndex + 1,
+                weekCount
             );
-            const targetCalories =
-                macroMealTarget?.totalKcal ?? dailyCalories * split[mealKey];
+            const dayMeals: Partial<DayMeals> & {day: string} = {day: dayLabel};
 
-            const slotResult = buildMeal(
-                recipe,
-                round2(targetCalories),
-                macroMealTarget
-            );
+            for (const mealKey of activeMealOrder) {
+                const key = mealKey.toLowerCase() as keyof Omit<DayMeals, 'day'>;
+                const recipe =
+                    weeklySchedulesByMeal[key][weekIndex][dayIndex];
+                const macroMealTarget = getMacroMealTarget(
+                    input.macroMealDistribution,
+                    mealKey
+                );
+                const targetCalories =
+                    macroMealTarget?.totalKcal ?? dailyCalories * split[mealKey];
 
-            dayMeals[key] = slotResult;
+                const slotResult = buildMeal(
+                    recipe,
+                    round2(targetCalories),
+                    macroMealTarget
+                );
+
+                dayMeals[key] = slotResult;
+            }
+
+            weekPlan.push(dayMeals as DayMeals);
         }
-
-        weekPlan.push(dayMeals as DayMeals);
     }
     return {
         success: true,

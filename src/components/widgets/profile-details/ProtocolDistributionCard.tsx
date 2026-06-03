@@ -4,6 +4,13 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select';
+import {
     macros,
     MacroMealPercentages,
     MacroPercents,
@@ -17,6 +24,7 @@ import {AnimatePresence, motion} from 'framer-motion';
 import {
     AlertCircle,
     Beef,
+    CalendarDays,
     Check,
     Droplets,
     Percent,
@@ -27,8 +35,12 @@ import {
 } from 'lucide-react';
 import React from 'react';
 
+import {MAX_PROTOCOL_WEEKS} from '@/lib/utils/protocol-week-plan';
+
 interface ProtocolDistributionCardProps {
     planCalories: number;
+    weekCount: number;
+    setWeekCount: React.Dispatch<React.SetStateAction<number>>;
     enabledMeals: Record<MealType, boolean>;
     setEnabledMeals: React.Dispatch<
         React.SetStateAction<Record<MealType, boolean>>
@@ -82,6 +94,8 @@ const macroLabels: Record<MacroType, string> = {
 
 export function ProtocolDistributionCard({
     planCalories,
+    weekCount,
+    setWeekCount,
     enabledMeals,
     setEnabledMeals,
     mealPercentages,
@@ -210,6 +224,8 @@ export function ProtocolDistributionCard({
     >({});
 
     const canRemove = Object.values(enabledMeals).filter(Boolean).length > 1;
+    const totalMealsToGenerate =
+        enabledMealsList.length * 7 * weekCount;
 
     return (
         <motion.div
@@ -229,6 +245,45 @@ export function ProtocolDistributionCard({
                     </p>
                 </CardHeader>
                 <CardContent className='space-y-4'>
+                    <div className='space-y-2 rounded-xl border border-border bg-secondary/20 p-4'>
+                        <Label className='flex items-center gap-2 text-sm font-medium'>
+                            <CalendarDays className='h-4 w-4 text-primary' />
+                            Duracion del plan
+                        </Label>
+                        <Select
+                            value={String(weekCount)}
+                            onValueChange={value =>
+                                setWeekCount(parseInt(value, 10))
+                            }>
+                            <SelectTrigger className='bg-background border-border max-w-xs'>
+                                <SelectValue placeholder='Selecciona semanas' />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Array.from(
+                                    {length: MAX_PROTOCOL_WEEKS},
+                                    (_, index) => {
+                                        const weeks = index + 1;
+                                        return (
+                                            <SelectItem
+                                                key={weeks}
+                                                value={String(weeks)}>
+                                                {weeks}{' '}
+                                                {weeks === 1
+                                                    ? 'semana'
+                                                    : 'semanas'}
+                                            </SelectItem>
+                                        );
+                                    }
+                                )}
+                            </SelectContent>
+                        </Select>
+                        <p className='text-xs text-muted-foreground'>
+                            Se generaran {totalMealsToGenerate} comidas (
+                            {enabledMealsList.length} por dia x 7 dias x{' '}
+                            {weekCount}{' '}
+                            {weekCount === 1 ? 'semana' : 'semanas'}).
+                        </p>
+                    </div>
                     {/* Add Meal Types Section */}
                     {disabledMealTypes.length > 0 && (
                         <div className='space-y-2'>

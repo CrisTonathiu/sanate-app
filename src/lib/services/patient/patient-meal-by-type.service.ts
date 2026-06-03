@@ -6,6 +6,7 @@ import {
     sortProtocolMealsByPlanOrder,
     type MealSliderRecipe
 } from '@/lib/patient-portal/protocol-meal-slider-map';
+import {getActiveProtocolWeekIndex} from '@/lib/utils/protocol-week-plan';
 import {prisma} from '@/lib/prisma';
 
 const protocolMealRecipeSelect = {
@@ -80,7 +81,7 @@ export type WeekDayMealPlan = {
     meals: MealSliderRecipe[];
 };
 
-async function loadActiveProtocolWeekDays(userId: string) {
+async function loadActiveProtocolWeekDays(userId: string, now: Date = new Date()) {
     const patient = await prisma.patient.findUnique({
         where: {userId},
         select: {id: true}
@@ -97,10 +98,12 @@ async function loadActiveProtocolWeekDays(userId: string) {
         },
         orderBy: {createdAt: 'desc'},
         select: {
+            weekCount: true,
+            createdAt: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
-                take: 1,
                 select: {
+                    weekNumber: true,
                     days: {
                         orderBy: {dayIndex: 'asc'},
                         select: {
@@ -140,17 +143,53 @@ async function loadActiveProtocolWeekDays(userId: string) {
     });
 
     if (!protocol) {
-        return {patient, days: []};
+        return {
+            patient,
+            days: [],
+            weekCount: 1,
+            activeWeekIndex: 0
+        };
     }
 
-    return {patient, days: protocol.weeksPlan[0]?.days ?? []};
+    const activeWeekIndex = getActiveProtocolWeekIndex(
+        protocol.createdAt,
+        protocol.weekCount,
+        now
+    );
+    const activeWeek =
+        protocol.weeksPlan.find(
+            week => week.weekNumber === activeWeekIndex + 1
+        ) ?? protocol.weeksPlan[0];
+
+    return {
+        patient,
+        days: activeWeek?.days ?? [],
+        weekCount: protocol.weekCount,
+        activeWeekIndex
+    };
 }
 
 export async function loadWeekProtocolMeals(
     userId: string,
     now: Date = new Date()
-): Promise<{patient: {id: string} | null; weekPlan: WeekDayMealPlan[]}> {
-    const {patient, days} = await loadActiveProtocolWeekDays(userId);
+): Promise<{
+    patient: {id: string} | null;
+    weekPlan: WeekDayMealPlan[];
+    protocolWeekCount: number;
+    activeProtocolWeekIndex: number;
+}> {
+    const {patient, days, weekCount, activeWeekIndex} =
+        await loadActiveProtocolWeekDays(userId, now);
+
+    if (!patient) {
+        return {
+            patient: null,
+            weekPlan: [],
+            protocolWeekCount: 1,
+            activeProtocolWeekIndex: 0
+        };
+    }
+
     const todayIndex = (now.getDay() + 6) % 7;
 
     const weekPlan = days
@@ -184,11 +223,16 @@ export async function loadWeekProtocolMeals(
         .filter(day => day.meals.length > 0)
         .sort((a, b) => a.dayIndex - b.dayIndex);
 
-    return {patient, weekPlan};
+    return {
+        patient,
+        weekPlan,
+        protocolWeekCount: weekCount,
+        activeProtocolWeekIndex: activeWeekIndex
+    };
 }
 
 export async function loadTodayProtocolMeals(userId: string, now: Date = new Date()) {
-    const {patient, days} = await loadActiveProtocolWeekDays(userId);
+    const {patient, days} = await loadActiveProtocolWeekDays(userId, now);
 
     if (!patient) {
         return {patient: null, meals: []};

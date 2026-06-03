@@ -1,3 +1,5 @@
+import {resolveIngredientNutritionGrams} from '@/lib/utils/ingredient-quantity';
+
 type NutritionFood = {
     caloriesPer100g: number | null;
     proteinPer100g: number | null;
@@ -7,6 +9,8 @@ type NutritionFood = {
 
 export type RecipeIngredientForNutrition = {
     grams: number;
+    quantity?: number | null;
+    unit?: string | null;
     ingredient: {
         food: NutritionFood | null;
     };
@@ -20,7 +24,12 @@ export function calculateRecipeNutrition(
             const food = item.ingredient.food;
             if (!food) return acc;
 
-            const factor = (item.grams || 0) / 100;
+            const factor =
+                resolveIngredientNutritionGrams(
+                    item.quantity,
+                    item.unit,
+                    item.grams
+                ) / 100;
 
             acc.calories += (food.caloriesPer100g || 0) * factor;
             acc.protein += (food.proteinPer100g || 0) * factor;

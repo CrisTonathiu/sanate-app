@@ -3,6 +3,11 @@
 import {useEffect, useMemo, useState} from 'react';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
 import {
+    formatIngredientQuantityInput,
+    parseIngredientQuantity,
+    resolveIngredientNutritionGrams
+} from '@/lib/utils/ingredient-quantity';
+import {
     Dialog,
     DialogContent,
     DialogHeader,
@@ -124,25 +129,26 @@ function resolveTargetGrams(portion: EditablePortion) {
         return Math.round(Math.max(0, Number(portion._grams) || 0));
     }
 
-    const baseQuantity = portion.baseQuantity || 1;
-    const baseGrams = portion.baseGrams || 100;
-    const targetQuantity = Math.round(
-        Math.max(
-            isDiscreteUnit(portion.unit) ? 1 : 0,
-            Number(portion._quantity) || 0
+    const targetQuantity = resolveTargetQuantity(portion);
+    const referenceGramsPerUnit =
+        (portion.baseGrams || 100) / (portion.baseQuantity || 1);
+
+    return Math.round(
+        resolveIngredientNutritionGrams(
+            targetQuantity,
+            portion.unit,
+            referenceGramsPerUnit
         )
     );
-
-    return Math.round((targetQuantity / baseQuantity) * baseGrams);
 }
 
 function resolveTargetQuantity(portion: EditablePortion) {
-    return Math.round(
-        Math.max(
-            isDiscreteUnit(portion.unit) ? 1 : 0,
-            Number(portion._quantity) || 0
-        )
-    );
+    const parsed = parseIngredientQuantity(portion._quantity);
+    if (parsed == null || parsed < 0) {
+        return 0;
+    }
+
+    return Math.round(parsed * 1000) / 1000;
 }
 
 function createEmptyPortion(): EditablePortion {
@@ -177,6 +183,7 @@ interface MealEditModalProps {
     onOpen: (open: boolean) => void;
     dayLabel?: string;
     mealTypeLabel?: string;
+    multiWeekPlan?: boolean;
     onSave: (
         updatedMeal: MealSlot,
         options?: {applyToAllDays?: boolean}
@@ -189,6 +196,7 @@ export default function MealEditModal({
     meal,
     dayLabel,
     mealTypeLabel,
+    multiWeekPlan = false,
     onSave
 }: MealEditModalProps) {
     const {data: allFoods = []} = useGetFoods();
@@ -207,7 +215,10 @@ export default function MealEditModal({
                 ...p,
                 _key: p.ingredientId ?? crypto.randomUUID(),
                 _grams: String(p.targetGrams),
-                _quantity: String(p.targetQuantity ?? p.targetGrams)
+                _quantity: formatIngredientQuantityInput(
+                    p.targetQuantity ?? p.targetGrams,
+                    p.unit
+                )
             }))
         );
         setActiveSuggestionIdx(null);
@@ -579,15 +590,8 @@ export default function MealEditModal({
                                                       : 'Cantidad'}
                                             </Label>
                                             <Input
-                                                type='number'
-                                                min={discrete ? 1 : 0}
-                                                step={
-                                                    discrete
-                                                        ? 1
-                                                        : isGrams
-                                                          ? 5
-                                                          : 0.1
-                                                }
+                                                type='text'
+                                                inputMode='decimal'
                                                 value={
                                                     discrete || !isGrams
                                                         ? portion._quantity
@@ -606,6 +610,29 @@ export default function MealEditModal({
                                                         );
                                                     }
                                                 }}
+                                                onBlur={e => {
+                                                    if (!discrete && isGrams) {
+                                                        return;
+                                                    }
+
+                                                    const parsed =
+                                                        parseIngredientQuantity(
+                                                            e.target.value
+                                                        );
+                                                    if (
+                                                        parsed != null &&
+                                                        parsed >= 0
+                                                    ) {
+                                                        updateQuantity(
+                                                            idx,
+                                                            formatIngredientQuantityInput(
+                                                                parsed,
+                                                                portion.unit
+                                                            )
+                                                        );
+                                                    }
+                                                }}
+                                                placeholder='1/3 o 0.33'
                                                 className='h-9 bg-background'
                                             />
                                         </div>
@@ -659,8 +686,9 @@ export default function MealEditModal({
                             className='mt-1 h-4 w-4 rounded border-border'
                         />
                         <span className='text-sm text-muted-foreground'>
-                            Aplicar estos ingredientes a todos los días que
-                            usen esta receta
+                            {multiWeekPlan
+                                ? 'Aplicar estos ingredientes a todos los días de esta semana que usen esta receta'
+                                : 'Aplicar estos ingredientes a todos los días que usen esta receta'}
                         </span>
                     </label>
                     <div className='flex justify-end gap-3'>

@@ -64,6 +64,7 @@ export async function GET(
             data: {
                 protocolId: activeProtocol?.protocolId ?? null,
                 title: activeProtocol?.title ?? null,
+                weekCount: activeProtocol?.weekCount ?? 1,
                 weekPlan: activeProtocol?.weekPlan ?? []
             }
         },

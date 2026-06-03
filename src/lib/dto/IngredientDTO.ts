@@ -4,6 +4,8 @@ export interface IngredientDTO {
     name: string;
     quantity?: number;
     unit?: string;
+    /** Gram weight per unit when unit is not grams (e.g. per tbsp, per piece). */
+    gramsPerUnit?: number;
     caloriesPer100g: number;
     carbohydratesPer100g: number;
     proteinPer100g: number;

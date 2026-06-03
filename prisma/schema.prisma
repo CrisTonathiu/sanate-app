@@ -367,6 +367,7 @@ model ProtocolTemplate {
   createdBy   User   @relation(fields: [createdById], references: [id])
 
   weeklyPlan           Json
+  weekCount            Int      @default(1)
   planCalories         Float?
   macroPercents        Json?
   enabledMeals         Json?
