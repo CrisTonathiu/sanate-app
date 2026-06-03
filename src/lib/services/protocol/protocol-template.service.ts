@@ -38,6 +38,7 @@ export async function createProtocolTemplate(
                 description: validatedInput.description,
                 createdById: validatedInput.createdById,
                 weeklyPlan: input.weeklyPlan,
+                weekCount: validatedInput.weekCount ?? 1,
                 planCalories: validatedInput.planCalories,
                 macroPercents: validatedInput.macroPercents,
                 enabledMeals: validatedInput.enabledMeals,

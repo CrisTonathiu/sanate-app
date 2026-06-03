@@ -2,6 +2,11 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {
+    formatIngredientQuantityInput,
+    parseIngredientQuantity
+} from '@/lib/utils/ingredient-quantity';
+import {useState} from 'react';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -43,6 +48,14 @@ export function IngredientRow({
     suggestions: string[];
     onSelectSuggestion: (name: string) => void;
 }) {
+    const [quantityInput, setQuantityInput] = useState<string | null>(null);
+
+    const displayedQuantity =
+        quantityInput ??
+        (typeof ingredient.quantity === 'number'
+            ? formatIngredientQuantityInput(ingredient.quantity, ingredient.unit)
+            : '');
+
     return (
         <motion.div
             initial={{opacity: 0, y: -10}}
@@ -97,15 +110,29 @@ export function IngredientRow({
                         Cantidad
                     </Label>
                     <Input
-                        type='number'
-                        value={ingredient.quantity}
-                        onChange={e =>
+                        type='text'
+                        inputMode='decimal'
+                        value={displayedQuantity}
+                        onChange={e => {
+                            const raw = e.target.value;
+                            setQuantityInput(raw);
+
+                            const parsed = parseIngredientQuantity(raw);
                             onUpdate(
                                 'quantity',
-                                e.target.value ? parseFloat(e.target.value) : ''
-                            )
-                        }
-                        placeholder='100'
+                                parsed != null && parsed > 0 ? parsed : raw
+                            );
+                        }}
+                        onBlur={() => {
+                            const parsed = parseIngredientQuantity(
+                                quantityInput ?? displayedQuantity
+                            );
+                            if (parsed != null && parsed > 0) {
+                                onUpdate('quantity', parsed);
+                            }
+                            setQuantityInput(null);
+                        }}
+                        placeholder='100 o 1/3'
                         className='h-10 bg-background/50 border-border'
                     />
                 </div>

@@ -26,6 +26,7 @@ export interface ProtocolTemplateOption {
     description?: string | null;
     updatedAt: string;
     weekPlanLength: number;
+    weekCount: number;
 }
 
 interface ProtocolStartDialogProps {
@@ -235,11 +236,16 @@ export default function ProtocolStartDialog({
                                                         </div>
                                                         <div className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
                                                             <span className='rounded-full bg-secondary px-2.5 py-1'>
+                                                                {template.weekCount}{' '}
+                                                                {template.weekCount ===
+                                                                1
+                                                                    ? 'semana'
+                                                                    : 'semanas'}{' '}
+                                                                ·{' '}
                                                                 {
                                                                     template.weekPlanLength
                                                                 }{' '}
-                                                                días en plan
-                                                                semanal
+                                                                días
                                                             </span>
                                                             <span>
                                                                 Actualizada{' '}

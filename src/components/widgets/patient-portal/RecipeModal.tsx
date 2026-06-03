@@ -5,32 +5,15 @@ import {
     X,
     Clock,
     Flame,
-    ChefHat,
     RefreshCw,
     Check,
     UtensilsCrossed
 } from 'lucide-react';
 import Image from 'next/image';
-
-interface Ingredient {
-    name: string;
-    amount: string;
-    unit: string;
-    equivalents?: string[];
-}
-
-interface Recipe {
-    id: string;
-    name: string;
-    image: string;
-    time: string;
-    calories: number;
-    ingredients: Ingredient[];
-    instructions: string[];
-}
+import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
 
 interface RecipeModalProps {
-    recipe: Recipe | null;
+    recipe: MealSliderRecipe | null;
     onClose: () => void;
 }
 
@@ -89,7 +72,13 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                         <h2 className='text-2xl font-bold text-white'>
                             {recipe.name}
                         </h2>
-                        <div className='mt-2 flex items-center gap-4'>
+                        <div className='mt-2 flex flex-wrap items-center gap-3'>
+                            <div className='flex items-center gap-1.5 rounded-full bg-black/40 px-2.5 py-1 backdrop-blur-sm'>
+                                <UtensilsCrossed className='h-3.5 w-3.5 text-amber-400' />
+                                <span className='text-sm font-medium text-white'>
+                                    {recipe.mealTypeLabel}
+                                </span>
+                            </div>
                             <div className='flex items-center gap-1.5 text-white/90'>
                                 <Clock className='h-4 w-4' />
                                 <span className='text-sm'>{recipe.time}</span>
@@ -140,8 +129,8 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                     <li key={index} className='relative'>
                                         <div className='flex items-center justify-between rounded-lg bg-muted/50 p-3'>
                                             <div className='flex items-center gap-3'>
-                                                <div className='flex h-10 w-10 items-center justify-center rounded-full bg-amber-400/20 text-sm font-semibold text-amber-500'>
-                                                    {ingredient.amount}
+                                                <div className='flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold leading-tight text-amber-500'>
+                                                    <span>{ingredient.amount}</span>
                                                 </div>
                                                 <div>
                                                     <p

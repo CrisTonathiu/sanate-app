@@ -4,6 +4,8 @@ import {
     mapStoredPortionsToSliderIngredients,
     type StoredProtocolMealPortions
 } from '@/lib/services/protocol/protocol-meal-portions.mapper';
+import {PROTOCOL_MEAL_LABELS} from '@/lib/config/protocol-meal-times';
+import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
 
 /**
  * Shape aligned with MealSlider / RecipeModal (name, image, time, calories,
@@ -26,7 +28,10 @@ export type MealSliderRecipe = {
         equivalents?: string[];
     }[];
     instructions: string[];
+    /** Collapsed category for slider card icons. */
     mealType: 'breakfast' | 'lunch' | 'dinner';
+    /** Protocol slot label (Desayuno, Colación, Licuado, …). */
+    mealTypeLabel: string;
 };
 
 /** Same order as `MEAL_TYPE_BY_KEY` in protocols API when creating meals. */
@@ -95,20 +100,14 @@ function formatIngredientAmount(
 ): {amount: string; unit: string} {
     const u = (unit ?? 'GRAM').toString().toUpperCase();
     if (u === 'GRAM') {
-        const g = grams || 0;
-        const rounded = Math.abs(g - Math.round(g)) < 0.05 ? Math.round(g) : g;
         return {
-            amount: Number.isInteger(rounded)
-                ? String(rounded)
-                : rounded.toFixed(1),
+            amount: formatIngredientQuantity(grams || 0, 'GRAM'),
             unit: INGREDIENT_UNIT_LABEL.GRAM
         };
     }
-    const q = quantity ?? 1;
-    const amount =
-        Math.abs(q - Math.round(q)) < 0.001 ? String(Math.round(q)) : String(q);
+
     return {
-        amount,
+        amount: formatIngredientQuantity(quantity ?? 1, u),
         unit: INGREDIENT_UNIT_LABEL[u] ?? u.toLowerCase()
     };
 }
@@ -155,7 +154,10 @@ export function mapProtocolMealToSliderRecipe(
           );
 
     const ingredients: MealSliderRecipe['ingredients'] = storedPortions
-        ? mapStoredPortionsToSliderIngredients(storedPortions)
+        ? mapStoredPortionsToSliderIngredients(
+              storedPortions,
+              recipe.ingredients
+          )
         : recipe.ingredients.map(row => {
               const {amount, unit} = formatIngredientAmount(
                   row.grams,
@@ -197,7 +199,9 @@ export function mapProtocolMealToSliderRecipe(
         fat: Math.round(nutrition.fat),
         ingredients,
         instructions,
-        mealType: mapMealTypeToSliderMealType(meal.mealType)
+        mealType: mapMealTypeToSliderMealType(meal.mealType),
+        mealTypeLabel:
+            PROTOCOL_MEAL_LABELS[meal.mealType] ?? meal.mealType
     };
 }
 

@@ -1,4 +1,5 @@
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
+import {formatDayLabelWithWeek} from '@/lib/utils/protocol-week-plan';
 import {
     buildMealSlotFromProtocolMeal,
     buildProtocolMealPortionsCreateData
@@ -52,6 +53,7 @@ export type WeekPlanPayload = Array<
 export type ActiveProtocolSummary = {
     protocolId: string;
     title: string;
+    weekCount: number;
     weekPlan: DayMeals[];
 };
 
@@ -176,6 +178,19 @@ function buildMealsCreateInput(
     };
 }
 
+function splitWeekPlanIntoWeeks(
+    weekPlan: WeekPlanPayload,
+    weekCount: number
+): WeekPlanPayload[] {
+    const weeks: WeekPlanPayload[] = [];
+
+    for (let weekIndex = 0; weekIndex < weekCount; weekIndex++) {
+        weeks.push(weekPlan.slice(weekIndex * 7, weekIndex * 7 + 7));
+    }
+
+    return weeks;
+}
+
 function mapDaysToWeekPlan(
     days: Array<{
         dayIndex: number;
@@ -184,13 +199,17 @@ function mapDaysToWeekPlan(
                 mealType: MealType;
             }
         >;
-    }>
+    }>,
+    weekNumber = 1,
+    weekCount = 1
 ): DayMeals[] {
     return days.map(day => {
         const dayMeals: Partial<DayMeals> & {day: string} = {
-            day:
-                WEEK_DAY_NAMES[day.dayIndex] ??
-                `Día ${day.dayIndex + 1}`
+            day: formatDayLabelWithWeek(
+                WEEK_DAY_NAMES[day.dayIndex] ?? `Día ${day.dayIndex + 1}`,
+                weekNumber,
+                weekCount
+            )
         };
 
         for (const meal of day.meals) {
@@ -205,14 +224,15 @@ function mapDaysToWeekPlan(
     });
 }
 
-async function loadWeekPlanDays(protocolId: string) {
+async function loadWeekPlanDays(protocolId: string): Promise<DayMeals[]> {
     const protocol = await prisma.protocol.findUnique({
         where: {id: protocolId},
         select: {
+            weekCount: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
-                take: 1,
                 select: {
+                    weekNumber: true,
                     days: {
                         orderBy: {dayIndex: 'asc'},
                         select: {
@@ -227,14 +247,19 @@ async function loadWeekPlanDays(protocolId: string) {
         }
     });
 
-    return protocol?.weeksPlan[0]?.days ?? [];
+    const weekCount = protocol?.weekCount ?? 1;
+
+    return (
+        protocol?.weeksPlan.flatMap(week =>
+            mapDaysToWeekPlan(week.days, week.weekNumber, weekCount)
+        ) ?? []
+    );
 }
 
 export async function loadProtocolWeekPlanById(
     protocolId: string
 ): Promise<DayMeals[]> {
-    const days = await loadWeekPlanDays(protocolId);
-    return mapDaysToWeekPlan(days);
+    return loadWeekPlanDays(protocolId);
 }
 
 export async function getActiveProtocolForPatient(
@@ -249,10 +274,11 @@ export async function getActiveProtocolForPatient(
         select: {
             id: true,
             title: true,
+            weekCount: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
-                take: 1,
                 select: {
+                    weekNumber: true,
                     days: {
                         orderBy: {dayIndex: 'asc'},
                         select: {
@@ -271,12 +297,16 @@ export async function getActiveProtocolForPatient(
         return null;
     }
 
-    const days = protocol.weeksPlan[0]?.days ?? [];
+    const weekCount = protocol.weekCount ?? 1;
+    const weekPlan = protocol.weeksPlan.flatMap(week =>
+        mapDaysToWeekPlan(week.days, week.weekNumber, weekCount)
+    );
 
     return {
         protocolId: protocol.id,
         title: protocol.title,
-        weekPlan: mapDaysToWeekPlan(days)
+        weekCount,
+        weekPlan
     };
 }
 
@@ -290,6 +320,7 @@ export async function loadProtocolWeekPlanForPatient(
 async function replaceProtocolWeekPlan(
     protocolId: string,
     weekPlan: WeekPlanPayload,
+    weekCount: number,
     tx: Prisma.TransactionClient
 ) {
     await tx.protocolMeal.deleteMany({
@@ -314,13 +345,19 @@ async function replaceProtocolWeekPlan(
         where: {protocolId}
     });
 
-    await tx.protocolWeek.create({
-        data: {
-            protocolId,
-            weekNumber: 1,
-            days: buildMealsCreateInput(weekPlan)
-        }
-    });
+    const weekChunks = splitWeekPlanIntoWeeks(weekPlan, weekCount);
+
+    for (const [index, chunk] of weekChunks.entries()) {
+        if (chunk.length === 0) continue;
+
+        await tx.protocolWeek.create({
+            data: {
+                protocolId,
+                weekNumber: index + 1,
+                days: buildMealsCreateInput(chunk)
+            }
+        });
+    }
 }
 
 export async function createPatientProtocol(input: {
@@ -330,20 +367,23 @@ export async function createPatientProtocol(input: {
     weekPlan: WeekPlanPayload;
     affiliateLinks?: Prisma.InputJsonValue;
 }) {
+    const weekCount = input.weekCount ?? 1;
+    const weekChunks = splitWeekPlanIntoWeeks(input.weekPlan, weekCount);
+
     const protocol = await prisma.protocol.create({
         data: {
             title: input.title,
-            weekCount: input.weekCount ?? 1,
+            weekCount,
             patientId: input.patientId,
             status: 'ACTIVE',
             affiliateLinks: input.affiliateLinks,
             weeksPlan: {
-                create: [
-                    {
-                        weekNumber: 1,
-                        days: buildMealsCreateInput(input.weekPlan)
-                    }
-                ]
+                create: weekChunks
+                    .filter(chunk => chunk.length > 0)
+                    .map((chunk, index) => ({
+                        weekNumber: index + 1,
+                        days: buildMealsCreateInput(chunk)
+                    }))
             }
         },
         select: {
@@ -376,7 +416,12 @@ export async function updatePatientProtocol(input: {
             }
         });
 
-        await replaceProtocolWeekPlan(input.protocolId, input.weekPlan, tx);
+        await replaceProtocolWeekPlan(
+            input.protocolId,
+            input.weekPlan,
+            input.weekCount ?? 1,
+            tx
+        );
     });
 
     const protocol = await prisma.protocol.findUnique({

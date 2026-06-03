@@ -70,10 +70,11 @@ export default function EditRecipeClient({recipeId}: EditRecipeClientProps) {
                     imageUrl: body.data.imageUrl ?? null,
                     mealType: body.data.mealType,
                     ingredients: body.data.ingredients.map(item => ({
-                        foodId:
+                        foodId: (
                             item.ingredient.food?.id ||
                             item.ingredient.foodId ||
-                            item.ingredient.name,
+                            item.ingredient.name
+                        )?.trim(),
                         quantity: item.quantity,
                         unit: item.unit,
                         grams: item.grams

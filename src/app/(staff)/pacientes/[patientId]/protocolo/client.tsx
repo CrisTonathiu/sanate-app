@@ -36,6 +36,12 @@ import {
 import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
 import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
+import {collectRecipeIdsUsedInOtherWeeks} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {
+    countWeeksInPlan,
+    dayBelongsToWeek,
+    parseWeekIndexFromDayLabel
+} from '@/lib/utils/protocol-week-plan';
 
 interface ClientPageProps {
     patientId: string;
@@ -61,6 +67,7 @@ type ProtocolTemplateRecord = {
     description?: string | null;
     updatedAt: string;
     weeklyPlan: DayMeals[];
+    weekCount?: number | null;
     planCalories?: number | null;
     macroPercents?: Partial<MacroPercents> | null;
     enabledMeals?: Partial<Record<MealType, boolean>> | null;
@@ -136,10 +143,11 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [diagnosis, setDiagnosis] = useState<string>('');
     const [notes, setNotes] = useState<string>('');
     const protocolTitle = diagnosis.trim() || 'Protocolo nutricional';
-    const durationLabel = 'Duracion: 4 semanas';
 
     // Protocol State
     const [planCalories, setPlanCalories] = useState<number>(0);
+    const [weekCount, setWeekCount] = useState<number>(1);
+    const durationLabel = `Duracion: ${weekCount} ${weekCount === 1 ? 'semana' : 'semanas'}`;
     const [macroPercents, setMacroPercents] = useState<MacroPercents>(
         DEFAULT_MACRO_PERCENTS
     );
@@ -201,9 +209,16 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         updatedMeal: MealSlot,
         options?: {applyToAllDays?: boolean}
     ) => {
-        setWeekPlan(prev =>
-            prev.map(d => {
+        setWeekPlan(prev => {
+            const targetWeekIndex = parseWeekIndexFromDayLabel(day);
+            const multiWeek = countWeeksInPlan(prev) > 1;
+
+            return prev.map(d => {
                 if (options?.applyToAllDays) {
+                    if (multiWeek && !dayBelongsToWeek(d.day, targetWeekIndex)) {
+                        return d;
+                    }
+
                     const slot = d[mealType];
                     if (slot?.id === updatedMeal.id) {
                         return {...d, [mealType]: updatedMeal};
@@ -212,8 +227,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 }
 
                 return d.day === day ? {...d, [mealType]: updatedMeal} : d;
-            })
-        );
+            });
+        });
     };
 
     useEffect(() => {
@@ -233,6 +248,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     typeof result?.data?.protocolId === 'string'
                         ? result.data.protocolId
                         : null;
+                const savedWeekCount =
+                    typeof result?.data?.weekCount === 'number'
+                        ? result.data.weekCount
+                        : null;
 
                 if (!cancelled && response.ok && result?.success) {
                     if (savedProtocolId) {
@@ -241,6 +260,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
                     if (Array.isArray(savedPlan) && savedPlan.length > 0) {
                         setWeekPlan(savedPlan);
+                        setWeekCount(
+                            savedWeekCount ??
+                                countWeeksInPlan(savedPlan)
+                        );
                         setIsStartDialogOpen(false);
                         setCurrentStep(4);
                     }
@@ -300,6 +323,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setSelectedTemplateName(null);
         setActiveProtocolId(null);
         setWeekPlan([]);
+        setWeekCount(1);
         setIsStartDialogOpen(false);
     };
 
@@ -315,6 +339,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
         try {
             setWeekPlan(template.weeklyPlan);
+            setWeekCount(
+                template.weekCount ?? countWeeksInPlan(template.weeklyPlan)
+            );
             setPlanCalories(template.planCalories ?? 0);
             setMacroPercents(prev => ({
                 ...prev,
@@ -362,6 +389,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         const templatePayload = {
             name: templateName,
             weeklyPlan: weekPlan,
+            weekCount,
             planCalories,
             macroPercents,
             enabledMeals,
@@ -440,7 +468,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             name: template.name,
             description: template.description,
             updatedAt: template.updatedAt,
-            weekPlanLength: template.weeklyPlan.length
+            weekPlanLength: template.weeklyPlan.length,
+            weekCount:
+                template.weekCount ??
+                countWeeksInPlan(template.weeklyPlan)
         }));
 
     const getTargetCaloriesForMeal = (mealType: MealType): number => {
@@ -528,6 +559,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     return (
                         <ProtocolDistributionCard
                             planCalories={planCalories}
+                            weekCount={weekCount}
+                            setWeekCount={setWeekCount}
                             enabledMeals={enabledMeals}
                             setEnabledMeals={setEnabledMeals}
                             mealPercentages={mealPercentages}
@@ -603,6 +636,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const handleGeneratePlan = async (payload: {
         planCalories: number;
+        weekCount: number;
         macroPercents: {carbs: number; protein: number; fat: number};
         mealDistribution: Record<string, number>;
         macroMealDistribution: MacroMealDistributionPayload;
@@ -717,6 +751,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             });
             handleGeneratePlan({
                 planCalories,
+                weekCount,
                 macroPercents,
                 mealDistribution,
                 macroMealDistribution
@@ -756,7 +791,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     credentials: 'include',
                     body: JSON.stringify({
                         title: protocolTitle,
-                        weekCount: 1,
+                        weekCount,
                         status: 'ACTIVE',
                         weekPlan,
                         affiliateLinks,
@@ -924,6 +959,18 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     targetCalories={getTargetCaloriesForMeal(
                         selectedDayMeal.mealType
                     )}
+                    excludedRecipeIds={
+                        countWeeksInPlan(weekPlan) > 1
+                            ? [
+                                  ...collectRecipeIdsUsedInOtherWeeks(
+                                      weekPlan,
+                                      selectedDayMeal.day,
+                                      selectedDayMeal.mealType,
+                                      parseWeekIndexFromDayLabel
+                                  )
+                              ]
+                            : []
+                    }
                     onClose={() => {
                         setRecipeModalOpen(false);
                         setSelectedDayMeal(null);
