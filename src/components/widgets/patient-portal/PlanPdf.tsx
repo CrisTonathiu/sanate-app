@@ -10,6 +10,7 @@ import type {AffiliateLink} from '@/components/widgets/profile-details/Affiliate
 
 /** Drop your exported A3 letterhead PNG in public/plan-letterhead.png */
 export const PLAN_LETTERHEAD_PATH = '/receta-fondo-prueba.png';
+export const PLAN_STATIC_PAGE_PATH = '/plato-inteligente-omnivoro.png';
 
 /**
  * Vertical space reserved for the letterhead (logo, name, divider).
@@ -38,6 +39,11 @@ const styles = StyleSheet.create({
     backgroundImage: {
         width: '100%',
         height: '100%'
+    },
+    fullPageImage: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover'
     },
     content: {
         marginTop: PLAN_CONTENT_TOP_PT,
@@ -127,9 +133,14 @@ function getValidAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
 type PlanPdfProps = {
     letterheadSrc: string;
     recommendations: PlanRecommendations;
+    staticPageSrc: string;
 };
 
-export function PlanPdf({letterheadSrc, recommendations}: PlanPdfProps) {
+export function PlanPdf({
+    letterheadSrc,
+    recommendations,
+    staticPageSrc
+}: PlanPdfProps) {
     const sections = buildRecommendationSections(recommendations);
     const affiliateLinks = getValidAffiliateLinks(
         recommendations.affiliateLinks
@@ -175,6 +186,10 @@ export function PlanPdf({letterheadSrc, recommendations}: PlanPdfProps) {
                         </View>
                     ) : null}
                 </View>
+            </Page>
+
+            <Page size='A3'>
+                <Image src={staticPageSrc} style={styles.fullPageImage} />
             </Page>
         </Document>
     );

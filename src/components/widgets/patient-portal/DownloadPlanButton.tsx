@@ -7,6 +7,7 @@ import {Button} from '@/components/ui/button';
 import {
     PlanPdf,
     PLAN_LETTERHEAD_PATH,
+    PLAN_STATIC_PAGE_PATH,
     type PlanRecommendations
 } from './PlanPdf';
 
@@ -50,10 +51,14 @@ export function DownloadPlanButton({
             const letterheadSrc = await fetchImageAsDataUri(
                 `${window.location.origin}${PLAN_LETTERHEAD_PATH}`
             );
+            const staticPageSrc = await fetchImageAsDataUri(
+                `${window.location.origin}${PLAN_STATIC_PAGE_PATH}`
+            );
             const blob = await pdf(
                 <PlanPdf
                     letterheadSrc={letterheadSrc}
                     recommendations={recommendations}
+                    staticPageSrc={staticPageSrc}
                 />
             ).toBlob();
             const url = URL.createObjectURL(blob);
