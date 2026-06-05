@@ -7,15 +7,30 @@ import {Apple, Droplets, Lightbulb, Pill} from 'lucide-react';
 import {AffiliateLinksCard, type AffiliateLink} from './AffiliateLinksCard';
 
 interface RecommendationsCardProps {
+    generalRecommendations: string;
+    setGeneralRecommendations: (value: string) => void;
+    tips: string;
+    setTips: (value: string) => void;
+    hydrationRecommendations: string;
+    setHydrationRecommendations: (value: string) => void;
+    supplementRecommendations: string;
+    setSupplementRecommendations: (value: string) => void;
     affiliateLinks: AffiliateLink[];
     setAffiliateLinks: (links: AffiliateLink[]) => void;
 }
 
 export default function RecommendationsCard({
+    generalRecommendations,
+    setGeneralRecommendations,
+    tips,
+    setTips,
+    hydrationRecommendations,
+    setHydrationRecommendations,
+    supplementRecommendations,
+    setSupplementRecommendations,
     affiliateLinks,
     setAffiliateLinks
 }: RecommendationsCardProps) {
-
     return (
         <motion.div
             initial={{opacity: 0, y: 10}}
@@ -30,6 +45,10 @@ export default function RecommendationsCard({
                 </CardHeader>
                 <CardContent>
                     <Textarea
+                        value={generalRecommendations}
+                        onChange={event =>
+                            setGeneralRecommendations(event.target.value)
+                        }
                         placeholder='Ingresa recomendaciones dieteticas generales para el paciente...'
                         className='min-h-[120px] resize-none'
                     />
@@ -45,6 +64,8 @@ export default function RecommendationsCard({
                 </CardHeader>
                 <CardContent>
                     <Textarea
+                        value={tips}
+                        onChange={event => setTips(event.target.value)}
                         placeholder='Ingresa consejos especificos de nutricion...'
                         className='min-h-[100px] resize-none'
                     />
@@ -60,6 +81,10 @@ export default function RecommendationsCard({
                 </CardHeader>
                 <CardContent>
                     <Textarea
+                        value={hydrationRecommendations}
+                        onChange={event =>
+                            setHydrationRecommendations(event.target.value)
+                        }
                         placeholder='Ingresa pautas de hidratacion...'
                         className='min-h-[80px] resize-none'
                     />
@@ -75,6 +100,10 @@ export default function RecommendationsCard({
                 </CardHeader>
                 <CardContent>
                     <Textarea
+                        value={supplementRecommendations}
+                        onChange={event =>
+                            setSupplementRecommendations(event.target.value)
+                        }
                         placeholder='Ingresa recomendaciones de suplementos...'
                         className='min-h-[80px] resize-none'
                     />

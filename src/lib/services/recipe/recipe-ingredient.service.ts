@@ -5,7 +5,7 @@ import {
     CreateRecipeIngredientInput,
     createRecipeIngredientSchema
 } from '@/lib/validations/ingredient.schema';
-import {gramsPerIngredientUnit} from '@/lib/utils/ingredient-quantity';
+import {resolveReferenceGramsPerUnit} from '@/lib/utils/ingredient-quantity';
 import {ZodError} from 'zod';
 
 export async function addIngredientToRecipe(
@@ -26,7 +26,8 @@ export async function addIngredientToRecipe(
         }
 
         const ingredient = await prisma.ingredient.findUnique({
-            where: {id: validatedInput.ingredientId}
+            where: {id: validatedInput.ingredientId},
+            include: {food: true}
         });
 
         if (!ingredient) {
@@ -49,11 +50,15 @@ export async function addIngredientToRecipe(
                       : 1,
             unit: validatedInput.unit ?? 'GRAM',
             grams:
-                validatedInput.grams && validatedInput.grams > 0
-                    ? validatedInput.grams
-                    : validatedInput.unit === 'GRAM'
-                      ? 100
-                      : gramsPerIngredientUnit(validatedInput.unit)
+                validatedInput.unit === 'GRAM'
+                    ? validatedInput.grams && validatedInput.grams > 0
+                        ? validatedInput.grams
+                        : 100
+                    : resolveReferenceGramsPerUnit(
+                          validatedInput.unit ?? 'GRAM',
+                          validatedInput.grams,
+                          ingredient.food?.density
+                      )
         } as unknown as Parameters<
             typeof prisma.recipeIngredient.create
         >[0]['data'];

@@ -189,6 +189,13 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         null
     );
     const [affiliateLinks, setAffiliateLinks] = useState<AffiliateLink[]>([]);
+    const [generalRecommendations, setGeneralRecommendations] =
+        useState<string>('');
+    const [tips, setTips] = useState<string>('');
+    const [hydrationRecommendations, setHydrationRecommendations] =
+        useState<string>('');
+    const [supplementRecommendations, setSupplementRecommendations] =
+        useState<string>('');
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
 
     const [selectedDayMeal, setSelectedDayMeal] = useState<{
@@ -257,6 +264,29 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     if (savedProtocolId) {
                         setActiveProtocolId(savedProtocolId);
                     }
+
+                    setGeneralRecommendations(
+                        typeof result?.data?.generalRecommendations === 'string'
+                            ? result.data.generalRecommendations
+                            : ''
+                    );
+                    setTips(
+                        typeof result?.data?.tips === 'string'
+                            ? result.data.tips
+                            : ''
+                    );
+                    setHydrationRecommendations(
+                        typeof result?.data?.hydrationRecommendations ===
+                            'string'
+                            ? result.data.hydrationRecommendations
+                            : ''
+                    );
+                    setSupplementRecommendations(
+                        typeof result?.data?.supplementRecommendations ===
+                            'string'
+                            ? result.data.supplementRecommendations
+                            : ''
+                    );
 
                     if (Array.isArray(savedPlan) && savedPlan.length > 0) {
                         setWeekPlan(savedPlan);
@@ -581,6 +611,18 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 case 5:
                     return (
                         <RecommendationsCard
+                            generalRecommendations={generalRecommendations}
+                            setGeneralRecommendations={setGeneralRecommendations}
+                            tips={tips}
+                            setTips={setTips}
+                            hydrationRecommendations={hydrationRecommendations}
+                            setHydrationRecommendations={
+                                setHydrationRecommendations
+                            }
+                            supplementRecommendations={supplementRecommendations}
+                            setSupplementRecommendations={
+                                setSupplementRecommendations
+                            }
                             affiliateLinks={affiliateLinks}
                             setAffiliateLinks={setAffiliateLinks}
                         />
@@ -795,6 +837,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         status: 'ACTIVE',
                         weekPlan,
                         affiliateLinks,
+                        generalRecommendations,
+                        tips,
+                        hydrationRecommendations,
+                        supplementRecommendations,
                         ...(activeProtocolId
                             ? {protocolId: activeProtocolId}
                             : {})

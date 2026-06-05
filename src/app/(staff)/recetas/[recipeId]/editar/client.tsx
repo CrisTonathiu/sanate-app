@@ -2,6 +2,7 @@
 
 import {RecipeForm} from '@/components/widgets/recipe/RecipeForm';
 import {RecipeFormData} from '@/lib/types/recipe-type';
+import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 import {useRouter} from 'next/navigation';
 import {useEffect, useState} from 'react';
 
@@ -67,14 +68,14 @@ export default function EditRecipeClient({recipeId}: EditRecipeClientProps) {
                 setRecipeData({
                     id: body.data.id,
                     title: body.data.title,
-                    imageUrl: body.data.imageUrl ?? null,
+                    imageUrl: getSafeRecipeImageSrc(body.data.imageUrl),
                     mealType: body.data.mealType,
                     ingredients: body.data.ingredients.map(item => ({
-                        foodId: (
+                        foodId:
                             item.ingredient.food?.id ||
                             item.ingredient.foodId ||
-                            item.ingredient.name
-                        )?.trim(),
+                            undefined,
+                        name: item.ingredient.name,
                         quantity: item.quantity,
                         unit: item.unit,
                         grams: item.grams

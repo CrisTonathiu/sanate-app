@@ -446,7 +446,14 @@ async function main() {
     }
 
     // CEREALES
-    const cereals = [
+    const cereals: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        density?: number;
+    }> = [
         {
             name: 'Arroz integral',
             protein: 2.6,
@@ -478,7 +485,7 @@ async function main() {
             calories: 250
         },
         {name: 'Quinoa', protein: 4.4, carbs: 21, fat: 1.9, calories: 120},
-        {name: 'Avena', protein: 17, carbs: 66, fat: 7, calories: 389},
+        {name: 'Avena', protein: 17, carbs: 66, fat: 7, calories: 389, density: 0.35},
         {name: 'Pan integral', protein: 13, carbs: 41, fat: 4, calories: 247},
         {name: 'Pan blanco', protein: 9, carbs: 49, fat: 3, calories: 265},
         {
@@ -521,7 +528,8 @@ async function main() {
             protein: 13,
             carbs: 78,
             fat: 4.5,
-            calories: 387
+            calories: 387,
+            density: 0.046
         }
     ];
 
@@ -532,7 +540,8 @@ async function main() {
             proteinPer100g: cereal.protein,
             carbsPer100g: cereal.carbs,
             fatPer100g: cereal.fat,
-            caloriesPer100g: cereal.calories
+            caloriesPer100g: cereal.calories,
+            ...(cereal.density != null ? {density: cereal.density} : {})
         };
 
         await prisma.food.create({
@@ -591,22 +600,31 @@ async function main() {
     }
 
     // GRASAS
-    const fats = [
+    const fats: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        density?: number;
+    }> = [
         {
             name: 'Aceite de oliva',
             protein: 0,
             carbs: 0,
             fat: 100,
-            calories: 884
+            calories: 884,
+            density: 0.92
         },
         {
             name: 'Aceite de canola',
             protein: 0,
             carbs: 0,
             fat: 100,
-            calories: 884
+            calories: 884,
+            density: 0.92
         },
-        {name: 'Ghee', protein: 0, carbs: 0, fat: 100, calories: 900},
+        {name: 'Ghee', protein: 0, carbs: 0, fat: 100, calories: 900, density: 0.91},
         {name: 'Aguacate', protein: 2, carbs: 9, fat: 15, calories: 160}
     ];
 
@@ -617,7 +635,8 @@ async function main() {
             proteinPer100g: fat.protein,
             carbsPer100g: fat.carbs,
             fatPer100g: fat.fat,
-            caloriesPer100g: fat.calories
+            caloriesPer100g: fat.calories,
+            ...(fat.density != null ? {density: fat.density} : {})
         };
         await prisma.food.create({
             data: fatFoodData

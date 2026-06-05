@@ -111,7 +111,7 @@ export function IngredientRow({
                     </Label>
                     <Input
                         type='text'
-                        inputMode='decimal'
+                        inputMode='text'
                         value={displayedQuantity}
                         onChange={e => {
                             const raw = e.target.value;
