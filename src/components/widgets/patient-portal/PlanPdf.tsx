@@ -19,9 +19,9 @@ export const PLAN_CONTENT_TOP_PT = 145;
 
 const CONTENT_HORIZONTAL_PT = 48;
 const CONTENT_BOTTOM_PT = 48;
-const BODY_FONT_SIZE = 12;
+const BODY_FONT_SIZE = 14;
 const LINE_HEIGHT = 1.75;
-const SECTION_GAP_LINES = 3;
+const SECTION_GAP_LINES = 2;
 const SECTION_GAP_PT = BODY_FONT_SIZE * LINE_HEIGHT * SECTION_GAP_LINES;
 
 const styles = StyleSheet.create({
