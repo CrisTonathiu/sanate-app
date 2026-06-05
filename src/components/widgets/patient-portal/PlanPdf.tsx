@@ -10,7 +10,7 @@ import type {AffiliateLink} from '@/components/widgets/profile-details/Affiliate
 
 /** Drop your exported A3 letterhead PNG in public/plan-letterhead.png */
 export const PLAN_LETTERHEAD_PATH = '/receta-fondo-prueba.png';
-export const PLAN_STATIC_PAGE_PATH = '/plato-inteligente-omnivoro.png';
+export const PLAN_STATIC_PAGE_PATH = '/plato-inteligente-omnivoro-page.png';
 
 /**
  * Vertical space reserved for the letterhead (logo, name, divider).
@@ -20,8 +20,8 @@ export const PLAN_CONTENT_TOP_PT = 145;
 
 const CONTENT_HORIZONTAL_PT = 48;
 const CONTENT_BOTTOM_PT = 48;
-const BODY_FONT_SIZE = 14;
-const LINE_HEIGHT = 1.75;
+const BODY_FONT_SIZE = 16;
+const LINE_HEIGHT = 1.5;
 const SECTION_GAP_LINES = 2;
 const SECTION_GAP_PT = BODY_FONT_SIZE * LINE_HEIGHT * SECTION_GAP_LINES;
 
