@@ -4,7 +4,11 @@ import {useState} from 'react';
 import {pdf} from '@react-pdf/renderer';
 import {Download} from 'lucide-react';
 import {Button} from '@/components/ui/button';
-import {PlanPdf, PLAN_LETTERHEAD_PATH} from './PlanPdf';
+import {
+    PlanPdf,
+    PLAN_LETTERHEAD_PATH,
+    type PlanRecommendations
+} from './PlanPdf';
 
 async function fetchImageAsDataUri(path: string): Promise<string> {
     const response = await fetch(path);
@@ -30,7 +34,13 @@ async function fetchImageAsDataUri(path: string): Promise<string> {
     });
 }
 
-export function DownloadPlanButton() {
+type DownloadPlanButtonProps = {
+    recommendations: PlanRecommendations;
+};
+
+export function DownloadPlanButton({
+    recommendations
+}: DownloadPlanButtonProps) {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownload = async () => {
@@ -41,7 +51,10 @@ export function DownloadPlanButton() {
                 `${window.location.origin}${PLAN_LETTERHEAD_PATH}`
             );
             const blob = await pdf(
-                <PlanPdf letterheadSrc={letterheadSrc} />
+                <PlanPdf
+                    letterheadSrc={letterheadSrc}
+                    recommendations={recommendations}
+                />
             ).toBlob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
