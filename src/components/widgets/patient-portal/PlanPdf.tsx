@@ -21,7 +21,8 @@ const CONTENT_HORIZONTAL_PT = 48;
 const CONTENT_BOTTOM_PT = 48;
 const BODY_FONT_SIZE = 12;
 const LINE_HEIGHT = 1.75;
-const SECTION_GAP_PT = BODY_FONT_SIZE * LINE_HEIGHT;
+const SECTION_GAP_LINES = 3;
+const SECTION_GAP_PT = BODY_FONT_SIZE * LINE_HEIGHT * SECTION_GAP_LINES;
 
 const styles = StyleSheet.create({
     page: {
@@ -56,7 +57,7 @@ const styles = StyleSheet.create({
     bodyText: {
         fontSize: BODY_FONT_SIZE,
         fontFamily: 'Helvetica',
-        color: '#1a4a7a',
+        color: '#333333',
         lineHeight: LINE_HEIGHT
     },
     affiliateLink: {
@@ -119,8 +120,7 @@ function buildRecommendationSections(
 
 function getValidAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
     return links.filter(
-        link =>
-            link.name.trim().length > 0 && link.url.trim().length > 0
+        link => link.name.trim().length > 0 && link.url.trim().length > 0
     );
 }
 
@@ -149,14 +149,16 @@ export function PlanPdf({letterheadSrc, recommendations}: PlanPdfProps) {
                             <Text style={styles.sectionTitle}>
                                 {section.title}
                             </Text>
-                            <Text style={styles.bodyText}>{section.content}</Text>
+                            <Text style={styles.bodyText}>
+                                {section.content}
+                            </Text>
                         </View>
                     ))}
 
                     {hasAffiliateLinks ? (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>
-                                Links de afiliados
+                                Link de productos recomendados
                             </Text>
                             {affiliateLinks.map(link => (
                                 <View
