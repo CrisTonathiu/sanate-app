@@ -1,5 +1,5 @@
-import Image from 'next/image';
 import {LogoutButton} from './LogoutButton';
+import {DownloadPlanButton} from './DownloadPlanButton';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
 
 interface PortalHeaderProps {
@@ -29,7 +29,10 @@ export default function PortalHeader({avatarUrl, name}: PortalHeaderProps) {
                 </div>
             </div>
 
-            <LogoutButton />
+            <div className='flex items-center gap-2'>
+                <DownloadPlanButton />
+                <LogoutButton />
+            </div>
         </div>
     );
 }

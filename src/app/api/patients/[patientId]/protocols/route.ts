@@ -9,6 +9,21 @@ import {affiliateLinkSchema} from '@/lib/validations/protocol-template.schema';
 import {Prisma, ProtocolStatus} from '@prisma/client';
 import {z} from 'zod';
 
+function parseOptionalRecommendationText(
+    value: unknown
+): string | null | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
 function parseProtocolBody(body: unknown) {
     const payload = body as Record<string, unknown>;
     const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
@@ -39,7 +54,17 @@ function parseProtocolBody(body: unknown) {
         status,
         weekPlan,
         protocolId,
-        affiliateLinksResult
+        affiliateLinksResult,
+        generalRecommendations: parseOptionalRecommendationText(
+            payload?.generalRecommendations
+        ),
+        tips: parseOptionalRecommendationText(payload?.tips),
+        hydrationRecommendations: parseOptionalRecommendationText(
+            payload?.hydrationRecommendations
+        ),
+        supplementRecommendations: parseOptionalRecommendationText(
+            payload?.supplementRecommendations
+        )
     };
 }
 
@@ -65,7 +90,14 @@ export async function GET(
                 protocolId: activeProtocol?.protocolId ?? null,
                 title: activeProtocol?.title ?? null,
                 weekCount: activeProtocol?.weekCount ?? 1,
-                weekPlan: activeProtocol?.weekPlan ?? []
+                weekPlan: activeProtocol?.weekPlan ?? [],
+                generalRecommendations:
+                    activeProtocol?.generalRecommendations ?? null,
+                tips: activeProtocol?.tips ?? null,
+                hydrationRecommendations:
+                    activeProtocol?.hydrationRecommendations ?? null,
+                supplementRecommendations:
+                    activeProtocol?.supplementRecommendations ?? null
             }
         },
         {status: 200}
@@ -94,7 +126,11 @@ export async function POST(
             weekCount,
             weekPlan,
             protocolId,
-            affiliateLinksResult
+            affiliateLinksResult,
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations
         } = parseProtocolBody(body);
 
         if (!affiliateLinksResult.success) {
@@ -133,20 +169,29 @@ export async function POST(
             );
         }
 
+        const recommendations = {
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations
+        };
+
         const saved = protocolId
             ? await updatePatientProtocol({
                   protocolId,
                   title,
                   weekCount,
                   weekPlan,
-                  affiliateLinks
+                  affiliateLinks,
+                  ...recommendations
               })
             : await createPatientProtocol({
                   patientId,
                   title,
                   weekCount,
                   weekPlan,
-                  affiliateLinks
+                  affiliateLinks,
+                  ...recommendations
               });
 
         return Response.json(
@@ -194,7 +239,11 @@ export async function PUT(
             weekCount,
             weekPlan,
             protocolId,
-            affiliateLinksResult
+            affiliateLinksResult,
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations
         } = parseProtocolBody(body);
 
         if (!affiliateLinksResult.success) {
@@ -255,7 +304,11 @@ export async function PUT(
             title,
             weekCount,
             weekPlan,
-            affiliateLinks
+            affiliateLinks,
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations
         });
 
         return Response.json(
