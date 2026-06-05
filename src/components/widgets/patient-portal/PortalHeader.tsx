@@ -1,13 +1,19 @@
-import Image from 'next/image';
 import {LogoutButton} from './LogoutButton';
+import {DownloadPlanButton} from './DownloadPlanButton';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
+import type {PlanRecommendations} from './PlanPdf';
 
 interface PortalHeaderProps {
     avatarUrl: string;
     name: string;
+    recommendations: PlanRecommendations;
 }
 
-export default function PortalHeader({avatarUrl, name}: PortalHeaderProps) {
+export default function PortalHeader({
+    avatarUrl,
+    name,
+    recommendations
+}: PortalHeaderProps) {
     return (
         <div className='flex items-center justify-between'>
             <div className='relative flex items-center gap-3'>
@@ -29,7 +35,10 @@ export default function PortalHeader({avatarUrl, name}: PortalHeaderProps) {
                 </div>
             </div>
 
-            <LogoutButton />
+            <div className='flex items-center gap-2'>
+                <DownloadPlanButton recommendations={recommendations} />
+                <LogoutButton />
+            </div>
         </div>
     );
 }

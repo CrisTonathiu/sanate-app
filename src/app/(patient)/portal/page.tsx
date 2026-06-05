@@ -68,7 +68,11 @@ async function getPortalData() {
         },
         orderBy: {createdAt: 'desc'},
         select: {
-            affiliateLinks: true
+            affiliateLinks: true,
+            generalRecommendations: true,
+            tips: true,
+            hydrationRecommendations: true,
+            supplementRecommendations: true
         }
     });
 
@@ -103,6 +107,10 @@ async function getPortalData() {
         weekDays,
         todayIndex,
         affiliateLinks,
+        generalRecommendations: protocol.generalRecommendations,
+        tips: protocol.tips,
+        hydrationRecommendations: protocol.hydrationRecommendations,
+        supplementRecommendations: protocol.supplementRecommendations,
         protocolWeekCount,
         activeProtocolWeekIndex
     };
@@ -148,6 +156,16 @@ export default async function PatientPortal() {
                 <PortalHeader
                     avatarUrl={data?.patient.user.avatarUrl ?? ''}
                     name={patientName}
+                    recommendations={{
+                        generalRecommendations:
+                            data?.generalRecommendations ?? null,
+                        tips: data?.tips ?? null,
+                        hydrationRecommendations:
+                            data?.hydrationRecommendations ?? null,
+                        supplementRecommendations:
+                            data?.supplementRecommendations ?? null,
+                        affiliateLinks: data?.affiliateLinks ?? []
+                    }}
                 />
 
                 {data ? (

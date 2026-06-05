@@ -54,12 +54,15 @@ import {
     resolveIngredientNutritionGrams,
     resolveReferenceGramsPerUnit
 } from '@/lib/utils/ingredient-quantity';
+import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
 // --- Constants ---
 const MEAL_TYPES = [
     {value: 'SMOOTHIE', label: 'Licuado'},
     {value: 'BREAKFAST', label: 'Desayuno'},
     {value: 'SNACK', label: 'Colación'},
+    {value: 'SNACK1', label: 'Colación 1'},
+    {value: 'SNACK2', label: 'Colación 2'},
     {value: 'LUNCH', label: 'Comida'},
     {value: 'DINNER', label: 'Cena'},
     {value: 'DRINKS', label: 'Bebida'}
@@ -226,7 +229,10 @@ export function RecipeForm(props: RecipeFormProps) {
                     return {
                         id: generateId(),
                         foodId: matchedFood?.id,
-                        name: matchedFood?.name ?? normalizedFoodId,
+                        name:
+                            matchedFood?.name ??
+                            item.name?.trim() ??
+                            normalizedFoodId,
                         quantity:
                             item.quantity ??
                             (uiUnit === 'g' ? (item.grams ?? 100) : 1),
@@ -259,8 +265,10 @@ export function RecipeForm(props: RecipeFormProps) {
                     instruction: item.instruction
                 }))
             );
-            setRecipeImage(initialData.imageUrl || null);
-            setUploadedImageUrl(initialData.imageUrl || null);
+            const safeImageUrl = getSafeRecipeImageSrc(initialData.imageUrl);
+
+            setRecipeImage(safeImageUrl);
+            setUploadedImageUrl(safeImageUrl);
 
             // Store initial state for dirty checking
             const state = JSON.stringify({
@@ -269,7 +277,7 @@ export function RecipeForm(props: RecipeFormProps) {
                 ingredients: initialData.ingredients,
                 extraIngredients: initialData.extraIngredients,
                 steps: initialData.steps,
-                imageUrl: initialData.imageUrl
+                imageUrl: safeImageUrl
             });
             setInitialFormState(state);
         } else if (mode === 'create') {
@@ -346,7 +354,9 @@ export function RecipeForm(props: RecipeFormProps) {
 
         const reader = new FileReader();
         reader.onloadend = () => {
-            setRecipeImage(reader.result as string);
+            if (typeof reader.result === 'string') {
+                setRecipeImage(reader.result);
+            }
         };
         reader.readAsDataURL(file);
 
@@ -368,7 +378,9 @@ export function RecipeForm(props: RecipeFormProps) {
                 );
             }
 
-            setUploadedImageUrl(responseBody.data.imageUrl);
+            setUploadedImageUrl(
+                getSafeRecipeImageSrc(responseBody.data.imageUrl)
+            );
         } catch (error) {
             setRecipeImage(null);
             setUploadedImageUrl(null);

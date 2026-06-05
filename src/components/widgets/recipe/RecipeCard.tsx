@@ -15,6 +15,7 @@ import {
     Wheat
 } from 'lucide-react';
 import Link from 'next/link';
+import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
 export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
     const mealTypeLabel: Record<string, string> = {
@@ -28,6 +29,7 @@ export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
 
     const config = mealTypeConfig[recipe.mealType] || mealTypeConfig.SNACK;
     const MealIcon = config.icon;
+    const imageSrc = getSafeRecipeImageSrc(recipe.imageUrl);
 
     return (
         <Link href={`/recetas/${recipe.id}/editar`} className='block'>
@@ -41,7 +43,7 @@ export function RecipeCard({recipe}: {recipe: RecipeDTO}) {
                 {/* Image */}
                 <div className='relative h-44 w-full overflow-hidden bg-secondary/30'>
                     <img
-                        src={recipe.imageUrl ?? undefined}
+                        src={imageSrc ?? undefined}
                         alt={recipe.title}
                         className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-105'
                     />

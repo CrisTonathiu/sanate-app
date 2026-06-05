@@ -1,5 +1,14 @@
 import {z} from 'zod';
 import {MealType} from '@prisma/client';
+import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
+
+const optionalRecipeImageUrlSchema = z.preprocess(value => {
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+
+    return getSafeRecipeImageSrc(value) ?? undefined;
+}, z.string().url().optional());
 
 const ingredientUnitSchema = z.enum([
     'GRAM',
@@ -13,7 +22,7 @@ const ingredientUnitSchema = z.enum([
 
 export const createRecipeSchema = z.object({
     title: z.string(),
-    imageUrl: z.string().url().optional(),
+    imageUrl: optionalRecipeImageUrlSchema,
     mealType: z.nativeEnum(MealType),
     ingredients: z.array(
         z.object({

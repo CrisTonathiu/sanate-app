@@ -81,6 +81,14 @@ export const mealTypeConfig: Record<
         color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
         icon: Apple
     },
+    SNACK1: {
+        color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+        icon: Apple
+    },
+    SNACK2: {
+        color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+        icon: Apple
+    },
     SMOOTHIE: {
         color: 'bg-green-500/10 text-green-600 border-green-500/20',
         icon: GlassWater
