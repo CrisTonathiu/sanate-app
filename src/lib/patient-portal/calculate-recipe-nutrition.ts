@@ -5,6 +5,7 @@ type NutritionFood = {
     proteinPer100g: number | null;
     carbsPer100g: number | null;
     fatPer100g: number | null;
+    density?: number | null;
 };
 
 export type RecipeIngredientForNutrition = {
@@ -28,7 +29,8 @@ export function calculateRecipeNutrition(
                 resolveIngredientNutritionGrams(
                     item.quantity,
                     item.unit,
-                    item.grams
+                    item.grams,
+                    food.density
                 ) / 100;
 
             acc.calories += (food.caloriesPer100g || 0) * factor;

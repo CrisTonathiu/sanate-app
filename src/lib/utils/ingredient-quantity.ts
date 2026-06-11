@@ -238,24 +238,85 @@ export function formatIngredientQuantityInput(
     return formatIngredientQuantity(parsed, unit);
 }
 
-/** Gram weight of one measure (e.g. 1 ml ≈ 1 g, 1 tbsp ≈ 15 g). */
-export function gramsPerIngredientUnit(unit?: string | null): number {
+/** Metric cooking cup size used for volume conversions. */
+export const CUP_VOLUME_ML = 240;
+
+/** Default density (g/ml) when a food has no density on file. Water. */
+export const DEFAULT_FOOD_DENSITY = 1;
+
+/** ml volume represented by one measure (null = weight/count unit). */
+export function volumeMlPerIngredientUnit(
+    unit?: string | null
+): number | null {
     switch (normalizeIngredientUnit(unit)) {
         case 'ML':
             return 1;
-        case 'OZ':
-            return 28.3495;
         case 'TSP':
             return 5;
         case 'TBSP':
             return 15;
         case 'CUP':
-            return 240;
+            return CUP_VOLUME_ML;
+        default:
+            return null;
+    }
+}
+
+export function isVolumeIngredientUnit(unit?: string | null): boolean {
+    return volumeMlPerIngredientUnit(unit) != null;
+}
+
+/**
+ * Gram weight of one measure.
+ * Volume units (ml, taza, cda, cdta) use density (g/ml); defaults to water when omitted.
+ */
+export function gramsPerIngredientUnit(
+    unit?: string | null,
+    density?: number | null
+): number {
+    const volumeMl = volumeMlPerIngredientUnit(unit);
+    if (volumeMl != null) {
+        const effectiveDensity =
+            typeof density === 'number' && density > 0
+                ? density
+                : DEFAULT_FOOD_DENSITY;
+        return volumeMl * effectiveDensity;
+    }
+
+    switch (normalizeIngredientUnit(unit)) {
+        case 'OZ':
+            return 28.3495;
         case 'PIECE':
             return 100;
         default:
             return 1;
     }
+}
+
+/**
+ * Resolves grams per unit for nutrition math.
+ * When food.density is set, volume units prefer density over stored recipe grams.
+ */
+export function resolveReferenceGramsPerUnit(
+    unit?: string | null,
+    grams?: number | null,
+    density?: number | null
+): number {
+    const normalizedUnit = normalizeIngredientUnit(unit);
+
+    if (
+        isVolumeIngredientUnit(normalizedUnit) &&
+        typeof density === 'number' &&
+        density > 0
+    ) {
+        return gramsPerIngredientUnit(normalizedUnit, density);
+    }
+
+    if (typeof grams === 'number' && grams > 0) {
+        return grams;
+    }
+
+    return gramsPerIngredientUnit(normalizedUnit);
 }
 
 /**
@@ -265,7 +326,8 @@ export function gramsPerIngredientUnit(unit?: string | null): number {
 export function resolveIngredientNutritionGrams(
     quantity: number | null | undefined,
     unit: string | null | undefined,
-    grams: number | null | undefined
+    grams: number | null | undefined,
+    density?: number | null
 ): number {
     const normalizedUnit = normalizeIngredientUnit(unit);
     const fallbackQuantity =
@@ -283,10 +345,11 @@ export function resolveIngredientNutritionGrams(
         return typeof grams === 'number' && grams > 0 ? grams : qty;
     }
 
-    const referenceGramsPerUnit =
-        typeof grams === 'number' && grams > 0
-            ? grams
-            : gramsPerIngredientUnit(normalizedUnit);
+    const referenceGramsPerUnit = resolveReferenceGramsPerUnit(
+        normalizedUnit,
+        grams,
+        density
+    );
 
     return referenceGramsPerUnit * qty;
 }

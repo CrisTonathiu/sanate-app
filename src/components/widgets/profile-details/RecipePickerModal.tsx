@@ -60,7 +60,8 @@ function computeNutrition(recipe: Recipe) {
         const grams = resolveIngredientNutritionGrams(
             item.quantity,
             item.unit,
-            item.grams
+            item.grams,
+            food?.density
         );
         const ratio = grams / 100;
         protein += (food.proteinPer100g ?? 0) * ratio;
@@ -95,12 +96,13 @@ function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
             const grams = item.grams ?? 0;
             const qty = item.quantity ?? (item.unit === 'PIECE' ? 1 : grams);
             const unit = item.unit ?? 'GRAM';
+            const food = item.ingredient?.food;
             const baseNutritionGrams = resolveIngredientNutritionGrams(
                 qty,
                 unit,
-                grams
+                grams,
+                food?.density
             );
-            const food = item.ingredient?.food;
             const kcal =
                 food?.caloriesPer100g != null
                     ? food.caloriesPer100g

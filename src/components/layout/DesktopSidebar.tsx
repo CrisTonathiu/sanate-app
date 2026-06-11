@@ -51,6 +51,14 @@ const sidebarItems = [
             {title: 'Mis Recetas', url: '/recetas'},
             {title: 'Crear Receta', url: '/recetas/nuevo'}
         ]
+    },
+    {
+        title: 'Alimentos',
+        icon: <Apple className='size-4' />,
+        items: [
+            {title: 'Catálogo', url: '/alimentos'},
+            {title: 'Agregar alimento', url: '/alimentos/nuevo'}
+        ]
     }
 ];
 
@@ -142,7 +150,9 @@ export default function DesktopSidebar({sidebarOpen}: DesktopSidebarProps) {
                                                 onMouseEnter={() => {
                                                     if (
                                                         subItem.url ===
-                                                        '/recetas/nuevo'
+                                                            '/recetas/nuevo' ||
+                                                        subItem.url ===
+                                                            '/alimentos/nuevo'
                                                     ) {
                                                         prefetchFoods();
                                                     }
@@ -150,7 +160,9 @@ export default function DesktopSidebar({sidebarOpen}: DesktopSidebarProps) {
                                                 onFocus={() => {
                                                     if (
                                                         subItem.url ===
-                                                        '/recetas/nuevo'
+                                                            '/recetas/nuevo' ||
+                                                        subItem.url ===
+                                                            '/alimentos/nuevo'
                                                     ) {
                                                         prefetchFoods();
                                                     }

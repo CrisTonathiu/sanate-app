@@ -21,6 +21,7 @@ export interface RecipeIngredient {
             fatPer100g?: number | null;
             isDiscrete?: boolean;
             maxPortionGrams?: number | null;
+            density?: number | null;
         } | null;
     };
 }
