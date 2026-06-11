@@ -14,16 +14,10 @@ import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue
-} from '@/components/ui/select';
 import {FoodGroup, useGetFoodGroups} from '@/hooks/use-foods';
+import {AnimatePresence, motion} from 'framer-motion';
 import {Loader2, Save, Trash2} from 'lucide-react';
-import {FormEvent, useEffect, useState} from 'react';
+import {FormEvent, useEffect, useMemo, useState} from 'react';
 
 export type FoodFormData = {
     name: string;
@@ -74,6 +68,8 @@ export function FoodForm({
 
     const [name, setName] = useState('');
     const [groupId, setGroupId] = useState('');
+    const [groupQuery, setGroupQuery] = useState('');
+    const [showGroupSuggestions, setShowGroupSuggestions] = useState(false);
     const [caloriesPer100g, setCaloriesPer100g] = useState('');
     const [proteinPer100g, setProteinPer100g] = useState('');
     const [carbsPer100g, setCarbsPer100g] = useState('');
@@ -95,6 +91,41 @@ export function FoodForm({
         setMaxPortionGrams(formatNumberField(initialData.maxPortionGrams));
         setIsDiscrete(initialData.isDiscrete ?? false);
     }, [initialData]);
+
+    useEffect(() => {
+        if (!initialData?.groupId || groups.length === 0) return;
+
+        const matchedGroup = groups.find(
+            group => group.id === initialData.groupId
+        );
+        if (matchedGroup) {
+            setGroupQuery(matchedGroup.name);
+        }
+    }, [initialData?.groupId, groups]);
+
+    const groupSuggestions = useMemo(() => {
+        const query = groupQuery.trim().toLowerCase();
+        if (!query) return groups;
+
+        return groups.filter(group =>
+            group.name.toLowerCase().includes(query)
+        );
+    }, [groupQuery, groups]);
+
+    const handleGroupQueryChange = (value: string) => {
+        setGroupQuery(value);
+
+        const exactMatch = groups.find(
+            group => group.name.toLowerCase() === value.trim().toLowerCase()
+        );
+        setGroupId(exactMatch?.id ?? '');
+    };
+
+    const selectGroup = (group: FoodGroup) => {
+        setGroupQuery(group.name);
+        setGroupId(group.id);
+        setShowGroupSuggestions(false);
+    };
 
     const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();
@@ -185,33 +216,54 @@ export function FoodForm({
                             />
                         </div>
 
-                        <div className='sm:col-span-2'>
+                        <div className='sm:col-span-2 relative'>
                             <Label className='text-xs text-muted-foreground mb-1.5 block'>
                                 Grupo
                             </Label>
-                            <Select
-                                value={groupId}
-                                onValueChange={setGroupId}
-                                disabled={isLoadingGroups}>
-                                <SelectTrigger className='h-10 bg-background/50'>
-                                    <SelectValue
-                                        placeholder={
-                                            isLoadingGroups
-                                                ? 'Cargando grupos...'
-                                                : 'Seleccionar grupo'
-                                        }
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {groups.map((group: FoodGroup) => (
-                                        <SelectItem
-                                            key={group.id}
-                                            value={group.id}>
-                                            {group.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Input
+                                value={groupQuery}
+                                onChange={e =>
+                                    handleGroupQueryChange(e.target.value)
+                                }
+                                onFocus={() => setShowGroupSuggestions(true)}
+                                onBlur={() =>
+                                    setTimeout(
+                                        () => setShowGroupSuggestions(false),
+                                        150
+                                    )
+                                }
+                                disabled={isLoadingGroups}
+                                placeholder={
+                                    isLoadingGroups
+                                        ? 'Cargando grupos...'
+                                        : 'ej. Cereales, Proteínas...'
+                                }
+                                className='h-10 bg-background/50'
+                            />
+                            <AnimatePresence>
+                                {showGroupSuggestions &&
+                                    groupSuggestions.length > 0 && (
+                                        <motion.div
+                                            initial={{opacity: 0, y: -5}}
+                                            animate={{opacity: 1, y: 0}}
+                                            exit={{opacity: 0, y: -5}}
+                                            className='absolute z-10 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto'>
+                                            {groupSuggestions
+                                                .slice(0, 8)
+                                                .map(group => (
+                                                    <button
+                                                        key={group.id}
+                                                        type='button'
+                                                        onMouseDown={() =>
+                                                            selectGroup(group)
+                                                        }
+                                                        className='w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors'>
+                                                        {group.name}
+                                                    </button>
+                                                ))}
+                                        </motion.div>
+                                    )}
+                            </AnimatePresence>
                         </div>
                     </CardContent>
                 </Card>
