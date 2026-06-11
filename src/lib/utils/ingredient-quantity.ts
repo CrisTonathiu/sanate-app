@@ -45,6 +45,45 @@ function simplifyFraction(num: number, den: number) {
     return {num: num / divisor, den: den / divisor};
 }
 
+function snapToCookingFraction(quantity: number): number {
+    if (!Number.isFinite(quantity)) {
+        return 0;
+    }
+
+    const rounded = Math.round(quantity * 1000) / 1000;
+
+    if (rounded < 0.001) {
+        return 0;
+    }
+
+    const whole = Math.floor(rounded + 1e-9);
+    const fractional = rounded - whole;
+
+    if (fractional < 0.001) {
+        return whole;
+    }
+
+    if (fractional > 1 - 0.001) {
+        return whole + 1;
+    }
+
+    let bestNum = 1;
+    let bestDen = 8;
+    let bestError = Infinity;
+
+    for (const {num, den} of COOKING_CUP_FRACTIONS) {
+        const decimal = num / den;
+        const error = Math.abs(fractional - decimal);
+        if (error < bestError) {
+            bestError = error;
+            bestNum = num;
+            bestDen = den;
+        }
+    }
+
+    return whole + bestNum / bestDen;
+}
+
 /**
  * Snaps a quantity to realistic kitchen measures before display or storage.
  */
@@ -62,15 +101,16 @@ export function snapQuantityForUnit(
         case 'PIECE':
             return Math.round(quantity);
         case 'CUP':
-            return Math.round(quantity * 8) / 8;
         case 'TBSP':
         case 'TSP':
-            return Math.round(quantity * 4) / 4;
+        case 'OZ':
+            return snapToCookingFraction(quantity);
         case 'GRAM':
         case 'ML':
+            if (quantity > 0 && quantity < 1) {
+                return snapToCookingFraction(quantity);
+            }
             return Math.round(quantity);
-        case 'OZ':
-            return Math.round(quantity * 4) / 4;
         default:
             return Math.round(quantity);
     }

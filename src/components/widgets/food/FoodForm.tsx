@@ -197,7 +197,8 @@ export function FoodForm({
     return (
         <>
             <form onSubmit={handleSubmit} className='space-y-6'>
-                <Card className='border-border bg-card/50 backdrop-blur-sm'>
+                <Card
+                    className={`border-border bg-card/50 backdrop-blur-sm${showGroupSuggestions ? ' relative z-20' : ''}`}>
                     <CardHeader className='pb-3 border-b border-border'>
                         <CardTitle className='text-base'>
                             Información general
@@ -247,7 +248,7 @@ export function FoodForm({
                                             initial={{opacity: 0, y: -5}}
                                             animate={{opacity: 1, y: 0}}
                                             exit={{opacity: 0, y: -5}}
-                                            className='absolute z-10 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto'>
+                                            className='absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto'>
                                             {groupSuggestions
                                                 .slice(0, 8)
                                                 .map(group => (
