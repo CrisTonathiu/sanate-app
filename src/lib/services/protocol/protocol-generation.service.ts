@@ -47,6 +47,7 @@ type RecipeSummary = {
         fatPer100g: number;
         isDiscrete: boolean;
         maxPortionGrams: number | null;
+        density: number | null;
     }>;
 };
 
@@ -253,6 +254,7 @@ function computeRecipeNutrition(recipe: {
                 proteinPer100g: number | null;
                 carbsPer100g: number | null;
                 fatPer100g: number | null;
+                density?: number | null;
             } | null;
         };
     }>;
@@ -267,13 +269,14 @@ function computeRecipeNutrition(recipe: {
     let fat = 0;
 
     for (const item of recipe.ingredients) {
+        const food = item.ingredient.food;
         const gramsForNutrition = resolveIngredientNutritionGrams(
             item.quantity,
             item.unit,
-            item.grams
+            item.grams,
+            food?.density
         );
         const ratio = gramsForNutrition / 100;
-        const food = item.ingredient.food;
 
         if (!food) continue;
 
@@ -444,7 +447,8 @@ function buildMeal(
         const baseNutritionGrams = resolveIngredientNutritionGrams(
             item.quantity,
             item.unit,
-            item.grams
+            item.grams,
+            item.density
         );
         const unit = normalizeRecipeIngredientUnit(item.unit);
         const targetQuantity = scaleIngredientQuantity(
@@ -617,7 +621,8 @@ export async function generateProtocolPlanForPatient(
                                     carbsPer100g: true,
                                     fatPer100g: true,
                                     isDiscrete: true,
-                                    maxPortionGrams: true
+                                    maxPortionGrams: true,
+                                    density: true
                                 }
                             }
                         }
@@ -667,7 +672,8 @@ export async function generateProtocolPlanForPatient(
                         fatPer100g: item.ingredient.food?.fatPer100g ?? 0,
                         isDiscrete: item.ingredient.food?.isDiscrete ?? false,
                         maxPortionGrams:
-                            item.ingredient.food?.maxPortionGrams ?? null
+                            item.ingredient.food?.maxPortionGrams ?? null,
+                        density: item.ingredient.food?.density ?? null
                     };
                 })
             };

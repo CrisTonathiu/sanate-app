@@ -110,7 +110,7 @@ export default function ClientPage() {
                                     'flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all',
                                     isActive
                                         ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                                        : 'bg-white text-primary-foreground hover:bg-primary/50 hover:text-foreground border border-border'
+                                        : 'bg-white text-foreground hover:bg-primary/50 hover:text-foreground border border-border'
                                 )}>
                                 <filter.icon className='h-3.5 w-3.5' />
                                 {filter.label}
