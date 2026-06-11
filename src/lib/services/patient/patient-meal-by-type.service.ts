@@ -26,7 +26,8 @@ const protocolMealRecipeSelect = {
                             caloriesPer100g: true,
                             proteinPer100g: true,
                             carbsPer100g: true,
-                            fatPer100g: true
+                            fatPer100g: true,
+                            density: true
                         }
                     }
                 }

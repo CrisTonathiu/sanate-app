@@ -112,11 +112,13 @@ export function mapRecipeRowsToMealPortions(
                 proteinPer100g: number | null;
                 carbsPer100g: number | null;
                 fatPer100g: number | null;
+                density?: number | null;
             } | null;
         };
     }>
 ): MealIngredientPortion[] {
     return ingredients.map(item => {
+        const food = item.ingredient.food;
         const grams = item.grams ?? 0;
         const unit = normalizeIngredientUnit(item.unit);
         const quantity =
@@ -124,9 +126,9 @@ export function mapRecipeRowsToMealPortions(
         const nutritionGrams = resolveIngredientNutritionGrams(
             quantity,
             unit,
-            grams
+            grams,
+            food?.density
         );
-        const food = item.ingredient.food;
 
         return {
             ingredientName: item.ingredient.name,
@@ -196,6 +198,7 @@ export function buildMealSlotFromProtocolMeal(meal: {
                     proteinPer100g: number | null;
                     carbsPer100g: number | null;
                     fatPer100g: number | null;
+                    density?: number | null;
                 } | null;
             };
         }>;
@@ -251,6 +254,7 @@ type RecipeIngredientBase = {
     quantity: number | null;
     grams: number;
     unit: string | null;
+    density?: number | null;
 };
 
 /**
@@ -282,7 +286,8 @@ export function formatScaledIngredientDisplay(
     const baseNutritionGrams = resolveIngredientNutritionGrams(
         baseQty,
         recipeBase.unit,
-        recipeBase.grams
+        recipeBase.grams,
+        recipeBase.density
     );
     const gramsPerUnit = baseNutritionGrams / baseQty;
     let displayQuantity =
@@ -301,7 +306,12 @@ export function formatScaledIngredientDisplay(
 export function mapStoredPortionsToSliderIngredients(
     portions: StoredProtocolMealPortions,
     recipeIngredients?: Array<
-        RecipeIngredientBase & {ingredient: {name: string}}
+        RecipeIngredientBase & {
+            ingredient: {
+                name: string;
+                food?: {density?: number | null} | null;
+            };
+        }
     >
 ) {
     return portions.ingredients.map(row => {
@@ -311,11 +321,18 @@ export function mapStoredPortionsToSliderIngredients(
                 row.ingredientName.trim().toLowerCase()
         );
 
-        const recipeBase: RecipeIngredientBase = recipeRow ?? {
-            quantity: row.baseQuantity,
-            grams: row.baseGrams,
-            unit: row.unit
-        };
+        const recipeBase: RecipeIngredientBase = recipeRow
+            ? {
+                  quantity: recipeRow.quantity,
+                  grams: recipeRow.grams,
+                  unit: recipeRow.unit,
+                  density: recipeRow.ingredient.food?.density
+              }
+            : {
+                  quantity: row.baseQuantity,
+                  grams: row.baseGrams,
+                  unit: row.unit
+              };
 
         const {amount, unit} = formatScaledIngredientDisplay(
             {

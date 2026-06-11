@@ -13,6 +13,13 @@ const COOKING_CUP_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
     {num: 7, den: 8}
 ];
 
+/** Fractional piece counts allowed in recipes and protocol scaling. */
+const PIECE_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
+    {num: 1, den: 4},
+    {num: 1, den: 3},
+    {num: 1, den: 2}
+];
+
 export function normalizeIngredientUnit(unit?: string | null): string {
     const normalized = unit?.toString().trim().toUpperCase();
 
@@ -45,6 +52,56 @@ function simplifyFraction(num: number, den: number) {
     return {num: num / divisor, den: den / divisor};
 }
 
+function snapToNearestFraction(
+    quantity: number,
+    allowedFractions: ReadonlyArray<{num: number; den: number}>
+): number {
+    if (!Number.isFinite(quantity)) {
+        return 0;
+    }
+
+    const rounded = Math.round(quantity * 1000) / 1000;
+
+    if (rounded < 0.001) {
+        return 0;
+    }
+
+    const whole = Math.floor(rounded + 1e-9);
+    const fractional = rounded - whole;
+
+    if (fractional < 0.001) {
+        return whole;
+    }
+
+    if (fractional > 1 - 0.001) {
+        return whole + 1;
+    }
+
+    let bestNum = allowedFractions[0]?.num ?? 1;
+    let bestDen = allowedFractions[0]?.den ?? 2;
+    let bestError = Infinity;
+
+    for (const {num, den} of allowedFractions) {
+        const decimal = num / den;
+        const error = Math.abs(fractional - decimal);
+        if (error < bestError) {
+            bestError = error;
+            bestNum = num;
+            bestDen = den;
+        }
+    }
+
+    return whole + bestNum / bestDen;
+}
+
+function snapToCookingFraction(quantity: number): number {
+    return snapToNearestFraction(quantity, COOKING_CUP_FRACTIONS);
+}
+
+function snapToPieceFraction(quantity: number): number {
+    return snapToNearestFraction(quantity, PIECE_FRACTIONS);
+}
+
 /**
  * Snaps a quantity to realistic kitchen measures before display or storage.
  */
@@ -60,23 +117,27 @@ export function snapQuantityForUnit(
 
     switch (normalized) {
         case 'PIECE':
-            return Math.round(quantity);
+            return snapToPieceFraction(quantity);
         case 'CUP':
-            return Math.round(quantity * 8) / 8;
         case 'TBSP':
         case 'TSP':
-            return Math.round(quantity * 4) / 4;
+        case 'OZ':
+            return snapToCookingFraction(quantity);
         case 'GRAM':
         case 'ML':
+            if (quantity > 0 && quantity < 1) {
+                return snapToCookingFraction(quantity);
+            }
             return Math.round(quantity);
-        case 'OZ':
-            return Math.round(quantity * 4) / 4;
         default:
             return Math.round(quantity);
     }
 }
 
-function formatSnappedQuantityAsFraction(value: number): string {
+function formatSnappedQuantityAsFraction(
+    value: number,
+    allowedFractions: ReadonlyArray<{num: number; den: number}> = COOKING_CUP_FRACTIONS
+): string {
     if (!Number.isFinite(value) || value < 0) {
         return '0';
     }
@@ -98,11 +159,11 @@ function formatSnappedQuantityAsFraction(value: number): string {
         return String(whole + 1);
     }
 
-    let bestNum = 1;
-    let bestDen = 8;
+    let bestNum = allowedFractions[0]?.num ?? 1;
+    let bestDen = allowedFractions[0]?.den ?? 2;
     let bestError = Infinity;
 
-    for (const {num, den} of COOKING_CUP_FRACTIONS) {
+    for (const {num, den} of allowedFractions) {
         const decimal = num / den;
         const error = Math.abs(fractional - decimal);
         if (error < bestError) {
@@ -129,8 +190,11 @@ export function formatIngredientQuantity(
     quantity: number,
     unit?: string | null
 ): string {
+    const normalized = normalizeIngredientUnit(unit);
     const snapped = snapQuantityForUnit(quantity, unit);
-    return formatSnappedQuantityAsFraction(snapped);
+    const allowedFractions =
+        normalized === 'PIECE' ? PIECE_FRACTIONS : COOKING_CUP_FRACTIONS;
+    return formatSnappedQuantityAsFraction(snapped, allowedFractions);
 }
 
 /** Units whose scaled count should drive targetGrams (not linear calorie scale). */
@@ -186,18 +250,14 @@ export function parseIngredientQuantity(
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Whole-piece count (pz): 3.35 → 3, 5.75 → 6. */
+/** Piece count snapped to 1/4, 1/3, or 1/2 when fractional. */
 export function roundPieceQuantity(quantity: number): number {
-    if (!Number.isFinite(quantity)) {
-        return 0;
-    }
-
-    return Math.round(quantity);
+    return snapToPieceFraction(quantity);
 }
 
 /**
  * Scales a quantity while preserving fractional precision.
- * For PIECE (pz), rounds to the nearest whole number after scaling.
+ * For PIECE (pz), snaps to the nearest 1/4, 1/3, or 1/2 after scaling.
  */
 export function scaleIngredientQuantity(
     quantity: number,
@@ -238,24 +298,85 @@ export function formatIngredientQuantityInput(
     return formatIngredientQuantity(parsed, unit);
 }
 
-/** Gram weight of one measure (e.g. 1 ml ≈ 1 g, 1 tbsp ≈ 15 g). */
-export function gramsPerIngredientUnit(unit?: string | null): number {
+/** Metric cooking cup size used for volume conversions. */
+export const CUP_VOLUME_ML = 240;
+
+/** Default density (g/ml) when a food has no density on file. Water. */
+export const DEFAULT_FOOD_DENSITY = 1;
+
+/** ml volume represented by one measure (null = weight/count unit). */
+export function volumeMlPerIngredientUnit(
+    unit?: string | null
+): number | null {
     switch (normalizeIngredientUnit(unit)) {
         case 'ML':
             return 1;
-        case 'OZ':
-            return 28.3495;
         case 'TSP':
             return 5;
         case 'TBSP':
             return 15;
         case 'CUP':
-            return 240;
+            return CUP_VOLUME_ML;
+        default:
+            return null;
+    }
+}
+
+export function isVolumeIngredientUnit(unit?: string | null): boolean {
+    return volumeMlPerIngredientUnit(unit) != null;
+}
+
+/**
+ * Gram weight of one measure.
+ * Volume units (ml, taza, cda, cdta) use density (g/ml); defaults to water when omitted.
+ */
+export function gramsPerIngredientUnit(
+    unit?: string | null,
+    density?: number | null
+): number {
+    const volumeMl = volumeMlPerIngredientUnit(unit);
+    if (volumeMl != null) {
+        const effectiveDensity =
+            typeof density === 'number' && density > 0
+                ? density
+                : DEFAULT_FOOD_DENSITY;
+        return volumeMl * effectiveDensity;
+    }
+
+    switch (normalizeIngredientUnit(unit)) {
+        case 'OZ':
+            return 28.3495;
         case 'PIECE':
             return 100;
         default:
             return 1;
     }
+}
+
+/**
+ * Resolves grams per unit for nutrition math.
+ * When food.density is set, volume units prefer density over stored recipe grams.
+ */
+export function resolveReferenceGramsPerUnit(
+    unit?: string | null,
+    grams?: number | null,
+    density?: number | null
+): number {
+    const normalizedUnit = normalizeIngredientUnit(unit);
+
+    if (
+        isVolumeIngredientUnit(normalizedUnit) &&
+        typeof density === 'number' &&
+        density > 0
+    ) {
+        return gramsPerIngredientUnit(normalizedUnit, density);
+    }
+
+    if (typeof grams === 'number' && grams > 0) {
+        return grams;
+    }
+
+    return gramsPerIngredientUnit(normalizedUnit);
 }
 
 /**
@@ -265,7 +386,8 @@ export function gramsPerIngredientUnit(unit?: string | null): number {
 export function resolveIngredientNutritionGrams(
     quantity: number | null | undefined,
     unit: string | null | undefined,
-    grams: number | null | undefined
+    grams: number | null | undefined,
+    density?: number | null
 ): number {
     const normalizedUnit = normalizeIngredientUnit(unit);
     const fallbackQuantity =
@@ -283,10 +405,11 @@ export function resolveIngredientNutritionGrams(
         return typeof grams === 'number' && grams > 0 ? grams : qty;
     }
 
-    const referenceGramsPerUnit =
-        typeof grams === 'number' && grams > 0
-            ? grams
-            : gramsPerIngredientUnit(normalizedUnit);
+    const referenceGramsPerUnit = resolveReferenceGramsPerUnit(
+        normalizedUnit,
+        grams,
+        density
+    );
 
     return referenceGramsPerUnit * qty;
 }

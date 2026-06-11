@@ -426,7 +426,7 @@ model Food {
   carbsPer100g   Float?
   fatPer100g     Float?
   caloriesPer100g Float?
-  density Float? // útil para líquidos
+  density Float? // g/ml; convierte unidades de volumen (ml, taza, cda, cdta). null = agua (1 g/ml)
 
   isDiscrete Boolean @default(false)
   maxPortionGrams Float? // límite realista
