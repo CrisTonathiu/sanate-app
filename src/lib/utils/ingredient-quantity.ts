@@ -13,6 +13,13 @@ const COOKING_CUP_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
     {num: 7, den: 8}
 ];
 
+/** Fractional piece counts allowed in recipes and protocol scaling. */
+const PIECE_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
+    {num: 1, den: 4},
+    {num: 1, den: 3},
+    {num: 1, den: 2}
+];
+
 export function normalizeIngredientUnit(unit?: string | null): string {
     const normalized = unit?.toString().trim().toUpperCase();
 
@@ -45,7 +52,10 @@ function simplifyFraction(num: number, den: number) {
     return {num: num / divisor, den: den / divisor};
 }
 
-function snapToCookingFraction(quantity: number): number {
+function snapToNearestFraction(
+    quantity: number,
+    allowedFractions: ReadonlyArray<{num: number; den: number}>
+): number {
     if (!Number.isFinite(quantity)) {
         return 0;
     }
@@ -67,11 +77,11 @@ function snapToCookingFraction(quantity: number): number {
         return whole + 1;
     }
 
-    let bestNum = 1;
-    let bestDen = 8;
+    let bestNum = allowedFractions[0]?.num ?? 1;
+    let bestDen = allowedFractions[0]?.den ?? 2;
     let bestError = Infinity;
 
-    for (const {num, den} of COOKING_CUP_FRACTIONS) {
+    for (const {num, den} of allowedFractions) {
         const decimal = num / den;
         const error = Math.abs(fractional - decimal);
         if (error < bestError) {
@@ -82,6 +92,14 @@ function snapToCookingFraction(quantity: number): number {
     }
 
     return whole + bestNum / bestDen;
+}
+
+function snapToCookingFraction(quantity: number): number {
+    return snapToNearestFraction(quantity, COOKING_CUP_FRACTIONS);
+}
+
+function snapToPieceFraction(quantity: number): number {
+    return snapToNearestFraction(quantity, PIECE_FRACTIONS);
 }
 
 /**
@@ -99,7 +117,7 @@ export function snapQuantityForUnit(
 
     switch (normalized) {
         case 'PIECE':
-            return Math.round(quantity);
+            return snapToPieceFraction(quantity);
         case 'CUP':
         case 'TBSP':
         case 'TSP':
@@ -116,7 +134,10 @@ export function snapQuantityForUnit(
     }
 }
 
-function formatSnappedQuantityAsFraction(value: number): string {
+function formatSnappedQuantityAsFraction(
+    value: number,
+    allowedFractions: ReadonlyArray<{num: number; den: number}> = COOKING_CUP_FRACTIONS
+): string {
     if (!Number.isFinite(value) || value < 0) {
         return '0';
     }
@@ -138,11 +159,11 @@ function formatSnappedQuantityAsFraction(value: number): string {
         return String(whole + 1);
     }
 
-    let bestNum = 1;
-    let bestDen = 8;
+    let bestNum = allowedFractions[0]?.num ?? 1;
+    let bestDen = allowedFractions[0]?.den ?? 2;
     let bestError = Infinity;
 
-    for (const {num, den} of COOKING_CUP_FRACTIONS) {
+    for (const {num, den} of allowedFractions) {
         const decimal = num / den;
         const error = Math.abs(fractional - decimal);
         if (error < bestError) {
@@ -169,8 +190,11 @@ export function formatIngredientQuantity(
     quantity: number,
     unit?: string | null
 ): string {
+    const normalized = normalizeIngredientUnit(unit);
     const snapped = snapQuantityForUnit(quantity, unit);
-    return formatSnappedQuantityAsFraction(snapped);
+    const allowedFractions =
+        normalized === 'PIECE' ? PIECE_FRACTIONS : COOKING_CUP_FRACTIONS;
+    return formatSnappedQuantityAsFraction(snapped, allowedFractions);
 }
 
 /** Units whose scaled count should drive targetGrams (not linear calorie scale). */
@@ -226,18 +250,14 @@ export function parseIngredientQuantity(
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Whole-piece count (pz): 3.35 → 3, 5.75 → 6. */
+/** Piece count snapped to 1/4, 1/3, or 1/2 when fractional. */
 export function roundPieceQuantity(quantity: number): number {
-    if (!Number.isFinite(quantity)) {
-        return 0;
-    }
-
-    return Math.round(quantity);
+    return snapToPieceFraction(quantity);
 }
 
 /**
  * Scales a quantity while preserving fractional precision.
- * For PIECE (pz), rounds to the nearest whole number after scaling.
+ * For PIECE (pz), snaps to the nearest 1/4, 1/3, or 1/2 after scaling.
  */
 export function scaleIngredientQuantity(
     quantity: number,
