@@ -704,13 +704,13 @@ export function RecipeForm(props: RecipeFormProps) {
                                 : 'Modifica los detalles de tu receta'}
                         </p>
                     </div>
-                    <div className='flex items-center gap-3'>
+                    <div className='flex w-full flex-col-reverse gap-3 sm:w-auto sm:flex-row sm:items-center'>
                         {mode === 'edit' && onDelete && (
                             <Button
                                 variant='outline'
                                 onClick={handleDelete}
                                 disabled={isDeleting}
-                                className='h-10 px-4 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30'>
+                                className='h-10 w-full px-4 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 sm:w-auto'>
                                 {isDeleting ? (
                                     <Loader2 className='h-4 w-4 mr-2 animate-spin' />
                                 ) : (
@@ -722,7 +722,7 @@ export function RecipeForm(props: RecipeFormProps) {
                         <Button
                             variant='outline'
                             onClick={handleCancel}
-                            className='h-10 px-4'>
+                            className='h-10 w-full px-4 sm:w-auto'>
                             <X className='h-4 w-4 mr-2' />
                             Cancelar
                         </Button>
@@ -733,7 +733,7 @@ export function RecipeForm(props: RecipeFormProps) {
                                 (mode === 'edit' && !isDirty) ||
                                 isUploadingImage
                             } // Disable if not dirty in edit mode
-                            className='h-10 px-6 disabled:opacity-50'>
+                            className='h-10 w-full px-6 disabled:opacity-50 sm:w-auto'>
                             {isSaving ? (
                                 <Loader2 className='h-4 w-4 mr-2 animate-spin' />
                             ) : (
@@ -904,16 +904,16 @@ export function RecipeForm(props: RecipeFormProps) {
                     {/* Ingredients Section */}
                     <Card className='border-border bg-card/50 backdrop-blur-sm'>
                         <CardHeader className='pb-3 border-b border-border'>
-                            <div className='flex items-center justify-between'>
-                                <CardTitle className='text-base flex items-center gap-2'>
-                                    <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10'>
+                            <div className='flex min-w-0 items-center justify-between'>
+                                <CardTitle className='text-base flex min-w-0 flex-wrap items-center gap-2'>
+                                    <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10'>
                                         <UtensilsCrossed className='h-4 w-4 text-primary' />
                                     </div>
                                     Ingredientes
                                     {ingredients.length > 0 && (
                                         <Badge
                                             variant='secondary'
-                                            className='ml-2'>
+                                            className='shrink-0'>
                                             {ingredients.length}
                                         </Badge>
                                     )}
@@ -995,26 +995,24 @@ export function RecipeForm(props: RecipeFormProps) {
                     {/* Extras / Al Gusto Section */}
                     <Card className='border-border bg-card/50 backdrop-blur-sm'>
                         <CardHeader className='pb-3 border-b border-border'>
-                            <div className='flex items-center justify-between'>
-                                <div>
-                                    <CardTitle className='text-base flex items-center gap-2'>
-                                        <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10'>
-                                            <Salad className='h-4 w-4 text-primary' />
-                                        </div>
-                                        Extras / al gusto
-                                        {extraIngredients.length > 0 && (
-                                            <Badge
-                                                variant='secondary'
-                                                className='ml-2'>
-                                                {extraIngredients.length}
-                                            </Badge>
-                                        )}
-                                    </CardTitle>
-                                    <p className='text-xs text-muted-foreground mt-1 ml-10'>
-                                        No afectan el calculo nutricional por
-                                        defecto
-                                    </p>
-                                </div>
+                            <div className='flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4'>
+                                <CardTitle className='text-base flex items-center gap-2 shrink-0'>
+                                    <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10'>
+                                        <Salad className='h-4 w-4 text-primary' />
+                                    </div>
+                                    Extras / al gusto
+                                    {extraIngredients.length > 0 && (
+                                        <Badge
+                                            variant='secondary'
+                                            className='ml-2'>
+                                            {extraIngredients.length}
+                                        </Badge>
+                                    )}
+                                </CardTitle>
+                                <p className='text-xs text-muted-foreground pl-10 sm:pl-0 sm:mt-1 sm:text-right sm:max-w-[12rem]'>
+                                    No afectan el calculo nutricional por
+                                    defecto
+                                </p>
                             </div>
                         </CardHeader>
                         <CardContent className='pt-5'>

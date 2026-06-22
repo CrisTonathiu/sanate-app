@@ -5,7 +5,7 @@ import {useRouter} from 'next/navigation';
 import {LogOut} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 
-export function LogoutButton() {
+export function useLogout() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -25,6 +25,12 @@ export function LogoutButton() {
             setIsLoading(false);
         }
     };
+
+    return {isLoading, handleLogout};
+}
+
+export function LogoutButton() {
+    const {isLoading, handleLogout} = useLogout();
 
     return (
         <Button

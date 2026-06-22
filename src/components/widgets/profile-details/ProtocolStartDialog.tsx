@@ -83,15 +83,15 @@ export default function ProtocolStartDialog({
                 showCloseButton={false}
                 onEscapeKeyDown={event => event.preventDefault()}
                 onInteractOutside={event => event.preventDefault()}
-                className='overflow-hidden rounded-3xl border-border bg-background p-0 sm:max-w-2xl'>
-                <div className='relative overflow-hidden px-6 pb-5 pt-6'>
+                className='flex max-h-[90dvh] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-2xl border-border bg-background p-0 sm:max-w-2xl sm:rounded-3xl'>
+                <div className='relative shrink-0 overflow-hidden px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6'>
                     <div className='absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent' />
                     <div className='relative'>
                         <DialogHeader>
                             <div className='mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground'>
                                 <Sparkles className='h-6 w-6' />
                             </div>
-                            <DialogTitle className='text-xl font-bold text-foreground'>
+                            <DialogTitle className='text-lg font-bold text-foreground sm:text-xl'>
                                 {view === 'choice'
                                     ? '¿Cómo quieres iniciar este protocolo?'
                                     : 'Selecciona una plantilla'}
@@ -105,9 +105,9 @@ export default function ProtocolStartDialog({
                     </div>
                 </div>
 
-                <Separator className='bg-border/50' />
+                <Separator className='shrink-0 bg-border/50' />
 
-                <div className='px-6 pb-6 pt-5'>
+                <div className='min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 sm:px-6 sm:pb-6 sm:pt-5'>
                     <AnimatePresence mode='wait'>
                         {view === 'choice' ? (
                             <motion.div
@@ -115,11 +115,11 @@ export default function ProtocolStartDialog({
                                 initial={{opacity: 0, x: -12}}
                                 animate={{opacity: 1, x: 0}}
                                 exit={{opacity: 0, x: 12}}
-                                className='grid gap-4 sm:grid-cols-2'>
+                                className='grid gap-3 sm:grid-cols-2 sm:gap-4'>
                                 <button
                                     type='button'
                                     onClick={onStartClean}
-                                    className='group rounded-2xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5'>
+                                    className='group rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 sm:p-5'>
                                     <div className='mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-secondary text-foreground'>
                                         <FileText className='h-5 w-5' />
                                     </div>
@@ -138,7 +138,7 @@ export default function ProtocolStartDialog({
                                 <button
                                     type='button'
                                     onClick={handleShowTemplates}
-                                    className='group rounded-2xl border border-border bg-card p-5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5'>
+                                    className='group rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 sm:p-5'>
                                     <div className='mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-secondary text-foreground'>
                                         <Copy className='h-5 w-5' />
                                     </div>
@@ -161,12 +161,12 @@ export default function ProtocolStartDialog({
                                 animate={{opacity: 1, x: 0}}
                                 exit={{opacity: 0, x: -12}}
                                 className='space-y-4'>
-                                <div className='flex items-center justify-between gap-3'>
+                                <div className='flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
                                     <Button
                                         type='button'
                                         variant='ghost'
                                         onClick={() => setView('choice')}
-                                        className='h-9 rounded-xl px-3'>
+                                        className='h-9 w-full justify-start rounded-xl px-3 sm:w-auto'>
                                         <ArrowLeft className='mr-2 h-4 w-4' />
                                         Volver
                                     </Button>
@@ -174,7 +174,7 @@ export default function ProtocolStartDialog({
                                         type='button'
                                         variant='outline'
                                         onClick={onStartClean}
-                                        className='h-9 rounded-xl'>
+                                        className='h-9 w-full rounded-xl sm:w-auto'>
                                         Empezar limpio
                                     </Button>
                                 </div>
@@ -215,7 +215,7 @@ export default function ProtocolStartDialog({
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className='max-h-[420px] space-y-3 overflow-y-auto pr-1'>
+                                    <div className='space-y-3 sm:max-h-[420px] sm:overflow-y-auto sm:pr-1'>
                                         {sortedTemplates.map(template => (
                                             <div
                                                 key={template.id}
@@ -268,7 +268,7 @@ export default function ProtocolStartDialog({
                                                         disabled={
                                                             isApplyingTemplate
                                                         }
-                                                        className='h-10 rounded-xl px-5'>
+                                                        className='h-10 w-full rounded-xl px-5 sm:w-auto'>
                                                         {isApplyingTemplate ? (
                                                             <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                                                         ) : (

@@ -1,5 +1,6 @@
 'use client';
 
+import {getUserFullName, getUserInitials} from '@/lib/utils';
 import {LogOut, Menu, PanelLeft} from 'lucide-react';
 import {useRouter} from 'next/navigation';
 import {Button} from '../ui/button';
@@ -16,15 +17,23 @@ interface HeaderProps {
     setSidebarOpen: (open: boolean) => void;
     sidebarOpen: boolean;
     notifications: number;
+    firstName: string;
+    lastName: string;
+    avatarUrl?: string | null;
 }
 
 export default function Header({
     setMobileMenuOpen,
     setSidebarOpen,
     sidebarOpen,
-    notifications
+    notifications,
+    firstName,
+    lastName,
+    avatarUrl
 }: HeaderProps) {
     const router = useRouter();
+    const name = getUserFullName(firstName, lastName);
+    const initials = getUserInitials(firstName, lastName);
 
     const handleLogout = async () => {
         try {
@@ -54,7 +63,7 @@ export default function Header({
                 <PanelLeft className='h-5 w-5' />
             </Button>
             <div className='flex flex-1 items-center justify-between'>
-                <h1 className='text-xl font-semibold'>Zanate App</h1>
+                <h1 className='text-xl font-semibold'>Zanate</h1>
                 <div className='flex items-center gap-3'>
                     <TooltipProvider>
                         <Tooltip>
@@ -73,10 +82,10 @@ export default function Header({
 
                     <Avatar className='h-9 w-9 border-2 border-primary'>
                         <AvatarImage
-                            src='/placeholder.svg?height=40&width=40'
-                            alt='User'
+                            src={avatarUrl || undefined}
+                            alt={name}
                         />
-                        <AvatarFallback>CC</AvatarFallback>
+                        <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
                 </div>
             </div>

@@ -9,6 +9,7 @@ import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {cn} from '@/lib/utils';
 import {useMutation} from '@tanstack/react-query';
+import Image from 'next/image';
 
 // Floating orb component for background
 function FloatingOrb({
@@ -156,15 +157,15 @@ export default function RegisterPage() {
 
             {/* Floating orbs */}
             <FloatingOrb
-                className='left-1/4 top-1/4 h-64 w-64 bg-[hsl(262,80%,60%)]'
+                className='left-1/4 top-1/4 h-64 w-64 bg-[#163A2A]'
                 delay={0}
             />
             <FloatingOrb
-                className='right-1/4 bottom-1/4 h-48 w-48 bg-[hsl(220,70%,55%)]'
+                className='right-1/4 bottom-1/4 h-48 w-48 bg-[#163A2A]'
                 delay={2}
             />
             <FloatingOrb
-                className='left-1/2 top-1/2 h-32 w-32 bg-[hsl(262,80%,60%)]'
+                className='left-1/2 top-1/2 h-32 w-32 bg-[#163A2A]'
                 delay={4}
             />
 
@@ -187,7 +188,7 @@ export default function RegisterPage() {
                 {/* Card glow effect */}
                 <div className='absolute -inset-px rounded-2xl bg-gradient-to-b from-[hsl(262,80%,60%)/0.3] via-transparent to-[hsl(220,70%,55%)/0.15] blur-sm' />
 
-                <div className='relative rounded-2xl border border-border bg-card p-8 shadow-2xl shadow-[hsl(262,80%,60%)/0.08]'>
+                <div className='relative rounded-2xl border border-border bg-card p-8 shadow-2xl shadow-[#163A2A/0.08]'>
                     {/* Logo and brand */}
                     <motion.div
                         initial={{opacity: 0, y: 10}}
@@ -195,7 +196,7 @@ export default function RegisterPage() {
                         transition={{duration: 0.5, delay: 0.2}}
                         className='mb-8 flex flex-col items-center gap-4'>
                         <motion.div
-                            className='flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(262,80%,60%)] to-[hsl(220,70%,55%)]'
+                            className='flex size-14 items-center justify-center rounded-2xl'
                             whileHover={{scale: 1.05, rotate: 5}}
                             whileTap={{scale: 0.95}}
                             transition={{
@@ -203,7 +204,13 @@ export default function RegisterPage() {
                                 stiffness: 300,
                                 damping: 20
                             }}>
-                            <Apple className='h-7 w-7 text-primary-foreground' />
+                            <Image
+                                src='/logo-app.png'
+                                alt='Zanate'
+                                width={48}
+                                height={48}
+                                className='size-16 object-contain'
+                            />
                         </motion.div>
 
                         <div className='text-center'>
@@ -212,7 +219,7 @@ export default function RegisterPage() {
                                 animate={{opacity: 1}}
                                 transition={{delay: 0.3}}
                                 className='text-2xl font-bold tracking-tight text-foreground'>
-                                Zanate App
+                                Zanate
                             </motion.h1>
                             <motion.p
                                 initial={{opacity: 0}}

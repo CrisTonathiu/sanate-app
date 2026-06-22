@@ -81,15 +81,15 @@ export function CalorieProgress({
                 Gran trabajo hoy, sigue así! 🎉
             </h2>
 
-            <div className='flex items-center justify-center gap-8'>
+            <div className='flex flex-col items-center justify-center gap-6 sm:flex-row sm:gap-8'>
                 {/* Left stat */}
-                <div className='text-center'>
+                <div className='order-2 text-center sm:order-1'>
                     <p className='text-2xl font-bold text-foreground'>{left}</p>
                     <p className='text-sm text-muted-foreground'>Restantes</p>
                 </div>
 
                 {/* Main arc */}
-                <div className='relative'>
+                <div className='relative order-1 sm:order-2'>
                     <svg
                         width='200'
                         height='120'
@@ -140,7 +140,7 @@ export function CalorieProgress({
                 </div>
 
                 {/* Logs stat */}
-                <div className='text-center'>
+                <div className='order-3 text-center'>
                     <p className='text-2xl font-bold text-foreground'>{logs}</p>
                     <p className='text-sm text-muted-foreground'>Registros</p>
                 </div>

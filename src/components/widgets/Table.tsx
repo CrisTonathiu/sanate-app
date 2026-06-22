@@ -2,6 +2,7 @@
 
 import {User} from 'lucide-react';
 import {motion} from 'framer-motion';
+import {cn} from '@/lib/utils';
 
 const defaultRows = [
     {
@@ -60,37 +61,63 @@ interface TableProps {
     isLoading?: boolean;
 }
 
+const rowClassName =
+    'p-3 flex w-full flex-col items-stretch gap-3 text-left md:grid md:items-center md:gap-0';
+
+function getGridStyle(columnCount: number) {
+    return {
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`
+    };
+}
+
+function renderCellContent(cell: CellValue) {
+    if (isCellWithSecondary(cell)) {
+        return (
+            <div className='flex flex-col gap-0.5 text-left'>
+                <div>{cell.primary}</div>
+                {cell.secondary ? (
+                    <div className='text-xs text-muted-foreground'>
+                        {cell.secondary}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
+    return cell as React.ReactNode;
+}
+
+function TableCell({
+    column,
+    children
+}: {
+    column: TableColumn;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            className={cn(
+                'w-full min-w-0 text-left',
+                column.cellClassName ?? 'text-sm md:text-base'
+            )}>
+            <div className='mb-0.5 text-xs font-medium text-muted-foreground md:hidden'>
+                {column.label}
+            </div>
+            {children}
+        </div>
+    );
+}
+
 function TableRow({columns, row}: {columns: TableColumn[]; row: RowData}) {
     return (
         <motion.div
             whileHover={{backgroundColor: 'rgba(0,0,0,0.02)'}}
-            className='p-3 md:grid items-center flex flex-col md:flex-row gap-3 md:gap-0'
-            style={{
-                gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
-            }}>
+            className={rowClassName}
+            style={getGridStyle(columns.length)}>
             {columns.map(column => (
-                <div
-                    key={column.key}
-                    className={column.cellClassName ?? 'text-sm md:text-base'}>
-                    {(() => {
-                        const cell = row[column.key];
-
-                        if (isCellWithSecondary(cell)) {
-                            return (
-                                <div className='flex flex-col gap-0.5'>
-                                    <div>{cell.primary}</div>
-                                    {cell.secondary ? (
-                                        <div className='text-xs text-muted-foreground'>
-                                            {cell.secondary}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            );
-                        }
-
-                        return cell as React.ReactNode;
-                    })()}
-                </div>
+                <TableCell key={column.key} column={column}>
+                    {renderCellContent(row[column.key])}
+                </TableCell>
             ))}
         </motion.div>
     );
@@ -104,10 +131,8 @@ export default function Table({
     return (
         <div className='rounded-3xl border overflow-hidden'>
             <div
-                className='bg-muted/50 p-3 hidden md:grid text-sm font-medium'
-                style={{
-                    gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
-                }}>
+                className='bg-muted/50 p-3 hidden md:grid text-left text-sm font-medium'
+                style={getGridStyle(columns.length)}>
                 {columns.map(column => (
                     <div key={column.key} className={column.headerClassName}>
                         {column.label}
@@ -119,19 +144,12 @@ export default function Table({
                     ? Array.from({length: 3}).map((_, index) => (
                           <div
                               key={index}
-                              className='p-3 md:grid items-center flex flex-col md:flex-row gap-3 md:gap-0'
-                              style={{
-                                  gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`
-                              }}>
+                              className={rowClassName}
+                              style={getGridStyle(columns.length)}>
                               {columns.map(column => (
-                                  <div
-                                      key={column.key}
-                                      className={
-                                          column.cellClassName ??
-                                          'text-sm md:text-base'
-                                      }>
-                                      <div className='h-4 bg-muted rounded animate-pulse' />
-                                  </div>
+                                  <TableCell key={column.key} column={column}>
+                                      <div className='h-4 w-full max-w-48 bg-muted rounded animate-pulse' />
+                                  </TableCell>
                               ))}
                           </div>
                       ))
