@@ -17,5 +17,14 @@ export default async function StaffLayout({
         redirect('/portal');
     }
 
-    return <Main>{children}</Main>;
+    return (
+        <Main
+            user={{
+                firstName: user.firstName,
+                lastName: user.lastName,
+                avatarUrl: user.avatarUrl
+            }}>
+            {children}
+        </Main>
+    );
 }

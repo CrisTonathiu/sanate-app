@@ -9,8 +9,8 @@ import {
     Check,
     UtensilsCrossed
 } from 'lucide-react';
-import Image from 'next/image';
 import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
+import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
 interface RecipeModalProps {
     recipe: MealSliderRecipe | null;
@@ -27,6 +27,9 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
     const [showEquivalents, setShowEquivalents] = useState<string | null>(null);
 
     if (!recipe) return null;
+
+    const imageSrc =
+        getSafeRecipeImageSrc(recipe.image) ?? '/recipe-placeholder.svg';
 
     const handleSwap = (ingredientName: string, equivalent: string) => {
         setSwappedIngredients(prev => ({
@@ -53,12 +56,14 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
 
             <div className='relative z-10 w-full max-w-lg max-h-[90vh] overflow-hidden rounded-t-3xl sm:rounded-3xl bg-card shadow-xl'>
                 {/* Header Image */}
-                <div className='relative h-48 w-full'>
-                    <Image
-                        src={recipe.image}
+                <div className='relative h-48 w-full bg-secondary/30'>
+                    <img
+                        src={imageSrc}
                         alt={recipe.name}
-                        fill
-                        className='object-cover'
+                        onError={e => {
+                            e.currentTarget.src = '/recipe-placeholder.svg';
+                        }}
+                        className='h-full w-full object-cover'
                     />
                     <div className='absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent' />
 

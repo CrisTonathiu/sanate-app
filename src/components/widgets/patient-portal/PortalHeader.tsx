@@ -1,6 +1,5 @@
-import {LogoutButton} from './LogoutButton';
-import {DownloadPlanButton} from './DownloadPlanButton';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
+import {PortalHeaderActions} from './PortalHeaderActions';
 import type {PlanRecommendations} from './PlanPdf';
 
 interface PortalHeaderProps {
@@ -35,10 +34,7 @@ export default function PortalHeader({
                 </div>
             </div>
 
-            <div className='flex items-center gap-2'>
-                <DownloadPlanButton recommendations={recommendations} />
-                <LogoutButton />
-            </div>
+            <PortalHeaderActions recommendations={recommendations} />
         </div>
     );
 }

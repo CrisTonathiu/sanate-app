@@ -5,6 +5,18 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
+export function getUserFullName(firstName: string, lastName: string) {
+    return `${firstName} ${lastName}`.trim();
+}
+
+export function getUserInitials(firstName: string, lastName: string) {
+    const first = firstName.trim().charAt(0);
+    const last = lastName.trim().charAt(0);
+    const initials = `${first}${last}`.toUpperCase();
+
+    return initials || '?';
+}
+
 export function getAgeFromDateString(
     dateString: string | null | undefined
 ): number | null {

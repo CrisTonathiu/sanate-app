@@ -10,9 +10,9 @@ import {
     Clock,
     Flame
 } from 'lucide-react';
-import Image from 'next/image';
 import {RecipeModal} from './RecipeModal';
 import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
+import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
 interface MealTypeInfo {
     id: string;
@@ -152,6 +152,10 @@ export function MealSlider({recipes}: MealSliderProps) {
                                         mealTypeInfo[recipe.mealType];
                                     const Icon = mealInfo.icon;
 
+                                    const imageSrc =
+                                        getSafeRecipeImageSrc(recipe.image) ??
+                                        '/recipe-placeholder.svg';
+
                                     return (
                                         <button
                                             key={recipe.id}
@@ -159,12 +163,15 @@ export function MealSlider({recipes}: MealSliderProps) {
                                                 setSelectedRecipe(recipe)
                                             }
                                             className='group flex-1 overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md'>
-                                            <div className='relative h-28 w-full overflow-hidden'>
-                                                <Image
-                                                    src={recipe.image}
+                                            <div className='relative h-28 w-full overflow-hidden bg-secondary/30'>
+                                                <img
+                                                    src={imageSrc}
                                                     alt={recipe.name}
-                                                    fill
-                                                    className='object-cover transition-transform group-hover:scale-105'
+                                                    onError={e => {
+                                                        e.currentTarget.src =
+                                                            '/recipe-placeholder.svg';
+                                                    }}
+                                                    className='h-full w-full object-cover transition-transform group-hover:scale-105'
                                                 />
                                                 <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent' />
 

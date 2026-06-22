@@ -112,7 +112,7 @@ type DownloadPlanButtonProps = {
     recommendations: PlanRecommendations;
 };
 
-export function DownloadPlanButton({recommendations}: DownloadPlanButtonProps) {
+export function useDownloadPlan(recommendations: PlanRecommendations) {
     const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownload = async () => {
@@ -182,6 +182,12 @@ export function DownloadPlanButton({recommendations}: DownloadPlanButtonProps) {
             setIsDownloading(false);
         }
     };
+
+    return {isDownloading, handleDownload};
+}
+
+export function DownloadPlanButton({recommendations}: DownloadPlanButtonProps) {
+    const {isDownloading, handleDownload} = useDownloadPlan(recommendations);
 
     return (
         <Button
