@@ -37,7 +37,8 @@ const mealIngredientPortionSchema = z.object({
     baseCalories: optionalNumberSchema,
     baseProtein: optionalNumberSchema,
     baseCarbs: optionalNumberSchema,
-    baseFat: optionalNumberSchema
+    baseFat: optionalNumberSchema,
+    isDiscrete: z.boolean().optional()
 });
 
 const mealSlotSchema = z.object({

@@ -221,7 +221,8 @@ function evaluateMealRealism(
             const scaledQty = scaleIngredientQuantity(
                 item.quantity,
                 scale,
-                'PIECE'
+                'PIECE',
+                {isDiscrete: item.isDiscrete}
             );
 
             if (scaledQty > 4) {
@@ -454,7 +455,8 @@ function buildMeal(
         const targetQuantity = scaleIngredientQuantity(
             item.quantity,
             scale,
-            unit
+            unit,
+            {isDiscrete: item.isDiscrete}
         );
         const targetGrams = usesUnitBasedGramScaling(unit)
             ? targetGramsForPieceQuantity(
@@ -485,6 +487,7 @@ function buildMeal(
                 baseGrams: baseNutritionGrams,
                 targetGrams,
                 unit,
+                isDiscrete: item.isDiscrete,
                 baseCalories: item.caloriesPer100g,
                 baseProtein: item.proteinPer100g,
                 baseCarbs: item.carbsPer100g,

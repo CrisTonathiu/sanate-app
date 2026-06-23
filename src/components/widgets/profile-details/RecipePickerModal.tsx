@@ -110,7 +110,11 @@ function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
                       (food?.carbsPer100g ?? 0) * 4 +
                       (food?.fatPer100g ?? 0) * 9;
 
-            const targetQuantity = scaleIngredientQuantity(qty, scale, unit);
+            const isDiscrete = food?.isDiscrete ?? false;
+
+            const targetQuantity = scaleIngredientQuantity(qty, scale, unit, {
+                isDiscrete
+            });
             const targetGrams = usesUnitBasedGramScaling(unit)
                 ? targetGramsForPieceQuantity(
                       baseNutritionGrams,
@@ -126,6 +130,7 @@ function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
                 baseGrams: baseNutritionGrams,
                 targetGrams,
                 unit,
+                isDiscrete,
                 baseCalories: kcal ?? 0,
                 baseProtein: food?.proteinPer100g ?? 0,
                 baseCarbs: food?.carbsPer100g ?? 0,
