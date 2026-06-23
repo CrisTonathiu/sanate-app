@@ -43,12 +43,24 @@ export function PortalDailyMeals({
         [meals]
     );
 
+    const dayScheduleState = useMemo(() => {
+        if (selectedIndex === initialDayIndex) {
+            return 'today' as const;
+        }
+
+        return selectedIndex < initialDayIndex
+            ? ('past' as const)
+            : ('future' as const);
+    }, [selectedIndex, initialDayIndex]);
+
     return (
         <div className='mt-6'>
             <CalorieProgress
                 consumed={totals.calories}
                 goal={totals.calories}
                 logs={meals.length}
+                meals={meals}
+                dayScheduleState={dayScheduleState}
                 protein={{
                     current: totals.protein,
                     max: totals.protein

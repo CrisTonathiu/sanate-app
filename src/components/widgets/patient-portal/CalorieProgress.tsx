@@ -1,5 +1,11 @@
 'use client';
 
+import {useEffect, useMemo, useState} from 'react';
+import {
+    calculateMealScheduleProgress,
+    type DayScheduleState
+} from '@/lib/patient-portal/meal-time-progress';
+
 interface MacroCircleProps {
     value: number;
     label: string;
@@ -56,6 +62,32 @@ interface CalorieProgressProps {
     protein: {current: number; max: number};
     carbs: {current: number; max: number};
     fat: {current: number; max: number};
+    meals?: {time: string}[];
+    dayScheduleState?: DayScheduleState;
+}
+
+function useMealScheduleProgress(
+    meals: {time: string}[],
+    dayScheduleState: DayScheduleState
+) {
+    const [now, setNow] = useState(() => new Date());
+
+    useEffect(() => {
+        if (dayScheduleState !== 'today') {
+            return;
+        }
+
+        const intervalId = window.setInterval(() => {
+            setNow(new Date());
+        }, 60_000);
+
+        return () => window.clearInterval(intervalId);
+    }, [dayScheduleState]);
+
+    return useMemo(
+        () => calculateMealScheduleProgress(meals, now, dayScheduleState),
+        [meals, now, dayScheduleState]
+    );
 }
 
 export function CalorieProgress({
@@ -64,16 +96,30 @@ export function CalorieProgress({
     logs,
     protein,
     carbs,
-    fat
+    fat,
+    meals = [],
+    dayScheduleState = 'today'
 }: CalorieProgressProps) {
-    const left = Math.max(goal - consumed, 0);
-    const percentage = goal > 0 ? Math.min((consumed / goal) * 100, 100) : 0;
+    const isFutureDay = dayScheduleState === 'future';
+    const isPastDay = dayScheduleState === 'past';
+    const effectiveConsumed = isFutureDay ? 0 : consumed;
+    const left = Math.max(goal - effectiveConsumed, 0);
+    const centerValue = isFutureDay ? left : effectiveConsumed;
+    const centerLabel = 'Calorías';
+    const caloriePercentage =
+        goal > 0 ? Math.min((effectiveConsumed / goal) * 100, 100) : 0;
+    const scheduleProgress = useMealScheduleProgress(meals, dayScheduleState);
+    const percentage = isPastDay
+        ? 100
+        : (scheduleProgress ?? caloriePercentage);
+    const isArcComplete = isPastDay || percentage >= 100;
 
     // Arc properties
     const radius = 90;
     const strokeWidth = 12;
     const circumference = Math.PI * radius; // Semi-circle
     const strokeDashoffset = circumference - (circumference * percentage) / 100;
+    const arcPath = 'M 10 110 A 90 90 0 0 1 190 110';
 
     return (
         <div className='mb-10 rounded-xl border border-border bg-card p-6'>
@@ -85,7 +131,9 @@ export function CalorieProgress({
                 {/* Left stat */}
                 <div className='order-2 text-center sm:order-1'>
                     <p className='text-2xl font-bold text-foreground'>{left}</p>
-                    <p className='text-sm text-muted-foreground'>Restantes</p>
+                    <p className='text-sm text-muted-foreground'>
+                        Kcal restantes
+                    </p>
                 </div>
 
                 {/* Main arc */}
@@ -95,15 +143,6 @@ export function CalorieProgress({
                         height='120'
                         viewBox='0 0 200 120'
                         className='overflow-visible'>
-                        {/* Background arc */}
-                        <path
-                            d='M 10 110 A 90 90 0 0 1 190 110'
-                            fill='none'
-                            stroke='hsl(var(--muted))'
-                            strokeWidth={strokeWidth}
-                            strokeLinecap='round'
-                            opacity='0.3'
-                        />
                         {/* Gradient definition */}
                         <defs>
                             <linearGradient
@@ -117,24 +156,37 @@ export function CalorieProgress({
                                 <stop offset='100%' stopColor='#ef4444' />
                             </linearGradient>
                         </defs>
-                        {/* Progress arc */}
+                        {!isArcComplete && (
+                            <path
+                                d={arcPath}
+                                fill='none'
+                                stroke='currentColor'
+                                className='text-border'
+                                strokeWidth={strokeWidth}
+                                strokeLinecap='round'
+                            />
+                        )}
                         <path
-                            d='M 10 110 A 90 90 0 0 1 190 110'
+                            d={arcPath}
                             fill='none'
                             stroke='url(#calorieGradient)'
                             strokeWidth={strokeWidth}
                             strokeLinecap='round'
-                            strokeDasharray={circumference}
-                            strokeDashoffset={strokeDashoffset}
+                            {...(isArcComplete
+                                ? {}
+                                : {
+                                      strokeDasharray: circumference,
+                                      strokeDashoffset
+                                  })}
                         />
                     </svg>
                     {/* Center text */}
                     <div className='absolute inset-0 flex flex-col items-center justify-center pt-4'>
                         <span className='text-4xl font-bold text-foreground'>
-                            {consumed}
+                            {centerValue}
                         </span>
                         <span className='text-sm text-muted-foreground'>
-                            Calorías
+                            {centerLabel}
                         </span>
                     </div>
                 </div>
@@ -142,7 +194,7 @@ export function CalorieProgress({
                 {/* Logs stat */}
                 <div className='order-3 text-center'>
                     <p className='text-2xl font-bold text-foreground'>{logs}</p>
-                    <p className='text-sm text-muted-foreground'>Registros</p>
+                    <p className='text-sm text-muted-foreground'>Menús</p>
                 </div>
             </div>
 
