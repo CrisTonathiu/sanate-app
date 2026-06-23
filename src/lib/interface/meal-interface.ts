@@ -6,6 +6,8 @@ export interface MealIngredientPortion {
     baseGrams: number;
     targetGrams: number;
     unit?: string;
+    /** When true, piece counts must stay whole (e.g. eggs). From Food.isDiscrete. */
+    isDiscrete?: boolean;
     baseCalories?: number;
     baseProtein?: number;
     baseCarbs?: number;

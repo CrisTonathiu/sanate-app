@@ -1,20 +1,20 @@
 import {resolveIngredientNutritionGrams} from '@/lib/utils/ingredient-quantity';
 
-type NutritionFood = {
-    caloriesPer100g: number | null;
-    proteinPer100g: number | null;
-    carbsPer100g: number | null;
-    fatPer100g: number | null;
+export type NutritionFood = {
+    caloriesPer100g?: number | null;
+    proteinPer100g?: number | null;
+    carbsPer100g?: number | null;
+    fatPer100g?: number | null;
     density?: number | null;
 };
 
 export type RecipeIngredientForNutrition = {
-    grams: number;
+    grams?: number | null;
     quantity?: number | null;
     unit?: string | null;
-    ingredient: {
-        food: NutritionFood | null;
-    };
+    ingredient?: {
+        food?: NutritionFood | null;
+    } | null;
 };
 
 export function calculateRecipeNutrition(
@@ -22,7 +22,7 @@ export function calculateRecipeNutrition(
 ) {
     return ingredients.reduce(
         (acc, item) => {
-            const food = item.ingredient.food;
+            const food = item.ingredient?.food;
             if (!food) return acc;
 
             const factor =

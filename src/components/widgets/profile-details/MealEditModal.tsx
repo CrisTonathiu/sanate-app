@@ -217,7 +217,8 @@ export default function MealEditModal({
                 _grams: String(p.targetGrams),
                 _quantity: formatIngredientQuantityInput(
                     p.targetQuantity ?? p.targetGrams,
-                    p.unit
+                    p.unit,
+                    {isDiscrete: p.isDiscrete}
                 )
             }))
         );
@@ -627,12 +628,20 @@ export default function MealEditModal({
                                                             idx,
                                                             formatIngredientQuantityInput(
                                                                 parsed,
-                                                                portion.unit
+                                                                portion.unit,
+                                                                {
+                                                                    isDiscrete:
+                                                                        portion.isDiscrete
+                                                                }
                                                             )
                                                         );
                                                     }
                                                 }}
-                                                placeholder='1/3 o 0.33'
+                                                placeholder={
+                                                    portion.isDiscrete
+                                                        ? '3'
+                                                        : '1/3 o 0.33'
+                                                }
                                                 className='h-9 bg-background'
                                             />
                                         </div>

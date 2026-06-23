@@ -1,5 +1,5 @@
 import type {MealType} from '@prisma/client';
-import {calculateRecipeNutrition, type RecipeIngredientForNutrition} from './calculate-recipe-nutrition';
+import {calculateRecipeNutrition, type NutritionFood, type RecipeIngredientForNutrition} from './calculate-recipe-nutrition';
 import {
     mapStoredPortionsToSliderIngredients,
     type StoredProtocolMealPortions
@@ -120,7 +120,7 @@ type ProtocolRecipeForSlider = {
         grams: number;
         quantity: number | null;
         unit: string;
-        ingredient: {name: string; food: RecipeIngredientForNutrition['ingredient']['food']};
+        ingredient: {name: string; food?: NutritionFood | null};
     }>;
     extraIngredients: Array<{name: string}>;
     steps: Array<{stepNumber: number; instruction: string}>;

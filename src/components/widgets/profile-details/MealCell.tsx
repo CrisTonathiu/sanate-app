@@ -3,7 +3,7 @@
 import {Button} from '@/components/ui/button';
 import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
-import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
+import {formatFriendlyIngredientQuantity} from '@/lib/utils/ingredient-quantity';
 import {Coffee, Apple, Sun, Moon, Replace, Pencil} from 'lucide-react';
 import {useState} from 'react';
 import MealEditModal from './MealEditModal';
@@ -70,23 +70,36 @@ export default function MealCell({
         targetQuantity?: number;
         targetGrams: number;
         unit?: string;
+        isDiscrete?: boolean;
     }) => {
         const unitLabel = getUnitLabel(portion.unit);
-
+        const quantityOptions = {isDiscrete: portion.isDiscrete};
         const unit = portion.unit;
 
         if (unitLabel === 'g') {
-            return formatIngredientQuantity(portion.targetGrams, unit ?? 'GRAM');
+            return formatFriendlyIngredientQuantity(
+                portion.targetGrams,
+                unit ?? 'GRAM',
+                quantityOptions
+            );
         }
 
         if (
             typeof portion.targetQuantity === 'number' &&
             !Number.isNaN(portion.targetQuantity)
         ) {
-            return formatIngredientQuantity(portion.targetQuantity, unit);
+            return formatFriendlyIngredientQuantity(
+                portion.targetQuantity,
+                unit,
+                quantityOptions
+            );
         }
 
-        return formatIngredientQuantity(portion.targetGrams, unit ?? 'GRAM');
+        return formatFriendlyIngredientQuantity(
+            portion.targetGrams,
+            unit ?? 'GRAM',
+            quantityOptions
+        );
     };
 
     if (!meal) return null;

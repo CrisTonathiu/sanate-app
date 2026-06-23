@@ -88,16 +88,31 @@ export function mapDbIngredientsToMealPortions(
         targetQuantity: number;
         baseGrams: number;
         targetGrams: number;
+    }>,
+    recipeIngredients?: Array<{
+        ingredient: {
+            name: string;
+            food?: {isDiscrete?: boolean | null} | null;
+        };
     }>
 ): MealIngredientPortion[] {
-    return ingredients.map(row => ({
-        ingredientName: row.ingredientName,
-        baseQuantity: row.baseQuantity,
-        targetQuantity: row.targetQuantity,
-        baseGrams: row.baseGrams,
-        targetGrams: row.targetGrams,
-        unit: row.unit
-    }));
+    return ingredients.map(row => {
+        const recipeRow = recipeIngredients?.find(
+            item =>
+                item.ingredient.name.trim().toLowerCase() ===
+                row.ingredientName.trim().toLowerCase()
+        );
+
+        return {
+            ingredientName: row.ingredientName,
+            baseQuantity: row.baseQuantity,
+            targetQuantity: row.targetQuantity,
+            baseGrams: row.baseGrams,
+            targetGrams: row.targetGrams,
+            unit: row.unit,
+            isDiscrete: recipeRow?.ingredient.food?.isDiscrete ?? false
+        };
+    });
 }
 
 export function mapRecipeRowsToMealPortions(
@@ -112,6 +127,7 @@ export function mapRecipeRowsToMealPortions(
                 proteinPer100g: number | null;
                 carbsPer100g: number | null;
                 fatPer100g: number | null;
+                isDiscrete?: boolean | null;
                 density?: number | null;
             } | null;
         };
@@ -121,8 +137,7 @@ export function mapRecipeRowsToMealPortions(
         const food = item.ingredient.food;
         const grams = item.grams ?? 0;
         const unit = normalizeIngredientUnit(item.unit);
-        const quantity =
-            item.quantity ?? (unit === 'PIECE' ? 1 : grams);
+        const quantity = item.quantity ?? (unit === 'PIECE' ? 1 : grams);
         const nutritionGrams = resolveIngredientNutritionGrams(
             quantity,
             unit,
@@ -137,6 +152,7 @@ export function mapRecipeRowsToMealPortions(
             baseGrams: nutritionGrams,
             targetGrams: nutritionGrams,
             unit,
+            isDiscrete: food?.isDiscrete ?? false,
             baseCalories: food?.caloriesPer100g ?? undefined,
             baseProtein: food?.proteinPer100g ?? undefined,
             baseCarbs: food?.carbsPer100g ?? undefined,
@@ -151,8 +167,7 @@ function computeMealTotals(portions: MealIngredientPortion[]) {
             const ratio = portion.targetGrams / 100;
 
             return {
-                calories:
-                    sum.calories + (portion.baseCalories ?? 0) * ratio,
+                calories: sum.calories + (portion.baseCalories ?? 0) * ratio,
                 protein: sum.protein + (portion.baseProtein ?? 0) * ratio,
                 carbs: sum.carbs + (portion.baseCarbs ?? 0) * ratio,
                 fat: sum.fat + (portion.baseFat ?? 0) * ratio
@@ -220,7 +235,22 @@ export function buildMealSlotFromProtocolMeal(meal: {
             carbs: round1(meal.portions.actualCarbs),
             fat: round1(meal.portions.actualFat),
             ingredientPortions: mapDbIngredientsToMealPortions(
-                meal.portions.ingredients
+                meal.portions.ingredients,
+                recipe.ingredients.map(ingredient => ({
+                    ingredient: {
+                        name: ingredient.ingredient.name,
+                        food: {
+                            caloriesPer100g:
+                                ingredient.ingredient.food?.caloriesPer100g,
+                            proteinPer100g:
+                                ingredient.ingredient.food?.proteinPer100g,
+                            carbsPer100g:
+                                ingredient.ingredient.food?.carbsPer100g,
+                            fatPer100g: ingredient.ingredient.food?.fatPer100g,
+                            density: ingredient.ingredient.food?.density
+                        } as any
+                    }
+                }))
             )
         };
     }
@@ -266,15 +296,22 @@ export function formatScaledIngredientDisplay(
         unit: IngredientUnit | string;
         targetGrams: number;
         targetQuantity: number;
+        isDiscrete?: boolean;
     },
     recipeBase: RecipeIngredientBase
 ): {amount: string; unit: string} {
     const unit = normalizeIngredientUnit(scaled.unit ?? recipeBase.unit);
-    const unitLabel = INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
+    const unitLabel =
+        INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
+    const quantityOptions = {isDiscrete: scaled.isDiscrete};
 
     if (unit === 'GRAM') {
         return {
-            amount: formatIngredientQuantity(scaled.targetGrams || 0, 'GRAM'),
+            amount: formatIngredientQuantity(
+                scaled.targetGrams || 0,
+                'GRAM',
+                quantityOptions
+            ),
             unit: unitLabel
         };
     }
@@ -295,10 +332,18 @@ export function formatScaledIngredientDisplay(
             ? scaled.targetGrams / gramsPerUnit
             : scaled.targetQuantity;
 
-    displayQuantity = snapQuantityForUnit(displayQuantity, unit);
+    displayQuantity = snapQuantityForUnit(
+        displayQuantity,
+        unit,
+        quantityOptions
+    );
 
     return {
-        amount: formatIngredientQuantity(displayQuantity, unit),
+        amount: formatIngredientQuantity(
+            displayQuantity,
+            unit,
+            quantityOptions
+        ),
         unit: unitLabel
     };
 }
@@ -309,7 +354,10 @@ export function mapStoredPortionsToSliderIngredients(
         RecipeIngredientBase & {
             ingredient: {
                 name: string;
-                food?: {density?: number | null} | null;
+                food?: {
+                    density?: number | null;
+                    isDiscrete?: boolean | null;
+                } | null;
             };
         }
     >
@@ -338,7 +386,8 @@ export function mapStoredPortionsToSliderIngredients(
             {
                 unit: row.unit,
                 targetGrams: row.targetGrams,
-                targetQuantity: row.targetQuantity
+                targetQuantity: row.targetQuantity,
+                isDiscrete: recipeRow?.ingredient.food?.isDiscrete ?? false
             },
             recipeBase
         );

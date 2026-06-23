@@ -1,3 +1,15 @@
+export type IngredientQuantityOptions = {
+    /** Food marked as discrete (eggs, bread slices) — whole pieces only. */
+    isDiscrete?: boolean;
+};
+
+/** Quarter-cup steps for patient-facing meal planner display. */
+const FRIENDLY_VOLUME_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
+    {num: 1, den: 4},
+    {num: 1, den: 2},
+    {num: 3, den: 4}
+];
+
 /** Fractions that fit a standard measuring cup (smallest mark is 1/8). */
 const COOKING_CUP_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
     {num: 1, den: 8},
@@ -102,15 +114,88 @@ function snapToPieceFraction(quantity: number): number {
     return snapToNearestFraction(quantity, PIECE_FRACTIONS);
 }
 
+function usesWholePiecesOnly(
+    unit?: string | null,
+    options?: IngredientQuantityOptions
+): boolean {
+    return (
+        normalizeIngredientUnit(unit) === 'PIECE' && options?.isDiscrete === true
+    );
+}
+
+function snapToWholeQuantity(quantity: number): number {
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        return 0;
+    }
+
+    const rounded = Math.round(quantity);
+    return rounded === 0 ? 1 : rounded;
+}
+
+function snapToQuarterStep(quantity: number): number {
+    return Math.round(quantity * 4) / 4;
+}
+
+function snapFriendlyGrams(quantity: number): number {
+    const abs = Math.abs(quantity);
+    if (abs < 20) {
+        return Math.round(quantity);
+    }
+    if (abs < 50) {
+        return Math.round(quantity / 5) * 5;
+    }
+    return Math.round(quantity / 10) * 10;
+}
+
+/**
+ * Snaps a quantity to easy-to-read measures for meal planner display.
+ * Calories stay on the stored targetGrams; this only affects what users see.
+ */
+export function snapFriendlyQuantityForUnit(
+    quantity: number,
+    unit?: string | null,
+    options?: IngredientQuantityOptions
+): number {
+    if (!Number.isFinite(quantity)) {
+        return 0;
+    }
+
+    if (usesWholePiecesOnly(unit, options)) {
+        return snapToWholeQuantity(quantity);
+    }
+
+    const normalized = normalizeIngredientUnit(unit);
+
+    switch (normalized) {
+        case 'PIECE':
+            return snapToNearestFraction(quantity, [{num: 1, den: 2}]);
+        case 'CUP':
+        case 'TBSP':
+        case 'TSP':
+        case 'OZ':
+            return snapToQuarterStep(quantity);
+        case 'GRAM':
+        case 'ML':
+            return snapFriendlyGrams(quantity);
+        default:
+            return snapFriendlyGrams(quantity);
+    }
+}
+
 /**
  * Snaps a quantity to realistic kitchen measures before display or storage.
  */
 export function snapQuantityForUnit(
     quantity: number,
-    unit?: string | null
+    unit?: string | null,
+    options?: IngredientQuantityOptions
 ): number {
     if (!Number.isFinite(quantity)) {
         return 0;
+    }
+
+    if (usesWholePiecesOnly(unit, options)) {
+        return snapToWholeQuantity(quantity);
     }
 
     const normalized = normalizeIngredientUnit(unit);
@@ -188,12 +273,30 @@ function formatSnappedQuantityAsFraction(
  */
 export function formatIngredientQuantity(
     quantity: number,
-    unit?: string | null
+    unit?: string | null,
+    options?: IngredientQuantityOptions
 ): string {
     const normalized = normalizeIngredientUnit(unit);
-    const snapped = snapQuantityForUnit(quantity, unit);
+    const snapped = snapQuantityForUnit(quantity, unit, options);
     const allowedFractions =
         normalized === 'PIECE' ? PIECE_FRACTIONS : COOKING_CUP_FRACTIONS;
+    return formatSnappedQuantityAsFraction(snapped, allowedFractions);
+}
+
+/**
+ * Formats a quantity with coarse, user-friendly rounding for meal planner cards.
+ */
+export function formatFriendlyIngredientQuantity(
+    quantity: number,
+    unit?: string | null,
+    options?: IngredientQuantityOptions
+): string {
+    const normalized = normalizeIngredientUnit(unit);
+    const snapped = snapFriendlyQuantityForUnit(quantity, unit, options);
+    const allowedFractions =
+        normalized === 'PIECE'
+            ? [{num: 1, den: 2}]
+            : FRIENDLY_VOLUME_FRACTIONS;
     return formatSnappedQuantityAsFraction(snapped, allowedFractions);
 }
 
@@ -262,14 +365,15 @@ export function roundPieceQuantity(quantity: number): number {
 export function scaleIngredientQuantity(
     quantity: number,
     scale: number,
-    unit?: string | null
+    unit?: string | null,
+    options?: IngredientQuantityOptions
 ): number {
     if (!Number.isFinite(quantity) || !Number.isFinite(scale)) {
         return 0;
     }
 
     const scaled = Math.round(quantity * scale * 1000) / 1000;
-    return snapQuantityForUnit(scaled, unit);
+    return snapQuantityForUnit(scaled, unit, options);
 }
 
 /** Gram weight for a scaled piece count, using the recipe's base portion. */
@@ -288,14 +392,15 @@ export function targetGramsForPieceQuantity(
  */
 export function formatIngredientQuantityInput(
     input: string | number | null | undefined,
-    unit?: string | null
+    unit?: string | null,
+    options?: IngredientQuantityOptions
 ): string {
     const parsed = parseIngredientQuantity(input);
     if (parsed == null || parsed <= 0) {
         return typeof input === 'string' ? input : '';
     }
 
-    return formatIngredientQuantity(parsed, unit);
+    return formatIngredientQuantity(parsed, unit, options);
 }
 
 /** Metric cooking cup size used for volume conversions. */

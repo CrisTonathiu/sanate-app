@@ -5,6 +5,7 @@ import {Input} from '@/components/ui/input';
 import {EmptyStateRecipeList} from '@/components/widgets/recipe/EmptyStateRecipeList';
 import {RecipeCard} from '@/components/widgets/recipe/RecipeCard';
 import {useGetRecipes} from '@/hooks/use-recipes';
+import {calculateRecipeNutrition} from '@/lib/patient-portal/calculate-recipe-nutrition';
 import {cn} from '@/lib/utils';
 import {AnimatePresence, motion} from 'framer-motion';
 import {
@@ -138,22 +139,36 @@ export default function ClientPage() {
                     className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
                     <AnimatePresence mode='popLayout'>
                         {filteredRecipes.length > 0 ? (
-                            filteredRecipes.map(recipe => (
-                                <RecipeCard
-                                    key={recipe.id}
-                                    recipe={{
-                                        id: recipe.id,
-                                        title: recipe.title,
-                                        mealType: recipe.mealType,
-                                        calories: 0,
-                                        protein: 0,
-                                        carbs: 0,
-                                        fats: 0,
-                                        prepTime: recipe.steps.length,
-                                        imageUrl: recipe.imageUrl
-                                    }}
-                                />
-                            ))
+                            filteredRecipes.map(recipe => {
+                                const nutrition = calculateRecipeNutrition(
+                                    recipe.ingredients
+                                );
+                                return (
+                                    <RecipeCard
+                                        key={recipe.id}
+                                        recipe={{
+                                            id: recipe.id,
+                                            title: recipe.title,
+                                            mealType: recipe.mealType,
+                                            calories: Math.round(
+                                                nutrition.calories
+                                            ),
+                                            protein:
+                                                Math.round(
+                                                    nutrition.protein * 10
+                                                ) / 10,
+                                            carbs:
+                                                Math.round(nutrition.carbs * 10) /
+                                                10,
+                                            fats:
+                                                Math.round(nutrition.fat * 10) /
+                                                10,
+                                            prepTime: recipe.steps.length,
+                                            imageUrl: recipe.imageUrl
+                                        }}
+                                    />
+                                );
+                            })
                         ) : (
                             <EmptyStateRecipeList />
                         )}
