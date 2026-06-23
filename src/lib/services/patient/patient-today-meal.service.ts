@@ -1,29 +1,15 @@
 import type {MealType} from '@prisma/client';
 import {PROTOCOL_MEAL_TIMES} from '@/lib/config/protocol-meal-times';
 import {
+    minutesSinceMidnight,
+    parseMealTimeRange
+} from '@/lib/patient-portal/meal-time-progress';
+import {
     mapProtocolMealToSliderRecipe,
     type MealSliderRecipe
 } from '@/lib/patient-portal/protocol-meal-slider-map';
 import {loadTodayProtocolMeals} from '@/lib/services/patient/patient-meal-by-type.service';
 import {prisma} from '@/lib/prisma';
-
-function minutesSinceMidnight(date: Date): number {
-    return date.getHours() * 60 + date.getMinutes();
-}
-
-function parseMealTimeRange(
-    label: string
-): {startMinutes: number; endMinutes: number} | null {
-    const match = label.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
-    if (!match) {
-        return null;
-    }
-
-    return {
-        startMinutes: Number(match[1]) * 60 + Number(match[2]),
-        endMinutes: Number(match[3]) * 60 + Number(match[4])
-    };
-}
 
 /** Picks the meal slot for "now": in-window, else next, else last of the day. */
 export function pickCurrentMealType(

@@ -1,14 +1,7 @@
 'use client';
 
 import {useState} from 'react';
-import {
-    X,
-    Clock,
-    Flame,
-    RefreshCw,
-    Check,
-    UtensilsCrossed
-} from 'lucide-react';
+import {X, Clock, Flame, RefreshCw, Check, UtensilsCrossed} from 'lucide-react';
 import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
 import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
@@ -107,7 +100,7 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                 ? 'border-b-2 border-amber-400 text-amber-400'
                                 : 'text-muted-foreground hover:text-foreground'
                         }`}>
-                        Ingredients
+                        Ingredientes
                     </button>
                     <button
                         onClick={() => setActiveTab('instructions')}
@@ -116,7 +109,7 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                 ? 'border-b-2 border-amber-400 text-amber-400'
                                 : 'text-muted-foreground hover:text-foreground'
                         }`}>
-                        Instructions
+                        Instrucciones
                     </button>
                 </div>
 
@@ -127,15 +120,15 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                             {recipe.ingredients.map((ingredient, index) => {
                                 const isSwapped =
                                     swappedIngredients[ingredient.name];
-                                const displayName =
-                                    isSwapped || ingredient.name;
 
                                 return (
                                     <li key={index} className='relative'>
                                         <div className='flex items-center justify-between rounded-lg bg-muted/50 p-3'>
                                             <div className='flex items-center gap-3'>
                                                 <div className='flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold leading-tight text-amber-500'>
-                                                    <span>{ingredient.amount}</span>
+                                                    <span>
+                                                        {ingredient.amount}
+                                                    </span>
                                                 </div>
                                                 <div>
                                                     <p
@@ -193,7 +186,7 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                             ingredient.equivalents && (
                                                 <div className='mt-2 rounded-lg border border-border bg-card p-2'>
                                                     <p className='mb-2 text-xs font-medium text-muted-foreground'>
-                                                        Substitute with:
+                                                        Sustituir por:
                                                     </p>
                                                     <div className='flex flex-wrap gap-2'>
                                                         {ingredient.equivalents.map(
