@@ -5,14 +5,13 @@ import {useRouter, useSearchParams} from 'next/navigation';
 import Link from 'next/link';
 import {motion, AnimatePresence} from 'framer-motion';
 import Image from 'next/image';
-import {Eye, EyeOff, ArrowRight, Loader2} from 'lucide-react';
+import {Eye, EyeOff, ArrowRight, Loader2, ArrowLeft} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {cn} from '@/lib/utils';
 import {useMutation} from '@tanstack/react-query';
 
-// Floating orb component for background
 function FloatingOrb({
     className,
     delay = 0
@@ -41,32 +40,41 @@ function FloatingOrb({
     );
 }
 
-export default function LoginPage() {
+export default function RestablecerContrasenaPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [focusedField, setFocusedField] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [confirmPasswordError, setConfirmPasswordError] = useState<
+        string | null
+    >(null);
 
     useEffect(() => {
-        if (searchParams?.get('mensaje') === 'contrasena-actualizada') {
-            setSuccessMessage(
-                'Tu contraseña fue actualizada. Ya puedes iniciar sesión.'
-            );
+        const urlError = searchParams?.get('error')?.trim();
+        if (urlError) {
+            setFormError(urlError);
         }
     }, [searchParams]);
 
-    const loginMutation = useMutation({
+    const resetMutation = useMutation({
         mutationFn: async () => {
-            const res = await fetch('/api/auth/login', {
+            if (password !== confirmPassword) {
+                const mismatchError = new Error(
+                    'Las contraseñas no coinciden'
+                ) as Error & {passwordFieldError?: string};
+                mismatchError.passwordFieldError = 'Las contraseñas no coinciden';
+                throw mismatchError;
+            }
+
+            const res = await fetch('/api/auth/reset-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({email, password})
+                body: JSON.stringify({password})
             });
 
             if (!res.ok) {
@@ -77,23 +85,35 @@ export default function LoginPage() {
             return res.json();
         },
         onSuccess: () => {
-            router.push('/');
+            router.push('/login?mensaje=contrasena-actualizada');
         },
-        onError: () => {
-            setFormError('Correo o contraseña incorrectos.');
+        onError: (error: Error) => {
+            const passwordFieldError = (
+                error as Error & {
+                    passwordFieldError?: string;
+                }
+            ).passwordFieldError;
+
+            if (passwordFieldError) {
+                setConfirmPasswordError(passwordFieldError);
+                setFormError(null);
+                return;
+            }
+
+            setFormError(error.message);
         }
     });
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (loginMutation.isPending) return;
+        if (resetMutation.isPending) return;
         setFormError(null);
-        loginMutation.mutate();
+        setConfirmPasswordError(null);
+        resetMutation.mutate();
     };
 
     return (
         <div className=''>
-            {/* Animated gradient background */}
             <motion.div
                 className='absolute inset-0 -z-10 opacity-30'
                 animate={{
@@ -111,7 +131,6 @@ export default function LoginPage() {
                 }}
             />
 
-            {/* Floating orbs */}
             <FloatingOrb
                 className='left-1/4 top-1/4 h-64 w-64 bg-[#163A2A]'
                 delay={0}
@@ -125,7 +144,6 @@ export default function LoginPage() {
                 delay={4}
             />
 
-            {/* Grid pattern overlay */}
             <div
                 className='absolute inset-0 -z-10 opacity-[0.03]'
                 style={{
@@ -135,14 +153,12 @@ export default function LoginPage() {
                 }}
             />
 
-            {/* Login card */}
             <motion.div
                 initial={{opacity: 0, y: 30, scale: 0.96}}
                 animate={{opacity: 1, y: 0, scale: 1}}
                 transition={{duration: 0.7, ease: [0.22, 1, 0.36, 1]}}
                 className='relative w-full max-w-md md:w-[400px]'>
                 <div className='relative rounded-2xl border border-border bg-card p-8 shadow-2xl shadow-[#163A2A/0.08]'>
-                    {/* Logo and brand */}
                     <motion.div
                         initial={{opacity: 0, y: 10}}
                         animate={{opacity: 1, y: 0}}
@@ -172,103 +188,50 @@ export default function LoginPage() {
                                 animate={{opacity: 1}}
                                 transition={{delay: 0.3}}
                                 className='text-2xl font-bold tracking-tight text-foreground'>
-                                Zanate
+                                Nueva contraseña
                             </motion.h1>
                             <motion.p
                                 initial={{opacity: 0}}
                                 animate={{opacity: 1}}
                                 transition={{delay: 0.4}}
                                 className='mt-1 text-sm text-muted-foreground'>
-                                Gestion Nutricional
+                                Ingresa tu nueva contraseña
                             </motion.p>
                         </div>
                     </motion.div>
 
-                    {/* Form */}
                     <motion.form
                         initial={{opacity: 0}}
                         animate={{opacity: 1}}
                         transition={{delay: 0.5}}
                         onSubmit={handleSubmit}
                         className='flex flex-col gap-5'>
-                        {/* Email field */}
                         <motion.div
                             className='flex flex-col gap-2'
                             initial={{opacity: 0, x: -10}}
                             animate={{opacity: 1, x: 0}}
                             transition={{delay: 0.55}}>
                             <Label
-                                htmlFor='email'
+                                htmlFor='password'
                                 className={cn(
                                     'text-sm font-medium transition-colors duration-200',
-                                    focusedField === 'email'
+                                    focusedField === 'password'
                                         ? 'text-primary'
                                         : 'text-foreground'
                                 )}>
-                                Correo
+                                Nueva contraseña
                             </Label>
-                            <div className='relative'>
-                                <Input
-                                    id='email'
-                                    type='email'
-                                    placeholder='mi-correo@ejemplo.com'
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    onFocus={() => setFocusedField('email')}
-                                    onBlur={() => setFocusedField(null)}
-                                    required
-                                    className={cn(
-                                        'h-12 rounded-xl border-border bg-secondary/50 px-4 text-foreground placeholder:text-muted-foreground transition-all duration-200',
-                                        focusedField === 'email' &&
-                                            'border-primary ring-1 ring-primary/30'
-                                    )}
-                                />
-                                <AnimatePresence>
-                                    {focusedField === 'email' && (
-                                        <motion.div
-                                            initial={{scaleX: 0}}
-                                            animate={{scaleX: 1}}
-                                            exit={{scaleX: 0}}
-                                            className='absolute bottom-0 left-4 right-4 h-px origin-left '
-                                        />
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </motion.div>
-
-                        {/* Password field */}
-                        <motion.div
-                            className='flex flex-col gap-2'
-                            initial={{opacity: 0, x: -10}}
-                            animate={{opacity: 1, x: 0}}
-                            transition={{delay: 0.65}}>
-                            <div className='flex items-center justify-between'>
-                                <Label
-                                    htmlFor='password'
-                                    className={cn(
-                                        'text-sm font-medium transition-colors duration-200',
-                                        focusedField === 'password'
-                                            ? 'text-primary'
-                                            : 'text-foreground'
-                                    )}>
-                                    Contraseña
-                                </Label>
-                                <Link
-                                    href='/recuperar-contrasena'
-                                    className='text-xs text-muted-foreground transition-colors hover:text-primary'>
-                                    ¿Olvidaste tu contraseña?
-                                </Link>
-                            </div>
                             <div className='relative'>
                                 <Input
                                     id='password'
                                     type={showPassword ? 'text' : 'password'}
-                                    placeholder='Ingresa tu contraseña'
+                                    placeholder='Mínimo 8 caracteres'
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     onFocus={() => setFocusedField('password')}
                                     onBlur={() => setFocusedField(null)}
                                     required
+                                    minLength={8}
                                     className={cn(
                                         'h-12 rounded-xl border-border bg-secondary/50 pr-12 pl-4 text-foreground placeholder:text-muted-foreground transition-all duration-200',
                                         focusedField === 'password' &&
@@ -283,96 +246,93 @@ export default function LoginPage() {
                                     className='absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground'
                                     aria-label={
                                         showPassword
-                                            ? 'Hide password'
-                                            : 'Show password'
+                                            ? 'Ocultar contraseña'
+                                            : 'Mostrar contraseña'
                                     }>
-                                    <AnimatePresence
-                                        mode='wait'
-                                        initial={false}>
-                                        {showPassword ? (
-                                            <motion.div
-                                                key='eye-off'
-                                                initial={{
-                                                    opacity: 0,
-                                                    scale: 0.8,
-                                                    rotate: -90
-                                                }}
-                                                animate={{
-                                                    opacity: 1,
-                                                    scale: 1,
-                                                    rotate: 0
-                                                }}
-                                                exit={{
-                                                    opacity: 0,
-                                                    scale: 0.8,
-                                                    rotate: 90
-                                                }}
-                                                transition={{duration: 0.15}}>
-                                                <EyeOff className='h-4 w-4' />
-                                            </motion.div>
-                                        ) : (
-                                            <motion.div
-                                                key='eye'
-                                                initial={{
-                                                    opacity: 0,
-                                                    scale: 0.8,
-                                                    rotate: -90
-                                                }}
-                                                animate={{
-                                                    opacity: 1,
-                                                    scale: 1,
-                                                    rotate: 0
-                                                }}
-                                                exit={{
-                                                    opacity: 0,
-                                                    scale: 0.8,
-                                                    rotate: 90
-                                                }}
-                                                transition={{duration: 0.15}}>
-                                                <Eye className='h-4 w-4' />
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </button>
-                                <AnimatePresence>
-                                    {focusedField === 'password' && (
-                                        <motion.div
-                                            initial={{scaleX: 0}}
-                                            animate={{scaleX: 1}}
-                                            exit={{scaleX: 0}}
-                                            className='absolute bottom-0 left-4 right-4 h-px origin-left '
-                                        />
+                                    {showPassword ? (
+                                        <EyeOff className='h-4 w-4' />
+                                    ) : (
+                                        <Eye className='h-4 w-4' />
                                     )}
-                                </AnimatePresence>
+                                </button>
                             </div>
                         </motion.div>
 
-                        {successMessage && (
-                            <div className='rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground'>
-                                {successMessage}
+                        <motion.div
+                            className='flex flex-col gap-2'
+                            initial={{opacity: 0, x: -10}}
+                            animate={{opacity: 1, x: 0}}
+                            transition={{delay: 0.65}}>
+                            <Label
+                                htmlFor='confirmPassword'
+                                className={cn(
+                                    'text-sm font-medium transition-colors duration-200',
+                                    focusedField === 'confirmPassword'
+                                        ? 'text-primary'
+                                        : 'text-foreground'
+                                )}>
+                                Confirmar contraseña
+                            </Label>
+                            <div className='relative'>
+                                <Input
+                                    id='confirmPassword'
+                                    type={showPassword ? 'text' : 'password'}
+                                    placeholder='Repite tu contraseña'
+                                    value={confirmPassword}
+                                    onChange={e => {
+                                        setConfirmPassword(e.target.value);
+                                        if (confirmPasswordError) {
+                                            setConfirmPasswordError(null);
+                                        }
+                                    }}
+                                    onFocus={() =>
+                                        setFocusedField('confirmPassword')
+                                    }
+                                    onBlur={() => setFocusedField(null)}
+                                    required
+                                    minLength={8}
+                                    className={cn(
+                                        'h-12 rounded-xl border-border bg-secondary/50 px-4 text-foreground placeholder:text-muted-foreground transition-all duration-200',
+                                        focusedField === 'confirmPassword' &&
+                                            'border-primary ring-1 ring-primary/30'
+                                    )}
+                                />
                             </div>
-                        )}
+                            {confirmPasswordError && (
+                                <p
+                                    role='alert'
+                                    className='text-sm text-destructive'>
+                                    {confirmPasswordError}
+                                </p>
+                            )}
+                        </motion.div>
 
                         {formError && (
-                            <div
-                                role='alert'
-                                className='rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive'>
+                            <div className='rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive'>
                                 {formError}
+                                {formError.includes('expiró') && (
+                                    <p className='mt-2'>
+                                        <Link
+                                            href='/recuperar-contrasena'
+                                            className='font-medium underline underline-offset-2'>
+                                            Solicitar un nuevo enlace
+                                        </Link>
+                                    </p>
+                                )}
                             </div>
                         )}
 
-                        {/* Sign in button */}
                         <motion.div
                             initial={{opacity: 0, y: 10}}
                             animate={{opacity: 1, y: 0}}
                             transition={{delay: 0.75}}
-                            className='pt-1'>
+                            className='flex flex-col gap-3 pt-1'>
                             <Button
                                 type='submit'
-                                disabled={loginMutation.isPending}
+                                disabled={resetMutation.isPending}
                                 className='relative h-12 w-full overflow-hidden rounded-xl text-sm font-semibold transition-all duration-200'>
                                 <AnimatePresence mode='wait'>
-                                    {loginMutation.isPending ? (
+                                    {resetMutation.isPending ? (
                                         <motion.div
                                             key='loading'
                                             initial={{opacity: 0, y: 10}}
@@ -380,7 +340,7 @@ export default function LoginPage() {
                                             exit={{opacity: 0, y: -10}}
                                             className='flex items-center gap-2'>
                                             <Loader2 className='h-4 w-4 animate-spin' />
-                                            Iniciando sesión...
+                                            Guardando...
                                         </motion.div>
                                     ) : (
                                         <motion.div
@@ -389,13 +349,12 @@ export default function LoginPage() {
                                             animate={{opacity: 1, y: 0}}
                                             exit={{opacity: 0, y: -10}}
                                             className='flex items-center gap-2'>
-                                            Iniciar Sesión
+                                            Restablecer contraseña
                                             <ArrowRight className='h-4 w-4' />
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
 
-                                {/* Button shimmer effect */}
                                 <motion.div
                                     className='absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent'
                                     animate={{translateX: ['−100%', '100%']}}
@@ -406,6 +365,16 @@ export default function LoginPage() {
                                         ease: 'easeInOut'
                                     }}
                                 />
+                            </Button>
+
+                            <Button
+                                asChild
+                                variant='ghost'
+                                className='h-11 w-full rounded-xl text-sm text-muted-foreground'>
+                                <Link href='/login'>
+                                    <ArrowLeft className='mr-2 h-4 w-4' />
+                                    Volver a iniciar sesión
+                                </Link>
                             </Button>
                         </motion.div>
                     </motion.form>

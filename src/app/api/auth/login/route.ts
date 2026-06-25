@@ -12,7 +12,10 @@ export async function POST(req: Request) {
     });
 
     if (error) {
-        return Response.json({message: error.message}, {status: 401});
+        return Response.json(
+            {message: 'Correo o contraseña incorrectos.'},
+            {status: 401}
+        );
     }
 
     return Response.json({
