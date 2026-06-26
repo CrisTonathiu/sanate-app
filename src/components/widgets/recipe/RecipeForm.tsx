@@ -61,8 +61,6 @@ const MEAL_TYPES = [
     {value: 'SMOOTHIE', label: 'Licuado'},
     {value: 'BREAKFAST', label: 'Desayuno'},
     {value: 'SNACK', label: 'Colación'},
-    {value: 'SNACK1', label: 'Colación 1'},
-    {value: 'SNACK2', label: 'Colación 2'},
     {value: 'LUNCH', label: 'Comida'},
     {value: 'DINNER', label: 'Cena'},
     {value: 'DRINKS', label: 'Bebida'}
