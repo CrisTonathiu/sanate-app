@@ -64,6 +64,23 @@ export type ActiveProtocolSummary = {
     weekPlan: DayMeals[];
 } & ProtocolRecommendations;
 
+export type PatientProtocolListItem = {
+    id: string;
+    title: string;
+    weekCount: number;
+    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+    createdAt: string;
+    generalRecommendations: string | null;
+    tips: string | null;
+    hydrationRecommendations: string | null;
+    supplementRecommendations: string | null;
+};
+
+export type PatientProtocolDetail = ActiveProtocolSummary & {
+    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+    createdAt: string;
+};
+
 export const protocolMealWithPortionsSelect = {
     mealType: true,
     recipeId: true,
@@ -269,6 +286,98 @@ export async function loadProtocolWeekPlanById(
     protocolId: string
 ): Promise<DayMeals[]> {
     return loadWeekPlanDays(protocolId);
+}
+
+export async function listProtocolsForPatient(
+    patientId: string
+): Promise<PatientProtocolListItem[]> {
+    const protocols = await prisma.protocol.findMany({
+        where: {patientId},
+        orderBy: {createdAt: 'desc'},
+        select: {
+            id: true,
+            title: true,
+            weekCount: true,
+            status: true,
+            createdAt: true,
+            generalRecommendations: true,
+            tips: true,
+            hydrationRecommendations: true,
+            supplementRecommendations: true
+        }
+    });
+
+    return protocols.map(protocol => ({
+        id: protocol.id,
+        title: protocol.title,
+        weekCount: protocol.weekCount,
+        status: protocol.status,
+        createdAt: protocol.createdAt.toISOString(),
+        generalRecommendations: protocol.generalRecommendations,
+        tips: protocol.tips,
+        hydrationRecommendations: protocol.hydrationRecommendations,
+        supplementRecommendations: protocol.supplementRecommendations
+    }));
+}
+
+export async function getProtocolDetailForPatient(
+    patientId: string,
+    protocolId: string
+): Promise<PatientProtocolDetail | null> {
+    const protocol = await prisma.protocol.findFirst({
+        where: {
+            id: protocolId,
+            patientId
+        },
+        select: {
+            id: true,
+            title: true,
+            weekCount: true,
+            status: true,
+            createdAt: true,
+            generalRecommendations: true,
+            tips: true,
+            hydrationRecommendations: true,
+            supplementRecommendations: true,
+            weeksPlan: {
+                orderBy: {weekNumber: 'asc'},
+                select: {
+                    weekNumber: true,
+                    days: {
+                        orderBy: {dayIndex: 'asc'},
+                        select: {
+                            dayIndex: true,
+                            meals: {
+                                select: protocolMealWithPortionsSelect
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!protocol) {
+        return null;
+    }
+
+    const weekCount = protocol.weekCount ?? 1;
+    const weekPlan = protocol.weeksPlan.flatMap(week =>
+        mapDaysToWeekPlan(week.days, week.weekNumber, weekCount)
+    );
+
+    return {
+        protocolId: protocol.id,
+        title: protocol.title,
+        weekCount,
+        status: protocol.status,
+        createdAt: protocol.createdAt.toISOString(),
+        weekPlan,
+        generalRecommendations: protocol.generalRecommendations,
+        tips: protocol.tips,
+        hydrationRecommendations: protocol.hydrationRecommendations,
+        supplementRecommendations: protocol.supplementRecommendations
+    };
 }
 
 export async function getActiveProtocolForPatient(

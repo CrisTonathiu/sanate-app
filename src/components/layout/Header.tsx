@@ -65,13 +65,6 @@ export default function Header({
             </Button>
             <div className='flex flex-1 items-center justify-between'>
                 <div className='flex items-center gap-2'>
-                    <Image
-                        src='/LOGO_ZANATE_FUNTIONAL.png'
-                        alt='Zanate'
-                        width={32}
-                        height={32}
-                        className='size-8 object-contain'
-                    />
                     <h1 className='text-xl font-semibold'>Zanate</h1>
                 </div>
                 <div className='flex items-center gap-3'>
@@ -91,10 +84,7 @@ export default function Header({
                     </TooltipProvider>
 
                     <Avatar className='h-9 w-9 border-2 border-primary'>
-                        <AvatarImage
-                            src={avatarUrl || undefined}
-                            alt={name}
-                        />
+                        <AvatarImage src={avatarUrl || undefined} alt={name} />
                         <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
                 </div>

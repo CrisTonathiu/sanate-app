@@ -31,7 +31,7 @@ type TabKey = 'info' | 'appointments' | 'treatments' | 'records';
 // --- Static data ---
 const TABS: {key: TabKey; label: string}[] = [
     {key: 'info', label: 'Información del paciente'},
-    {key: 'appointments', label: 'Historial de consultas'},
+    {key: 'appointments', label: 'Historial de protocolos'},
     // {key: 'treatments', label: 'Próximo tratamiento'},
     {key: 'records', label: 'Historial médico'}
 ];
@@ -82,7 +82,7 @@ export default function ClientPage({patientId}: ClientPageProps) {
             case 'info':
                 return <PatientInfoTab patient={patient} />;
             case 'appointments':
-                return <AppointmentHistoryTab />;
+                return <AppointmentHistoryTab patientId={patientId} />;
             // case 'treatments':
             //     return <NextTreatmentTab />;
             case 'records':

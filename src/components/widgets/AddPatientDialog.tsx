@@ -67,10 +67,12 @@ function FormField({
 
 export default function AddPatientDialog({
     open,
-    onOpenChange
+    onOpenChange,
+    onPatientCreated
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onPatientCreated?: (patientId: string) => void;
 }) {
     const {register, watch, handleSubmit, reset, formState} =
         useForm<NewPatientForm>({
@@ -93,9 +95,44 @@ export default function AddPatientDialog({
     const onSubmit = async (data: NewPatientForm) => {
         setIsSubmitting(true);
         try {
-            await createPatientAsync(data);
+            if (onPatientCreated) {
+                const res = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        email: data.email,
+                        phone: data.phone,
+                        birthDate: data.birthDate,
+                        height: data.height,
+                        initWeight: data.initialWeight,
+                        gender: data.gender
+                    })
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(
+                        errorData.message || 'Failed to create patient'
+                    );
+                }
+
+                const resData = await res.json();
+                const patientId = resData.data?.patient?.id as string | undefined;
+
+                if (!patientId) {
+                    throw new Error('No se pudo obtener el ID del paciente');
+                }
+
+                onPatientCreated(patientId);
+            } else {
+                await createPatientAsync(data);
+            }
+
             reset();
             onOpenChange(false);
+            setIsSubmitting(false);
         } catch {
             setIsSubmitting(false);
         }
