@@ -149,7 +149,7 @@ export default function LoginPage() {
                         transition={{duration: 0.5, delay: 0.2}}
                         className='mb-8 flex flex-col items-center gap-4'>
                         <motion.div
-                            className='flex size-14 items-center justify-center rounded-2xl'
+                            className='flex size-48 items-center justify-center rounded-2xl'
                             whileHover={{scale: 1.05, rotate: 5}}
                             whileTap={{scale: 0.95}}
                             transition={{
@@ -158,30 +158,13 @@ export default function LoginPage() {
                                 damping: 20
                             }}>
                             <Image
-                                src='/logo-app.png'
+                                src='/LOGO_ZANATE_FUNTIONAL.png'
                                 alt='Zanate'
-                                width={48}
-                                height={48}
-                                className='size-16 object-contain'
+                                width={228}
+                                height={228}
+                                className='size-48 object-contain'
                             />
                         </motion.div>
-
-                        <div className='text-center'>
-                            <motion.h1
-                                initial={{opacity: 0}}
-                                animate={{opacity: 1}}
-                                transition={{delay: 0.3}}
-                                className='text-2xl font-bold tracking-tight text-foreground'>
-                                Zanate
-                            </motion.h1>
-                            <motion.p
-                                initial={{opacity: 0}}
-                                animate={{opacity: 1}}
-                                transition={{delay: 0.4}}
-                                className='mt-1 text-sm text-muted-foreground'>
-                                Gestion Nutricional
-                            </motion.p>
-                        </div>
                     </motion.div>
 
                     {/* Form */}

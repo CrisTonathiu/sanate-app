@@ -2,6 +2,7 @@ type PatientInviteEmailProps = {
     firstName?: string | null;
     createAccountUrl: string;
     profileUrl: string;
+    logoUrl: string;
 };
 
 const containerStyle = {
@@ -63,7 +64,8 @@ const footerStyle = {
 export function PatientInviteEmail({
     firstName,
     createAccountUrl,
-    profileUrl
+    profileUrl,
+    logoUrl
 }: PatientInviteEmailProps) {
     const greetingName = firstName?.trim() || 'Hola';
 
@@ -78,15 +80,19 @@ export function PatientInviteEmail({
                             color: '#ffffff',
                             padding: '32px'
                         }}>
-                        <p
+                        <img
+                            src={logoUrl}
+                            alt='Zanate'
+                            width={64}
+                            height={64}
                             style={{
-                                fontSize: '12px',
-                                letterSpacing: '0.14em',
-                                margin: 0,
-                                textTransform: 'uppercase'
-                            }}>
-                            Zanate
-                        </p>
+                                display: 'block',
+                                height: '64px',
+                                marginBottom: '16px',
+                                objectFit: 'contain',
+                                width: '64px'
+                            }}
+                        />
                         <h1
                             style={{
                                 fontSize: '30px',

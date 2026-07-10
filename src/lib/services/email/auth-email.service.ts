@@ -30,6 +30,14 @@ function getFromEmailByActionType(emailActionType: AuthEmailActionType) {
     return process.env.RESEND_FROM_EMAIL || 'Zanate <hola@zanate.mx>';
 }
 
+function getAppUrl() {
+    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
+
+function getLogoUrl() {
+    return `${getAppUrl()}/LOGO_ZANATE_FUNTIONAL.png`;
+}
+
 function getSupabaseUrl() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -134,7 +142,8 @@ export async function sendAuthEmail({
             body: copy.body,
             confirmUrl,
             ctaLabel: copy.ctaLabel,
-            token
+            token,
+            logoUrl: getLogoUrl()
         })
     });
 }
