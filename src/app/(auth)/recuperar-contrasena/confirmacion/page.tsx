@@ -76,7 +76,7 @@ export default function RecuperarContrasenaConfirmacionPage() {
                 <div className='relative rounded-2xl border border-border bg-card p-8 shadow-2xl shadow-[#163A2A/0.08]'>
                     <div className='mb-6 flex flex-col items-center gap-4'>
                         <Image
-                            src='/logo-app.png'
+                            src='/LOGO_ZANATE_FUNTIONAL.png'
                             alt='Zanate'
                             width={48}
                             height={48}

@@ -12,11 +12,11 @@ export function SidebarBrand({onClose}: SidebarBrandProps) {
             <div className='flex items-center gap-3'>
                 <div className='relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl'>
                     <Image
-                        src='/logo-app.png'
+                        src='/LOGO_ZANATE_FUNTIONAL.png'
                         alt='Zanate'
-                        fill
-                        sizes='56px'
-                        className='scale-[1.75] object-contain'
+                        width={48}
+                        height={48}
+                        className='size-12 object-contain'
                     />
                 </div>
                 <div>

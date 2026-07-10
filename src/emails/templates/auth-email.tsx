@@ -4,6 +4,7 @@ type AuthEmailProps = {
     confirmUrl: string;
     ctaLabel: string;
     token?: string;
+    logoUrl: string;
 };
 
 const containerStyle = {
@@ -63,7 +64,8 @@ export function AuthEmail({
     body,
     confirmUrl,
     ctaLabel,
-    token
+    token,
+    logoUrl
 }: AuthEmailProps) {
     return (
         <html>
@@ -76,15 +78,19 @@ export function AuthEmail({
                             color: '#ffffff',
                             padding: '32px'
                         }}>
-                        <p
+                        <img
+                            src={logoUrl}
+                            alt='Zanate'
+                            width={64}
+                            height={64}
                             style={{
-                                fontSize: '12px',
-                                letterSpacing: '0.14em',
-                                margin: 0,
-                                textTransform: 'uppercase'
-                            }}>
-                            Zanate
-                        </p>
+                                display: 'block',
+                                height: '64px',
+                                marginBottom: '16px',
+                                objectFit: 'contain',
+                                width: '64px'
+                            }}
+                        />
                         <h1
                             style={{
                                 fontSize: '28px',

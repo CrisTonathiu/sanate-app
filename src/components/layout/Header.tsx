@@ -2,6 +2,7 @@
 
 import {getUserFullName, getUserInitials} from '@/lib/utils';
 import {LogOut, Menu, PanelLeft} from 'lucide-react';
+import Image from 'next/image';
 import {useRouter} from 'next/navigation';
 import {Button} from '../ui/button';
 import {Avatar, AvatarFallback, AvatarImage} from '../ui/avatar';
@@ -63,7 +64,16 @@ export default function Header({
                 <PanelLeft className='h-5 w-5' />
             </Button>
             <div className='flex flex-1 items-center justify-between'>
-                <h1 className='text-xl font-semibold'>Zanate</h1>
+                <div className='flex items-center gap-2'>
+                    <Image
+                        src='/LOGO_ZANATE_FUNTIONAL.png'
+                        alt='Zanate'
+                        width={32}
+                        height={32}
+                        className='size-8 object-contain'
+                    />
+                    <h1 className='text-xl font-semibold'>Zanate</h1>
+                </div>
                 <div className='flex items-center gap-3'>
                     <TooltipProvider>
                         <Tooltip>

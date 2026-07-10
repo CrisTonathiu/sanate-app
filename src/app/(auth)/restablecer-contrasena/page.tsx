@@ -174,7 +174,7 @@ export default function RestablecerContrasenaPage() {
                                 damping: 20
                             }}>
                             <Image
-                                src='/logo-app.png'
+                                src='/LOGO_ZANATE_FUNTIONAL.png'
                                 alt='Zanate'
                                 width={48}
                                 height={48}
