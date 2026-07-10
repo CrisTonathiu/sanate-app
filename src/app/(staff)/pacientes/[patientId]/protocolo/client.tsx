@@ -563,6 +563,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                 foodDislikes={foodDislikes}
                             />
                             <ConsultationInputs
+                                patientId={patientId}
                                 reason={reason}
                                 setReason={setReason}
                                 diagnosis={diagnosis}
@@ -663,6 +664,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                 foodDislikes={foodDislikes}
                             />
                             <ConsultationInputs
+                                patientId={patientId}
                                 reason={reason}
                                 setReason={setReason}
                                 diagnosis={diagnosis}

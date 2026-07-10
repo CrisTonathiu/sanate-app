@@ -2,6 +2,7 @@ import {
     Apple,
     FileHeart,
     LayoutDashboard,
+    StickyNote,
     Users,
     Video
 } from 'lucide-react';
@@ -60,6 +61,14 @@ export const sidebarItems: SidebarItem[] = [
         items: [
             {title: 'Catálogo', url: '/alimentos'},
             {title: 'Agregar alimento', url: '/alimentos/nuevo'}
+        ]
+    },
+    {
+        title: 'Notas',
+        icon: <StickyNote className='size-4' />,
+        items: [
+            {title: 'Mis Notas', url: '/notas'},
+            {title: 'Nueva nota', url: '/notas/nuevo'}
         ]
     }
 ];

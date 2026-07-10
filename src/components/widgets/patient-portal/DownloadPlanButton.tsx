@@ -110,16 +110,25 @@ async function buildMenuSectionsForPdf(
 
 type DownloadPlanButtonProps = {
     recommendations: PlanRecommendations;
+    planMenuUrl?: string;
+    fileName?: string;
 };
 
-export function useDownloadPlan(recommendations: PlanRecommendations) {
+export function useDownloadPlan(
+    recommendations: PlanRecommendations,
+    options?: {planMenuUrl?: string; fileName?: string}
+) {
     const [isDownloading, setIsDownloading] = useState(false);
+    const planMenuUrl = options?.planMenuUrl ?? '/api/portal/plan-menu';
+    const fileName = options?.fileName ?? 'mi-plan.pdf';
 
     const handleDownload = async () => {
         setIsDownloading(true);
 
         try {
-            const menuResponse = await fetch('/api/portal/plan-menu');
+            const menuResponse = await fetch(planMenuUrl, {
+                credentials: 'include'
+            });
             const menuBody = (await menuResponse.json()) as {
                 success: boolean;
                 menu?: PlanMenuPayload;
@@ -173,7 +182,7 @@ export function useDownloadPlan(recommendations: PlanRecommendations) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'mi-plan.pdf';
+            a.download = fileName;
             a.click();
             URL.revokeObjectURL(url);
         } catch (error) {
@@ -186,8 +195,15 @@ export function useDownloadPlan(recommendations: PlanRecommendations) {
     return {isDownloading, handleDownload};
 }
 
-export function DownloadPlanButton({recommendations}: DownloadPlanButtonProps) {
-    const {isDownloading, handleDownload} = useDownloadPlan(recommendations);
+export function DownloadPlanButton({
+    recommendations,
+    planMenuUrl,
+    fileName
+}: DownloadPlanButtonProps) {
+    const {isDownloading, handleDownload} = useDownloadPlan(recommendations, {
+        planMenuUrl,
+        fileName
+    });
 
     return (
         <Button

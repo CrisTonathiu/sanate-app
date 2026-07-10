@@ -115,45 +115,17 @@ function formatPlanIngredient(ingredient: {
     return quantity ? `${quantity} ${ingredient.name}` : ingredient.name;
 }
 
-export async function loadProtocolPlanMenuForUser(
-    userId: string
-): Promise<PlanMenuPayload> {
-    const patient = await prisma.patient.findUnique({
-        where: {userId},
-        select: {id: true}
-    });
+type ProtocolWeeksForMenu = {
+    weeksPlan: Array<{
+        days: Array<{
+            meals: Array<Parameters<typeof mapProtocolMealToSliderRecipe>[0]>;
+        }>;
+    }>;
+};
 
-    if (!patient) {
-        return {sections: []};
-    }
-
-    const protocol = await prisma.protocol.findFirst({
-        where: {
-            patientId: patient.id,
-            status: 'ACTIVE'
-        },
-        orderBy: {createdAt: 'desc'},
-        select: {
-            weeksPlan: {
-                orderBy: {weekNumber: 'asc'},
-                select: {
-                    days: {
-                        orderBy: {dayIndex: 'asc'},
-                        select: {
-                            meals: {
-                                select: protocolMealRecipeSelect
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    if (!protocol) {
-        return {sections: []};
-    }
-
+function buildPlanMenuFromProtocol(
+    protocol: ProtocolWeeksForMenu
+): PlanMenuPayload {
     const recipesBySection = new Map<
         PlanMenuSection,
         Map<string, PlanMenuRecipePayload>
@@ -215,4 +187,67 @@ export async function loadProtocolPlanMenuForUser(
     });
 
     return {sections};
+}
+
+const protocolWeeksMenuSelect = {
+    weeksPlan: {
+        orderBy: {weekNumber: 'asc' as const},
+        select: {
+            days: {
+                orderBy: {dayIndex: 'asc' as const},
+                select: {
+                    meals: {
+                        select: protocolMealRecipeSelect
+                    }
+                }
+            }
+        }
+    }
+};
+
+export async function loadProtocolPlanMenuByProtocolId(
+    protocolId: string
+): Promise<PlanMenuPayload> {
+    const protocol = await prisma.protocol.findUnique({
+        where: {id: protocolId},
+        select: protocolWeeksMenuSelect
+    });
+
+    if (!protocol) {
+        return {sections: []};
+    }
+
+    return buildPlanMenuFromProtocol(
+        protocol as unknown as ProtocolWeeksForMenu
+    );
+}
+
+export async function loadProtocolPlanMenuForUser(
+    userId: string
+): Promise<PlanMenuPayload> {
+    const patient = await prisma.patient.findUnique({
+        where: {userId},
+        select: {id: true}
+    });
+
+    if (!patient) {
+        return {sections: []};
+    }
+
+    const protocol = await prisma.protocol.findFirst({
+        where: {
+            patientId: patient.id,
+            status: 'ACTIVE'
+        },
+        orderBy: {createdAt: 'desc'},
+        select: protocolWeeksMenuSelect
+    });
+
+    if (!protocol) {
+        return {sections: []};
+    }
+
+    return buildPlanMenuFromProtocol(
+        protocol as unknown as ProtocolWeeksForMenu
+    );
 }
