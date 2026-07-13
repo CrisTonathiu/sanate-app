@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import {z} from 'zod';
 import type {
+    PlanShoppingListItem,
     ShoppingCategory,
     ShoppingItem
 } from '@/lib/patient-portal/shopping-list.types';
@@ -50,17 +51,93 @@ function slugifyIngredientName(name: string) {
 }
 
 function normalizeIngredientKey(name: string) {
-    return name
-        .trim()
+    return canonicalizeShoppingFoodName(name)
         .toLowerCase()
         .normalize('NFD')
         .replace(/\p{M}/gu, '')
-        .replace(
-            /\b(cocida?s?|cocido?s?|cruda?s?|crudo?s?|asada?s?|asado?s?|molida?s?|molido?s?|fileteada?s?|en trozos|rebanada?s?|picada?s?|fresca?s?|fresco?s?)\b/gi,
-            ''
-        )
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+/**
+ * Strip cooking/preparation wording and collapse common supermarket synonym
+ * variants into the purchasable base food name.
+ */
+function canonicalizeShoppingFoodName(name: string): string {
+    let result = name
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{M}/gu, '');
+
+    result = result
+        .replace(
+            /\b(cocida?s?|cocido?s?|cruda?s?|crudo?s?|asada?s?|asado?s?|molida?s?|molido?s?|fileteada?s?|hervida?s?|hervido?s?|frita?s?|frito?s?|estrellada?s?|estrellado?s?|revuelta?s?|revuelto?s?|pochada?s?|pochado?s?|salteada?s?|salteado?s?|empanizada?s?|empanizado?s?|marinada?s?|marinado?s?|ahumada?s?|ahumado?s?|tostada?s?|tostado?s?|rallada?s?|rallado?s?|en trozos|rebanada?s?|picada?s?|fresca?s?|fresco?s?|entera?s?|entero?s?|a la plancha|al vapor|al gusto)\b/gi,
+            ''
+        )
+        .replace(/\bde mar\b/gi, '')
+        .replace(/\bmarina?\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // Plural → singular for common proteins / staples so "Huevos" merges with "Huevo".
+    result = result.replace(/\bhuevos\b/g, 'huevo');
+    result = result.replace(/\bfrijoles\b/g, 'frijol');
+    result = result.replace(/\blimones\b/g, 'limon');
+    result = result.replace(/\bjitomates\b/g, 'jitomate');
+    result = result.replace(/\btomates\b/g, 'tomate');
+    result = result.replace(/\baguacates\b/g, 'aguacate');
+    result = result.replace(/\bplatanos\b/g, 'platano');
+    result = result.replace(/\bmanzanas\b/g, 'manzana');
+    result = result.replace(/\bsales\b/g, 'sal');
+
+    // Prefer the canonical display name used in shopping lists.
+    if (result === 'frijol') {
+        result = 'frijoles';
+    }
+    if (result === 'sal' || result === 'sal marina' || result === 'sal yodada') {
+        result = 'sal';
+    }
+
+    return result.replace(/\s+/g, ' ').trim();
+}
+
+function toShoppingDisplayName(canonicalKey: string): string {
+    if (!canonicalKey) {
+        return '';
+    }
+
+    const knownTitles: Record<string, string> = {
+        huevo: 'Huevo',
+        frijoles: 'Frijoles',
+        sal: 'Sal',
+        limon: 'Limón',
+        jitomate: 'Jitomate',
+        tomate: 'Tomate',
+        aguacate: 'Aguacate',
+        platano: 'Plátano',
+        manzana: 'Manzana',
+        'pechuga de pollo': 'Pechuga de pollo',
+        'aceite de oliva': 'Aceite de oliva'
+    };
+
+    if (knownTitles[canonicalKey]) {
+        return knownTitles[canonicalKey];
+    }
+
+    const smallWords = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'o', 'en', 'a']);
+
+    return canonicalKey
+        .split(' ')
+        .filter(Boolean)
+        .map((word, index) => {
+            if (index > 0 && smallWords.has(word)) {
+                return word;
+            }
+
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(' ');
 }
 
 function isNonPurchasableRawItem(name: string) {
@@ -89,8 +166,15 @@ function dedupeEnhancedItems(items: ShoppingItem[]) {
 
     for (const item of items) {
         const key = normalizeIngredientKey(item.name);
+        if (!key) {
+            continue;
+        }
+
         if (!byKey.has(key)) {
-            byKey.set(key, item);
+            byKey.set(key, {
+                ...item,
+                name: toShoppingDisplayName(key) || item.name.trim()
+            });
         }
     }
 
@@ -556,4 +640,146 @@ export async function enhanceWeeklyShoppingListsWithAI<
             })
         }))
     );
+}
+
+const planShoppingItemSchema = z.object({
+    name: z.string().min(1),
+    category: z.enum(SHOPPING_CATEGORIES)
+});
+
+const planShoppingListSchema = z.object({
+    items: z.array(planShoppingItemSchema)
+});
+
+const PLAN_SHOPPING_SYSTEM_PROMPT = [
+    'Eres un experto en listas de compras para supermercados en México.',
+    'Tu trabajo es transformar ingredientes de un plan nutricional completo en una lista de súper por categorías.',
+    'NO incluyas cantidades, medidas, pesos ni presentaciones (ni g, kg, piezas, tazas, frascos, etc.).',
+    'Solo nombres de alimentos/productos crudos o tal como se compran en el súper, sin duplicados.',
+    'NUNCA incluyas métodos de cocción, preparaciones, guarniciones opcionales ni nombres de platillos.',
+    'Responde únicamente JSON válido según el esquema solicitado.'
+].join(' ');
+
+function buildPlanShoppingPrompt(items: ShoppingItem[]) {
+    const rawList = items.map(item => ({
+        name: item.name,
+        category: item.category
+    }));
+
+    return [
+        'Convierte esta lista cruda de un plan nutricional completo (todas las semanas juntas) en una lista de compras por categorías para el súper en México.',
+        '',
+        'LISTA CRUDA (JSON):',
+        JSON.stringify(rawList, null, 2),
+        '',
+        '## PRODUCTO BASE (muy importante)',
+        '- Quita SIEMPRE la preparación o el método de cocción. En el súper compras el alimento crudo/base, no el platillo.',
+        '- "Huevo crudo", "Huevo estrellado", "Huevos revueltos", "Huevo pochado" → UNA sola línea: "Huevo".',
+        '- "Frijoles cocidos", "Frijoles refritos" → "Frijoles".',
+        '- "Pechuga de pollo asada/cocida" → "Pechuga de pollo".',
+        '- "Arroz cocido" → "Arroz". "Papa cocida" → "Papa".',
+        '- Si varias entradas son el mismo alimento con distinta preparación, déjalas como UN solo producto.',
+        '',
+        '## FUSIONAR VARIANTES EQUIVALENTES',
+        '- "Sal", "Sal de mar", "Sal marina", "Sal yodada" → "Sal".',
+        '- "Limón" / "Limones" → "Limón". "Huevo" / "Huevos" → "Huevo".',
+        '- Mismo alimento, distinto adjetivo (fresco, entero, trozos, rallado): una sola línea con el producto base.',
+        '',
+        '## OTRAS REGLAS',
+        '- Un solo renglón por alimento comprable.',
+        '- PROHIBIDO incluir cantidades, medidas o presentaciones en name.',
+        '- Solo el nombre del producto de súper (bien: "Huevo", "Frijoles", "Sal", "Pechuga de pollo").',
+        '- Excluye instrucciones/opcionales/preparaciones sin producto claro ("verduras al vapor", "al gusto", "si deseas").',
+        '- Nombres cortos, capitalización normal.',
+        '- No dividas por semanas; es UNA sola lista para todo el protocolo.',
+        '',
+        '## EJEMPLOS',
+        'Entrada: Huevo crudo, Huevo estrellado, Huevos revueltos → Salida: {"name":"Huevo","category":"protein"}',
+        'Entrada: Frijoles cocidos → Salida: {"name":"Frijoles","category":"protein"}',
+        'Entrada: Sal + Sal de mar → Salida: {"name":"Sal","category":"other"}',
+        '',
+        '## ORDEN DE CATEGORÍAS',
+        'produce → protein → dairy → grains → other',
+        '',
+        'Responde SOLO JSON: {"items":[{"name":"...","category":"produce|protein|dairy|grains|other"}]}'
+    ].join('\n');
+}
+
+function mapPlanShoppingItems(
+    items: z.infer<typeof planShoppingListSchema>['items']
+): PlanShoppingListItem[] {
+    return dedupeEnhancedItems(
+        items.map((item, index) => ({
+            id: slugifyIngredientName(item.name) || `item-${index + 1}`,
+            name: item.name.trim(),
+            quantity: '',
+            category: item.category as ShoppingCategory
+        }))
+    ).map(({id, name, category}) => ({id, name, category}));
+}
+
+function fallbackPlanShoppingItems(items: ShoppingItem[]): PlanShoppingListItem[] {
+    return dedupeEnhancedItems(filterPurchasableRawItems(items)).map(item => ({
+        id: item.id,
+        name: item.name.trim(),
+        category: item.category
+    }));
+}
+
+/**
+ * OpenAI names-only shopping list for the full protocol PDF:
+ * unique foods by category, no quantities, no week split.
+ */
+export async function enhancePlanShoppingListWithAI(
+    items: ShoppingItem[]
+): Promise<PlanShoppingListItem[]> {
+    const purchasableItems = filterPurchasableRawItems(items);
+
+    if (purchasableItems.length === 0) {
+        return [];
+    }
+
+    const client = createOpenAIClient();
+    if (!client) {
+        console.warn(
+            '[shopping-list.ai] OPENAI_API_KEY missing; using raw names list'
+        );
+        return fallbackPlanShoppingItems(purchasableItems);
+    }
+
+    try {
+        const completion = await client.chat.completions.create({
+            model: SHOPPING_LIST_MODEL,
+            temperature: 0.1,
+            response_format: {type: 'json_object'},
+            messages: [
+                {
+                    role: 'system',
+                    content: PLAN_SHOPPING_SYSTEM_PROMPT
+                },
+                {
+                    role: 'user',
+                    content: buildPlanShoppingPrompt(purchasableItems)
+                }
+            ]
+        });
+
+        const rawContent = completion.choices[0]?.message?.content?.trim();
+        if (!rawContent) {
+            throw new Error('OpenAI returned empty plan shopping list response');
+        }
+
+        const parsed = planShoppingListSchema.parse(JSON.parse(rawContent));
+        if (parsed.items.length === 0) {
+            return fallbackPlanShoppingItems(purchasableItems);
+        }
+
+        return mapPlanShoppingItems(parsed.items);
+    } catch (error) {
+        console.error(
+            '[shopping-list.ai] Plan shopping list enhancement failed; using raw names',
+            {error}
+        );
+        return fallbackPlanShoppingItems(purchasableItems);
+    }
 }
