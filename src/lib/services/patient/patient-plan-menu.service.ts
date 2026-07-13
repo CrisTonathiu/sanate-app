@@ -1,6 +1,18 @@
 import type {MealType} from '@prisma/client';
-import {PROTOCOL_MEAL_TIMES} from '@/lib/config/protocol-meal-times';
-import {mapProtocolMealToSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
+import {
+    PROTOCOL_MEAL_LABELS,
+    PROTOCOL_MEAL_TIMES
+} from '@/lib/config/protocol-meal-times';
+import type {EquivalenciasColumn} from '@/lib/patient-portal/equivalencias';
+import type {PlanShoppingListItem} from '@/lib/patient-portal/shopping-list.types';
+import {
+    mapProtocolMealToSliderRecipe,
+    PROTOCOL_MEAL_DISPLAY_ORDER
+} from '@/lib/patient-portal/protocol-meal-slider-map';
+import {loadEquivalenciasColumns} from '@/lib/services/food/equivalencias.service';
+import {
+    loadPlanShoppingListByProtocolId
+} from '@/lib/services/patient/patient-shopping-list.service';
 import {prisma} from '@/lib/prisma';
 
 export const PLAN_MENU_SECTIONS = [
@@ -26,8 +38,50 @@ export type PlanMenuSectionPayload = {
     recipes: PlanMenuRecipePayload[];
 };
 
+export const PLAN_WEEK_DAY_NAMES = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo'
+] as const;
+
+const PLAN_WEEK_TABLE_MEAL_LABELS: Partial<Record<MealType, string>> = {
+    SMOOTHIE: 'Licuado',
+    BREAKFAST: 'Desayuno',
+    SNACK: 'Colación',
+    SNACK1: 'Colación 1',
+    SNACK2: 'Colación 2',
+    LUNCH: 'Comida',
+    DINNER: 'Cena',
+    DRINKS: 'Bebidas'
+};
+
+const PLAN_WEEK_TABLE_MEAL_ORDER: MealType[] = [
+    ...PROTOCOL_MEAL_DISPLAY_ORDER,
+    'SNACK'
+];
+
+export type PlanWeekScheduleRow = {
+    mealType: MealType;
+    mealTypeLabel: string;
+    /** Recipe title per weekday index 0–6 (Mon–Sun); empty string when unset */
+    mealsByDay: string[];
+};
+
+export type PlanWeekSchedule = {
+    weekNumber: number;
+    dayLabels: string[];
+    rows: PlanWeekScheduleRow[];
+};
+
 export type PlanMenuPayload = {
     sections: PlanMenuSectionPayload[];
+    weekSchedules: PlanWeekSchedule[];
+    shoppingList: PlanShoppingListItem[];
+    equivalencias: EquivalenciasColumn[];
 };
 
 const PROTOCOL_MEAL_TO_PDF_SECTION: Partial<Record<MealType, PlanMenuSection>> =
@@ -117,11 +171,82 @@ function formatPlanIngredient(ingredient: {
 
 type ProtocolWeeksForMenu = {
     weeksPlan: Array<{
+        weekNumber: number;
         days: Array<{
+            dayIndex: number;
             meals: Array<Parameters<typeof mapProtocolMealToSliderRecipe>[0]>;
         }>;
     }>;
 };
+
+function buildWeekSchedulesFromProtocol(
+    protocol: ProtocolWeeksForMenu
+): PlanWeekSchedule[] {
+    return protocol.weeksPlan.flatMap(week => {
+        const mealsByType = new Map<MealType, string[]>();
+
+        for (const mealType of PLAN_WEEK_TABLE_MEAL_ORDER) {
+            mealsByType.set(
+                mealType,
+                Array.from({length: PLAN_WEEK_DAY_NAMES.length}, () => '')
+            );
+        }
+
+        for (const day of week.days) {
+            if (day.dayIndex < 0 || day.dayIndex >= PLAN_WEEK_DAY_NAMES.length) {
+                continue;
+            }
+
+            for (const meal of day.meals) {
+                if (!meal.recipe) {
+                    continue;
+                }
+
+                const titles = mealsByType.get(meal.mealType);
+                if (!titles) {
+                    continue;
+                }
+
+                const title = meal.recipe.title.trim();
+                if (!title || titles[day.dayIndex]) {
+                    continue;
+                }
+
+                titles[day.dayIndex] = title;
+            }
+        }
+
+        const rows = PLAN_WEEK_TABLE_MEAL_ORDER.flatMap(mealType => {
+            const mealsByDay = mealsByType.get(mealType);
+            if (!mealsByDay || mealsByDay.every(title => title.length === 0)) {
+                return [];
+            }
+
+            return [
+                {
+                    mealType,
+                    mealTypeLabel:
+                        PLAN_WEEK_TABLE_MEAL_LABELS[mealType] ??
+                        PROTOCOL_MEAL_LABELS[mealType] ??
+                        mealType,
+                    mealsByDay
+                }
+            ];
+        });
+
+        if (rows.length === 0) {
+            return [];
+        }
+
+        return [
+            {
+                weekNumber: week.weekNumber,
+                dayLabels: [...PLAN_WEEK_DAY_NAMES],
+                rows
+            }
+        ];
+    });
+}
 
 function buildPlanMenuFromProtocol(
     protocol: ProtocolWeeksForMenu
@@ -186,16 +311,23 @@ function buildPlanMenuFromProtocol(
         ];
     });
 
-    return {sections};
+    return {
+        sections,
+        weekSchedules: buildWeekSchedulesFromProtocol(protocol),
+        shoppingList: [],
+        equivalencias: []
+    };
 }
 
 const protocolWeeksMenuSelect = {
     weeksPlan: {
         orderBy: {weekNumber: 'asc' as const},
         select: {
+            weekNumber: true,
             days: {
                 orderBy: {dayIndex: 'asc' as const},
                 select: {
+                    dayIndex: true,
                     meals: {
                         select: protocolMealRecipeSelect
                     }
@@ -205,21 +337,38 @@ const protocolWeeksMenuSelect = {
     }
 };
 
+const EMPTY_PLAN_MENU: PlanMenuPayload = {
+    sections: [],
+    weekSchedules: [],
+    shoppingList: [],
+    equivalencias: []
+};
+
 export async function loadProtocolPlanMenuByProtocolId(
     protocolId: string
 ): Promise<PlanMenuPayload> {
-    const protocol = await prisma.protocol.findUnique({
-        where: {id: protocolId},
-        select: protocolWeeksMenuSelect
-    });
+    const [protocol, shoppingList, equivalencias] = await Promise.all([
+        prisma.protocol.findUnique({
+            where: {id: protocolId},
+            select: protocolWeeksMenuSelect
+        }),
+        loadPlanShoppingListByProtocolId(protocolId),
+        loadEquivalenciasColumns()
+    ]);
 
     if (!protocol) {
-        return {sections: []};
+        return {...EMPTY_PLAN_MENU, equivalencias};
     }
 
-    return buildPlanMenuFromProtocol(
+    const menu = buildPlanMenuFromProtocol(
         protocol as unknown as ProtocolWeeksForMenu
     );
+
+    return {
+        ...menu,
+        shoppingList,
+        equivalencias
+    };
 }
 
 export async function loadProtocolPlanMenuForUser(
@@ -231,7 +380,7 @@ export async function loadProtocolPlanMenuForUser(
     });
 
     if (!patient) {
-        return {sections: []};
+        return EMPTY_PLAN_MENU;
     }
 
     const protocol = await prisma.protocol.findFirst({
@@ -240,14 +389,30 @@ export async function loadProtocolPlanMenuForUser(
             status: 'ACTIVE'
         },
         orderBy: {createdAt: 'desc'},
-        select: protocolWeeksMenuSelect
+        select: {
+            id: true,
+            ...protocolWeeksMenuSelect
+        }
     });
 
     if (!protocol) {
-        return {sections: []};
+        const equivalencias = await loadEquivalenciasColumns();
+        return {...EMPTY_PLAN_MENU, equivalencias};
     }
 
-    return buildPlanMenuFromProtocol(
-        protocol as unknown as ProtocolWeeksForMenu
-    );
+    const [menu, shoppingList, equivalencias] = await Promise.all([
+        Promise.resolve(
+            buildPlanMenuFromProtocol(
+                protocol as unknown as ProtocolWeeksForMenu
+            )
+        ),
+        loadPlanShoppingListByProtocolId(protocol.id),
+        loadEquivalenciasColumns()
+    ]);
+
+    return {
+        ...menu,
+        shoppingList,
+        equivalencias
+    };
 }

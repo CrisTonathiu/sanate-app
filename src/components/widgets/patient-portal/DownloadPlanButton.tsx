@@ -7,6 +7,7 @@ import {Button} from '@/components/ui/button';
 import {
     PlanPdf,
     PLAN_LETTERHEAD_PATH,
+    PLAN_PORTION_GUIDE_PATH,
     PLAN_SECTION_BACKGROUND_PATH,
     PLAN_STATIC_PAGE_PATHS,
     type PlanRecommendations
@@ -141,6 +142,7 @@ export function useDownloadPlan(
             const [
                 letterheadSrc,
                 staticPageSrcs,
+                portionGuideSrc,
                 sectionBackgroundSrc,
                 recipeBackgroundSrc,
                 fallbackRecipeImageSrc
@@ -154,6 +156,9 @@ export function useDownloadPlan(
                             `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`
                         )
                     )
+                ),
+                fetchImageAsDataUri(
+                    `${window.location.origin}${PLAN_PORTION_GUIDE_PATH}`
                 ),
                 fetchImageAsDataUri(
                     `${window.location.origin}${PLAN_SECTION_BACKGROUND_PATH}`
@@ -174,9 +179,13 @@ export function useDownloadPlan(
                     letterheadSrc={letterheadSrc}
                     recommendations={recommendations}
                     staticPageSrcs={staticPageSrcs}
+                    portionGuideSrc={portionGuideSrc}
                     sectionBackgroundSrc={sectionBackgroundSrc}
                     recipeBackgroundSrc={recipeBackgroundSrc}
                     menuSections={menuSections}
+                    weekSchedules={menuBody.menu.weekSchedules ?? []}
+                    shoppingList={menuBody.menu.shoppingList ?? []}
+                    equivalencias={menuBody.menu.equivalencias ?? []}
                 />
             ).toBlob();
             const url = URL.createObjectURL(blob);

@@ -1,6 +1,12 @@
-import {buildWeeklyShoppingLists} from '@/lib/patient-portal/build-shopping-list';
-import type {ShoppingListPayload} from '@/lib/patient-portal/shopping-list.types';
-import {enhanceWeeklyShoppingListsWithAI} from '@/lib/services/ai/enhance-shopping-list';
+import {buildUnifiedShoppingList, buildWeeklyShoppingLists} from '@/lib/patient-portal/build-shopping-list';
+import type {
+    PlanShoppingListItem,
+    ShoppingListPayload
+} from '@/lib/patient-portal/shopping-list.types';
+import {
+    enhancePlanShoppingListWithAI,
+    enhanceWeeklyShoppingListsWithAI
+} from '@/lib/services/ai/enhance-shopping-list';
 import {getActiveProtocolWeekIndex} from '@/lib/utils/protocol-week-plan';
 import {prisma} from '@/lib/prisma';
 
@@ -119,4 +125,68 @@ export async function loadProtocolShoppingListForUser(
         protocolWeekCount: protocol.weekCount,
         activeProtocolWeekIndex
     };
+}
+
+async function loadPlanShoppingListFromWeeks(
+    weeks: Parameters<typeof buildUnifiedShoppingList>[0]
+): Promise<PlanShoppingListItem[]> {
+    if (weeks.length === 0) {
+        return [];
+    }
+
+    const rawItems = buildUnifiedShoppingList(weeks);
+    return enhancePlanShoppingListWithAI(rawItems);
+}
+
+export async function loadPlanShoppingListByProtocolId(
+    protocolId: string
+): Promise<PlanShoppingListItem[]> {
+    const protocol = await prisma.protocol.findUnique({
+        where: {id: protocolId},
+        select: {
+            weeksPlan: {
+                orderBy: {weekNumber: 'asc'},
+                select: protocolWeekSelect
+            }
+        }
+    });
+
+    if (!protocol) {
+        return [];
+    }
+
+    return loadPlanShoppingListFromWeeks(protocol.weeksPlan);
+}
+
+export async function loadPlanShoppingListForUser(
+    userId: string
+): Promise<PlanShoppingListItem[]> {
+    const patient = await prisma.patient.findUnique({
+        where: {userId},
+        select: {id: true}
+    });
+
+    if (!patient) {
+        return [];
+    }
+
+    const protocol = await prisma.protocol.findFirst({
+        where: {
+            patientId: patient.id,
+            status: 'ACTIVE'
+        },
+        orderBy: {createdAt: 'desc'},
+        select: {
+            weeksPlan: {
+                orderBy: {weekNumber: 'asc'},
+                select: protocolWeekSelect
+            }
+        }
+    });
+
+    if (!protocol) {
+        return [];
+    }
+
+    return loadPlanShoppingListFromWeeks(protocol.weeksPlan);
 }

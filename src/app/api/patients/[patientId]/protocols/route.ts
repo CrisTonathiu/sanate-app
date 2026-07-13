@@ -90,6 +90,7 @@ export async function GET(
                 protocolId: activeProtocol?.protocolId ?? null,
                 title: activeProtocol?.title ?? null,
                 weekCount: activeProtocol?.weekCount ?? 1,
+                createdAt: activeProtocol?.createdAt ?? null,
                 weekPlan: activeProtocol?.weekPlan ?? [],
                 generalRecommendations:
                     activeProtocol?.generalRecommendations ?? null,

@@ -61,6 +61,7 @@ export type ActiveProtocolSummary = {
     protocolId: string;
     title: string;
     weekCount: number;
+    createdAt: string;
     weekPlan: DayMeals[];
 } & ProtocolRecommendations;
 
@@ -393,6 +394,7 @@ export async function getActiveProtocolForPatient(
             id: true,
             title: true,
             weekCount: true,
+            createdAt: true,
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
@@ -428,6 +430,7 @@ export async function getActiveProtocolForPatient(
         protocolId: protocol.id,
         title: protocol.title,
         weekCount,
+        createdAt: protocol.createdAt.toISOString(),
         weekPlan,
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
@@ -445,8 +448,10 @@ export async function loadProtocolWeekPlanForPatient(
 
 async function replaceProtocolWeekPlan(
     protocolId: string,
-    weekPlan: WeekPlanPayload,
-    weekCount: number,
+    weekCreates: Array<{
+        weekNumber: number;
+        days: Prisma.ProtocolWeekCreateWithoutProtocolInput['days'];
+    }>,
     tx: Prisma.TransactionClient
 ) {
     await tx.protocolMeal.deleteMany({
@@ -471,19 +476,38 @@ async function replaceProtocolWeekPlan(
         where: {protocolId}
     });
 
-    const weekChunks = splitWeekPlanIntoWeeks(weekPlan, weekCount);
-
-    for (const [index, chunk] of weekChunks.entries()) {
-        if (chunk.length === 0) continue;
-
+    for (const week of weekCreates) {
         await tx.protocolWeek.create({
             data: {
                 protocolId,
-                weekNumber: index + 1,
-                days: buildMealsCreateInput(chunk)
+                weekNumber: week.weekNumber,
+                days: week.days
             }
         });
     }
+}
+
+function buildProtocolWeekCreates(
+    weekPlan: WeekPlanPayload,
+    weekCount: number
+) {
+    return splitWeekPlanIntoWeeks(weekPlan, weekCount)
+        .map((chunk, index) =>
+            chunk.length === 0
+                ? null
+                : {
+                      weekNumber: index + 1,
+                      days: buildMealsCreateInput(chunk)
+                  }
+        )
+        .filter(
+            (
+                week
+            ): week is {
+                weekNumber: number;
+                days: Prisma.ProtocolWeekCreateWithoutProtocolInput['days'];
+            } => week !== null
+        );
 }
 
 type ProtocolRecommendationsInput = {
@@ -501,7 +525,7 @@ export async function createPatientProtocol(input: {
     affiliateLinks?: Prisma.InputJsonValue;
 } & ProtocolRecommendationsInput) {
     const weekCount = input.weekCount ?? 1;
-    const weekChunks = splitWeekPlanIntoWeeks(input.weekPlan, weekCount);
+    const weekCreates = buildProtocolWeekCreates(input.weekPlan, weekCount);
 
     const protocol = await prisma.protocol.create({
         data: {
@@ -515,17 +539,16 @@ export async function createPatientProtocol(input: {
             hydrationRecommendations: input.hydrationRecommendations ?? null,
             supplementRecommendations: input.supplementRecommendations ?? null,
             weeksPlan: {
-                create: weekChunks
-                    .filter(chunk => chunk.length > 0)
-                    .map((chunk, index) => ({
-                        weekNumber: index + 1,
-                        days: buildMealsCreateInput(chunk)
-                    }))
+                create: weekCreates.map(week => ({
+                    weekNumber: week.weekNumber,
+                    days: week.days
+                }))
             }
         },
         select: {
             id: true,
             title: true,
+            createdAt: true,
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
@@ -536,6 +559,7 @@ export async function createPatientProtocol(input: {
     return {
         protocolId: protocol.id,
         title: protocol.title,
+        createdAt: protocol.createdAt.toISOString(),
         weekPlan: await loadProtocolWeekPlanById(protocol.id),
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
@@ -551,33 +575,43 @@ export async function updatePatientProtocol(input: {
     weekPlan: WeekPlanPayload;
     affiliateLinks?: Prisma.InputJsonValue;
 } & ProtocolRecommendationsInput) {
-    await prisma.$transaction(async tx => {
-        await tx.protocol.update({
-            where: {id: input.protocolId},
-            data: {
-                title: input.title,
-                weekCount: input.weekCount ?? 1,
-                affiliateLinks: input.affiliateLinks,
-                generalRecommendations: input.generalRecommendations ?? null,
-                tips: input.tips ?? null,
-                hydrationRecommendations: input.hydrationRecommendations ?? null,
-                supplementRecommendations: input.supplementRecommendations ?? null
-            }
-        });
+    const weekCount = input.weekCount ?? 1;
+    // Build nested create payloads before opening the interactive transaction
+    // so CPU work does not consume the transaction timeout budget.
+    const weekCreates = buildProtocolWeekCreates(input.weekPlan, weekCount);
 
-        await replaceProtocolWeekPlan(
-            input.protocolId,
-            input.weekPlan,
-            input.weekCount ?? 1,
-            tx
-        );
-    });
+    await prisma.$transaction(
+        async tx => {
+            await tx.protocol.update({
+                where: {id: input.protocolId},
+                data: {
+                    title: input.title,
+                    weekCount,
+                    affiliateLinks: input.affiliateLinks,
+                    generalRecommendations:
+                        input.generalRecommendations ?? null,
+                    tips: input.tips ?? null,
+                    hydrationRecommendations:
+                        input.hydrationRecommendations ?? null,
+                    supplementRecommendations:
+                        input.supplementRecommendations ?? null
+                }
+            });
+
+            await replaceProtocolWeekPlan(input.protocolId, weekCreates, tx);
+        },
+        {
+            maxWait: 15_000,
+            timeout: 60_000
+        }
+    );
 
     const protocol = await prisma.protocol.findUnique({
         where: {id: input.protocolId},
         select: {
             id: true,
             title: true,
+            createdAt: true,
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
@@ -592,6 +626,7 @@ export async function updatePatientProtocol(input: {
     return {
         protocolId: protocol.id,
         title: protocol.title,
+        createdAt: protocol.createdAt.toISOString(),
         weekPlan: await loadProtocolWeekPlanById(protocol.id),
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,

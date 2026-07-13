@@ -22,6 +22,7 @@ import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPlanner';
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
 import ProtocolPreview from '@/components/widgets/profile-details/ProtocolPreview';
+import ProtocolMenuDownload from '@/components/widgets/profile-details/ProtocolMenuDownload';
 import ProtocolStartDialog, {
     ProtocolTemplateOption
 } from '@/components/widgets/profile-details/ProtocolStartDialog';
@@ -188,6 +189,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [activeProtocolId, setActiveProtocolId] = useState<string | null>(
         null
     );
+    const [activeProtocolCreatedAt, setActiveProtocolCreatedAt] = useState<
+        string | null
+    >(null);
     const [affiliateLinks, setAffiliateLinks] = useState<AffiliateLink[]>([]);
     const [generalRecommendations, setGeneralRecommendations] =
         useState<string>('');
@@ -197,6 +201,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [supplementRecommendations, setSupplementRecommendations] =
         useState<string>('');
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
+    const [showMenuDownload, setShowMenuDownload] = useState<boolean>(false);
 
     const [selectedDayMeal, setSelectedDayMeal] = useState<{
         day: string;
@@ -263,6 +268,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 if (!cancelled && response.ok && result?.success) {
                     if (savedProtocolId) {
                         setActiveProtocolId(savedProtocolId);
+                    }
+
+                    if (typeof result?.data?.createdAt === 'string') {
+                        setActiveProtocolCreatedAt(result.data.createdAt);
                     }
 
                     setGeneralRecommendations(
@@ -352,8 +361,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const handleStartCleanProtocol = () => {
         setSelectedTemplateName(null);
         setActiveProtocolId(null);
+        setActiveProtocolCreatedAt(null);
         setWeekPlan([]);
         setWeekCount(1);
+        setShowMenuDownload(false);
         setIsStartDialogOpen(false);
     };
 
@@ -409,6 +420,92 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             setIsStartDialogOpen(false);
         } finally {
             setIsApplyingTemplate(false);
+        }
+    };
+
+    const persistProtocol = async (options?: {
+        silent?: boolean;
+    }): Promise<string | null> => {
+        if (weekPlan.length === 0) {
+            if (!options?.silent) {
+                window.alert(
+                    'Primero genera un plan semanal para crear el protocolo.'
+                );
+            }
+            return null;
+        }
+
+        setIsSavingProtocol(true);
+
+        try {
+            const isUpdate = Boolean(activeProtocolId);
+            const response = await fetch(
+                `/api/patients/${patientId}/protocols`,
+                {
+                    method: isUpdate ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        title: protocolTitle,
+                        weekCount,
+                        status: 'ACTIVE',
+                        weekPlan,
+                        affiliateLinks,
+                        generalRecommendations,
+                        tips,
+                        hydrationRecommendations,
+                        supplementRecommendations,
+                        ...(activeProtocolId
+                            ? {protocolId: activeProtocolId}
+                            : {})
+                    })
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result?.success) {
+                throw new Error(
+                    result?.message || 'No se pudo guardar el protocolo'
+                );
+            }
+
+            const savedWeekPlan = result?.data?.weekPlan as
+                | DayMeals[]
+                | undefined;
+            const savedProtocolId =
+                typeof result?.data?.protocolId === 'string'
+                    ? result.data.protocolId
+                    : null;
+            const savedCreatedAt =
+                typeof result?.data?.createdAt === 'string'
+                    ? result.data.createdAt
+                    : new Date().toISOString();
+
+            if (savedProtocolId) {
+                setActiveProtocolId(savedProtocolId);
+                setActiveProtocolCreatedAt(savedCreatedAt);
+                setShowMenuDownload(true);
+            }
+
+            if (Array.isArray(savedWeekPlan) && savedWeekPlan.length > 0) {
+                setWeekPlan(savedWeekPlan);
+            }
+
+            return savedProtocolId;
+        } catch (error) {
+            if (!options?.silent) {
+                window.alert(
+                    error instanceof Error
+                        ? error.message
+                        : 'No se pudo guardar el protocolo'
+                );
+            }
+            return null;
+        } finally {
+            setIsSavingProtocol(false);
         }
     };
 
@@ -478,7 +575,16 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             }
 
             setTemplateSaveError(null);
-            window.alert('Plantilla guardada correctamente.');
+
+            const savedProtocolId = await persistProtocol({silent: true});
+
+            if (!savedProtocolId) {
+                setTemplateSaveError(
+                    'La plantilla se guardó, pero no se pudo guardar el protocolo para descargar el menú.'
+                );
+                return false;
+            }
+
             return true;
         } catch (error) {
             setTemplateSaveError(
@@ -629,6 +735,34 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                         />
                     );
                 case 6:
+                    if (showMenuDownload && activeProtocolId) {
+                        return (
+                            <ProtocolMenuDownload
+                                patientId={patientId}
+                                protocolId={activeProtocolId}
+                                protocolTitle={protocolTitle}
+                                patientName={`${patient.firstName} ${patient.lastName}`}
+                                protocolCreatedAt={
+                                    activeProtocolCreatedAt ??
+                                    new Date().toISOString()
+                                }
+                                recommendations={{
+                                    generalRecommendations:
+                                        generalRecommendations || null,
+                                    tips: tips || null,
+                                    hydrationRecommendations:
+                                        hydrationRecommendations || null,
+                                    supplementRecommendations:
+                                        supplementRecommendations || null,
+                                    affiliateLinks
+                                }}
+                                onBackToPreview={() =>
+                                    setShowMenuDownload(false)
+                                }
+                            />
+                        );
+                    }
+
                     return (
                         <ProtocolPreview
                             weekPlan={weekPlan}
@@ -809,85 +943,13 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const prevStep = () => {
         if (currentStep > 1) {
+            setShowMenuDownload(false);
             setCurrentStep(prev => (prev - 1) as StepKey);
         }
     };
 
     const handleGenerateProtocol = async () => {
-        if (weekPlan.length === 0) {
-            window.alert(
-                'Primero genera un plan semanal para crear el protocolo.'
-            );
-            return;
-        }
-
-        setIsSavingProtocol(true);
-
-        try {
-            const isUpdate = Boolean(activeProtocolId);
-            const response = await fetch(
-                `/api/patients/${patientId}/protocols`,
-                {
-                    method: isUpdate ? 'PUT' : 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        title: protocolTitle,
-                        weekCount,
-                        status: 'ACTIVE',
-                        weekPlan,
-                        affiliateLinks,
-                        generalRecommendations,
-                        tips,
-                        hydrationRecommendations,
-                        supplementRecommendations,
-                        ...(activeProtocolId
-                            ? {protocolId: activeProtocolId}
-                            : {})
-                    })
-                }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok || !result?.success) {
-                throw new Error(
-                    result?.message || 'No se pudo guardar el protocolo'
-                );
-            }
-
-            const savedWeekPlan = result?.data?.weekPlan as
-                | DayMeals[]
-                | undefined;
-            const savedProtocolId =
-                typeof result?.data?.protocolId === 'string'
-                    ? result.data.protocolId
-                    : null;
-
-            if (savedProtocolId) {
-                setActiveProtocolId(savedProtocolId);
-            }
-
-            if (Array.isArray(savedWeekPlan) && savedWeekPlan.length > 0) {
-                setWeekPlan(savedWeekPlan);
-            }
-
-            window.alert(
-                isUpdate
-                    ? 'Protocolo actualizado correctamente.'
-                    : 'Protocolo generado correctamente.'
-            );
-        } catch (error) {
-            window.alert(
-                error instanceof Error
-                    ? error.message
-                    : 'No se pudo guardar el protocolo'
-            );
-        } finally {
-            setIsSavingProtocol(false);
-        }
+        await persistProtocol();
     };
 
     const handleStepClick = (step: StepKey) => {
@@ -977,7 +1039,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             {/* Step Content */}
             <AnimatePresence mode='wait'>
                 <motion.div
-                    key={currentStep}
+                    key={`${currentStep}-${showMenuDownload}`}
                     initial={{opacity: 0, x: 20}}
                     animate={{opacity: 1, x: 0}}
                     exit={{opacity: 0, x: -20}}
