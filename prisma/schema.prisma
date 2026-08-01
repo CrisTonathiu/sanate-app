@@ -47,6 +47,7 @@ enum IngredientUnit {
 }
 
 enum ProtocolStatus {
+  DRAFT
   ACTIVE
   COMPLETED
   ARCHIVED
@@ -356,6 +357,7 @@ model Protocol {
   status ProtocolStatus @default(ACTIVE)
 
   affiliateLinks Json?
+  draftSnapshot  Json?
 
   generalRecommendations    String?
   tips                      String?
@@ -366,6 +368,7 @@ model Protocol {
   revisions ProtocolRevision[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model ProtocolTemplate {

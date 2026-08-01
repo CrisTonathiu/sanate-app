@@ -11,7 +11,7 @@ import {
     useGetPatientFoodDislikes,
     useGetPatientProfile
 } from '@/hooks/use-patients';
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import StepIndicator from '@/components/widgets/profile-details/StepIndicator';
 import {StepKey} from '@/lib/types/patient-type';
 import PatientSummaryCard from '@/components/widgets/profile-details/PatientSummaryCard';
@@ -23,7 +23,9 @@ import WeeklyMealPlanner from '@/components/widgets/profile-details/WeeklyMealPl
 import RecommendationsCard from '@/components/widgets/profile-details/RecommendationsCard';
 import ProtocolPreview from '@/components/widgets/profile-details/ProtocolPreview';
 import ProtocolMenuDownload from '@/components/widgets/profile-details/ProtocolMenuDownload';
+import ProtocolLeaveDialog from '@/components/widgets/profile-details/ProtocolLeaveDialog';
 import ProtocolStartDialog, {
+    ProtocolDraftOption,
     ProtocolTemplateOption
 } from '@/components/widgets/profile-details/ProtocolStartDialog';
 import {ProtocolDistributionCard} from '@/components/widgets/profile-details/ProtocolDistributionCard';
@@ -38,6 +40,7 @@ import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolN
 import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
 import {collectRecipeIdsUsedInOtherWeeks} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import type {ProtocolDraftSnapshot} from '@/lib/services/protocol/protocol-week-plan.service';
 import {
     countWeeksInPlan,
     dayBelongsToWeek,
@@ -77,6 +80,13 @@ type ProtocolTemplateRecord = {
         Record<keyof MacroMealPercentages, Partial<MealPercentages>>
     > | null;
     affiliateLinks?: AffiliateLink[] | null;
+};
+
+type StoredProtocolDraft = {
+    protocolId: string;
+    title: string;
+    updatedAt: string;
+    draftSnapshot: ProtocolDraftSnapshot;
 };
 
 const DEFAULT_MACRO_PERCENTS: MacroPercents = {
@@ -177,6 +187,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         useState<boolean>(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState<boolean>(false);
     const [isSavingProtocol, setIsSavingProtocol] = useState<boolean>(false);
+    const [isSavingDraft, setIsSavingDraft] = useState<boolean>(false);
     const [templateError, setTemplateError] = useState<string | null>(null);
     const [templateSaveError, setTemplateSaveError] = useState<string | null>(
         null
@@ -202,6 +213,15 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         useState<string>('');
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
     const [showMenuDownload, setShowMenuDownload] = useState<boolean>(false);
+    const [existingDraft, setExistingDraft] =
+        useState<StoredProtocolDraft | null>(null);
+    const [baselineFormState, setBaselineFormState] = useState<string | null>(
+        null
+    );
+    const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState<string | null>(
+        null
+    );
 
     const [selectedDayMeal, setSelectedDayMeal] = useState<{
         day: string;
@@ -209,6 +229,113 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     } | null>(null);
 
     const maxStep = isFirstConsultation ? 6 : 3;
+
+    const buildDraftSnapshot = (): ProtocolDraftSnapshot => ({
+        currentStep,
+        reason,
+        diagnosis,
+        notes,
+        planCalories,
+        weekCount,
+        macroPercents,
+        enabledMeals,
+        mealPercentages,
+        macroMealPercentages,
+        weekPlan,
+        affiliateLinks,
+        generalRecommendations,
+        tips,
+        hydrationRecommendations,
+        supplementRecommendations,
+        selectedTemplateName
+    });
+
+    const currentFormState = useMemo(
+        () => JSON.stringify(buildDraftSnapshot()),
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot intentionally tracks wizard fields
+        [
+            currentStep,
+            reason,
+            diagnosis,
+            notes,
+            planCalories,
+            weekCount,
+            macroPercents,
+            enabledMeals,
+            mealPercentages,
+            macroMealPercentages,
+            weekPlan,
+            affiliateLinks,
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations,
+            selectedTemplateName
+        ]
+    );
+
+    const isDirty =
+        !isStartDialogOpen &&
+        !showMenuDownload &&
+        baselineFormState !== null &&
+        currentFormState !== baselineFormState;
+
+    useEffect(() => {
+        if (isStartDialogOpen || showMenuDownload) {
+            return;
+        }
+
+        setBaselineFormState(prev => prev ?? currentFormState);
+    }, [isStartDialogOpen, showMenuDownload, currentFormState]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadDraft = async () => {
+            try {
+                const response = await fetch(
+                    `/api/patients/${patientId}/protocols`,
+                    {credentials: 'include'}
+                );
+                const result = await response.json();
+                const draft = result?.data?.draft as
+                    | StoredProtocolDraft
+                    | null
+                    | undefined;
+
+                if (
+                    !cancelled &&
+                    response.ok &&
+                    result?.success &&
+                    draft?.protocolId &&
+                    draft.draftSnapshot
+                ) {
+                    setExistingDraft(draft);
+                }
+            } catch {
+                // Ignore draft lookup failures; user can still start fresh.
+            }
+        };
+
+        void loadDraft();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [patientId]);
+
+    useEffect(() => {
+        if (!isDirty) return;
+
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () =>
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
 
     const handleOpenRecipeModal = (day: string, mealType: MealType) => {
         setSelectedDayMeal({day, mealType});
@@ -227,7 +354,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
             return prev.map(d => {
                 if (options?.applyToAllDays) {
-                    if (multiWeek && !dayBelongsToWeek(d.day, targetWeekIndex)) {
+                    if (
+                        multiWeek &&
+                        !dayBelongsToWeek(d.day, targetWeekIndex)
+                    ) {
                         return d;
                     }
 
@@ -242,82 +372,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             });
         });
     };
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const loadSavedWeekPlan = async () => {
-            try {
-                const response = await fetch(
-                    `/api/patients/${patientId}/protocols`,
-                    {credentials: 'include'}
-                );
-                const result = await response.json();
-                const savedPlan = result?.data?.weekPlan as
-                    | DayMeals[]
-                    | undefined;
-                const savedProtocolId =
-                    typeof result?.data?.protocolId === 'string'
-                        ? result.data.protocolId
-                        : null;
-                const savedWeekCount =
-                    typeof result?.data?.weekCount === 'number'
-                        ? result.data.weekCount
-                        : null;
-
-                if (!cancelled && response.ok && result?.success) {
-                    if (savedProtocolId) {
-                        setActiveProtocolId(savedProtocolId);
-                    }
-
-                    if (typeof result?.data?.createdAt === 'string') {
-                        setActiveProtocolCreatedAt(result.data.createdAt);
-                    }
-
-                    setGeneralRecommendations(
-                        typeof result?.data?.generalRecommendations === 'string'
-                            ? result.data.generalRecommendations
-                            : ''
-                    );
-                    setTips(
-                        typeof result?.data?.tips === 'string'
-                            ? result.data.tips
-                            : ''
-                    );
-                    setHydrationRecommendations(
-                        typeof result?.data?.hydrationRecommendations ===
-                            'string'
-                            ? result.data.hydrationRecommendations
-                            : ''
-                    );
-                    setSupplementRecommendations(
-                        typeof result?.data?.supplementRecommendations ===
-                            'string'
-                            ? result.data.supplementRecommendations
-                            : ''
-                    );
-
-                    if (Array.isArray(savedPlan) && savedPlan.length > 0) {
-                        setWeekPlan(savedPlan);
-                        setWeekCount(
-                            savedWeekCount ??
-                                countWeeksInPlan(savedPlan)
-                        );
-                        setIsStartDialogOpen(false);
-                        setCurrentStep(4);
-                    }
-                }
-            } catch {
-                // Keep empty planner when no saved protocol exists yet.
-            }
-        };
-
-        loadSavedWeekPlan();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [patientId]);
 
     const fetchProtocolTemplates = async (force = false) => {
         if (isLoadingTemplates) {
@@ -360,12 +414,80 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const handleStartCleanProtocol = () => {
         setSelectedTemplateName(null);
-        setActiveProtocolId(null);
+        setActiveProtocolId(existingDraft?.protocolId ?? null);
         setActiveProtocolCreatedAt(null);
         setWeekPlan([]);
         setWeekCount(1);
         setShowMenuDownload(false);
+        setBaselineFormState(null);
         setIsStartDialogOpen(false);
+    };
+
+    const applyDraftSnapshot = (draft: StoredProtocolDraft) => {
+        const snapshot = draft.draftSnapshot;
+
+        setActiveProtocolId(draft.protocolId);
+        setActiveProtocolCreatedAt(null);
+        setReason(snapshot.reason ?? '');
+        setDiagnosis(snapshot.diagnosis ?? '');
+        setNotes(snapshot.notes ?? '');
+        setPlanCalories(snapshot.planCalories ?? 0);
+        setWeekCount(snapshot.weekCount ?? 1);
+        setMacroPercents(prev => ({
+            ...prev,
+            ...(snapshot.macroPercents ?? {})
+        }));
+        setEnabledMeals(prev => ({
+            ...prev,
+            ...(snapshot.enabledMeals ?? {})
+        }));
+        setMealPercentages(prev => ({
+            ...prev,
+            ...(snapshot.mealPercentages ?? {})
+        }));
+        setMacroMealPercentages(prev => ({
+            carbs: {
+                ...prev.carbs,
+                ...(snapshot.macroMealPercentages?.carbs ?? {})
+            },
+            protein: {
+                ...prev.protein,
+                ...(snapshot.macroMealPercentages?.protein ?? {})
+            },
+            fat: {
+                ...prev.fat,
+                ...(snapshot.macroMealPercentages?.fat ?? {})
+            }
+        }));
+        setWeekPlan(
+            Array.isArray(snapshot.weekPlan)
+                ? (snapshot.weekPlan as DayMeals[])
+                : []
+        );
+        setAffiliateLinks(
+            Array.isArray(snapshot.affiliateLinks)
+                ? (snapshot.affiliateLinks as AffiliateLink[])
+                : []
+        );
+        setGeneralRecommendations(snapshot.generalRecommendations ?? '');
+        setTips(snapshot.tips ?? '');
+        setHydrationRecommendations(snapshot.hydrationRecommendations ?? '');
+        setSupplementRecommendations(snapshot.supplementRecommendations ?? '');
+        setSelectedTemplateName(snapshot.selectedTemplateName ?? null);
+        setCurrentStep(
+            Math.min(
+                Math.max(snapshot.currentStep || 1, 1),
+                maxStep
+            ) as StepKey
+        );
+        setShowMenuDownload(false);
+        setBaselineFormState(null);
+        setIsStartDialogOpen(false);
+    };
+
+    const handleContinueDraft = () => {
+        if (!existingDraft) return;
+        applyDraftSnapshot(existingDraft);
     };
 
     const handleApplyTemplate = async (templateId: string) => {
@@ -379,6 +501,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setIsApplyingTemplate(true);
 
         try {
+            setActiveProtocolId(existingDraft?.protocolId ?? null);
             setWeekPlan(template.weeklyPlan);
             setWeekCount(
                 template.weekCount ?? countWeeksInPlan(template.weeklyPlan)
@@ -417,9 +540,105 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             );
             setCurrentStep(1);
             setSelectedTemplateName(template.name);
+            setBaselineFormState(null);
             setIsStartDialogOpen(false);
         } finally {
             setIsApplyingTemplate(false);
+        }
+    };
+
+    const persistDraft = async (): Promise<boolean> => {
+        setIsSavingDraft(true);
+
+        try {
+            const draftSnapshot = buildDraftSnapshot();
+            const response = await fetch(
+                `/api/patients/${patientId}/protocols`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        title: protocolTitle,
+                        weekCount,
+                        status: 'DRAFT',
+                        draftSnapshot,
+                        affiliateLinks,
+                        generalRecommendations,
+                        tips,
+                        hydrationRecommendations,
+                        supplementRecommendations,
+                        ...(activeProtocolId || existingDraft?.protocolId
+                            ? {
+                                  protocolId:
+                                      activeProtocolId ||
+                                      existingDraft?.protocolId
+                              }
+                            : {})
+                    })
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result?.success) {
+                throw new Error(
+                    result?.message || 'No se pudo guardar el borrador'
+                );
+            }
+
+            const savedDraft = result.data as StoredProtocolDraft & {
+                protocolId: string;
+            };
+
+            setActiveProtocolId(savedDraft.protocolId);
+            setExistingDraft({
+                protocolId: savedDraft.protocolId,
+                title: savedDraft.title,
+                updatedAt: savedDraft.updatedAt,
+                draftSnapshot
+            });
+            setBaselineFormState(JSON.stringify(draftSnapshot));
+            return true;
+        } catch (error) {
+            window.alert(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo guardar el borrador'
+            );
+            return false;
+        } finally {
+            setIsSavingDraft(false);
+        }
+    };
+
+    const requestNavigation = (href: string) => {
+        if (isDirty) {
+            setPendingNavigation(href);
+            setShowLeaveDialog(true);
+            return;
+        }
+
+        router.push(href);
+    };
+
+    const handleStayEditing = () => {
+        setShowLeaveDialog(false);
+        setPendingNavigation(null);
+    };
+
+    const handleSaveDraftAndLeave = async () => {
+        const saved = await persistDraft();
+        if (!saved) return;
+
+        const href = pendingNavigation;
+        setShowLeaveDialog(false);
+        setPendingNavigation(null);
+
+        if (href) {
+            router.push(href);
         }
     };
 
@@ -488,6 +707,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 setActiveProtocolId(savedProtocolId);
                 setActiveProtocolCreatedAt(savedCreatedAt);
                 setShowMenuDownload(true);
+                setExistingDraft(null);
+                setBaselineFormState(null);
             }
 
             if (Array.isArray(savedWeekPlan) && savedWeekPlan.length > 0) {
@@ -606,8 +827,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             updatedAt: template.updatedAt,
             weekPlanLength: template.weeklyPlan.length,
             weekCount:
-                template.weekCount ??
-                countWeeksInPlan(template.weeklyPlan)
+                template.weekCount ?? countWeeksInPlan(template.weeklyPlan)
         }));
 
     const getTargetCaloriesForMeal = (mealType: MealType): number => {
@@ -618,6 +838,32 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         return total > 0 ? Math.round((pct / total) * planCalories) : 0;
     };
 
+    const getMacroTargetsForMeal = (mealType: MealType) => {
+        const macroCalories = {
+            carbs: (planCalories * macroPercents.carbs) / 100,
+            protein: (planCalories * macroPercents.protein) / 100,
+            fat: (planCalories * macroPercents.fat) / 100
+        };
+
+        return {
+            totalKcal: round2((planCalories * (mealPercentages[mealType] ?? 0)) / 100),
+            proteinKcal: round2(
+                (macroCalories.protein *
+                    (macroMealPercentages.protein[mealType] ?? 0)) /
+                    100
+            ),
+            carbsKcal: round2(
+                (macroCalories.carbs *
+                    (macroMealPercentages.carbs[mealType] ?? 0)) /
+                    100
+            ),
+            fatKcal: round2(
+                (macroCalories.fat * (macroMealPercentages.fat[mealType] ?? 0)) /
+                    100
+            )
+        };
+    };
+
     const enabledMealKeys = (Object.keys(enabledMeals) as MealType[]).filter(
         key => enabledMeals[key]
     );
@@ -625,25 +871,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         (sum, key) => sum + (mealPercentages[key] ?? 0),
         0
     );
-    const macroDistributionTotals = {
-        carbs: enabledMealKeys.reduce(
-            (sum, key) => sum + macroMealPercentages.carbs[key],
-            0
-        ),
-        protein: enabledMealKeys.reduce(
-            (sum, key) => sum + macroMealPercentages.protein[key],
-            0
-        ),
-        fat: enabledMealKeys.reduce(
-            (sum, key) => sum + macroMealPercentages.fat[key],
-            0
-        )
-    };
-    const isMealDistributionStepValid =
-        mealDistributionTotal === 100 &&
-        macroDistributionTotals.carbs === 100 &&
-        macroDistributionTotals.protein === 100 &&
-        macroDistributionTotals.fat === 100;
+    const isMealDistributionStepValid = mealDistributionTotal === 100;
 
     const renderStepContent = () => {
         if (!patient) return null;
@@ -719,14 +947,18 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     return (
                         <RecommendationsCard
                             generalRecommendations={generalRecommendations}
-                            setGeneralRecommendations={setGeneralRecommendations}
+                            setGeneralRecommendations={
+                                setGeneralRecommendations
+                            }
                             tips={tips}
                             setTips={setTips}
                             hydrationRecommendations={hydrationRecommendations}
                             setHydrationRecommendations={
                                 setHydrationRecommendations
                             }
-                            supplementRecommendations={supplementRecommendations}
+                            supplementRecommendations={
+                                supplementRecommendations
+                            }
                             setSupplementRecommendations={
                                 setSupplementRecommendations
                             }
@@ -835,8 +1067,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
             const result = await response.json();
 
-            console.log('API response:', result);
-
             if (!response.ok || !result?.success) {
                 throw new Error(
                     result?.message || 'No se pudo generar el plan semanal'
@@ -844,10 +1074,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             }
 
             const generatedWeekPlan = result?.data?.weekPlan as DayMeals[];
-            console.log(
-                'Received week plan from server:',
-                JSON.stringify(generatedWeekPlan, null, 2)
-            );
+
             if (!generatedWeekPlan || generatedWeekPlan.length === 0) {
                 throw new Error('El servidor no devolvió un plan válido');
             }
@@ -870,17 +1097,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             if (mealDistributionTotal !== 100) {
                 window.alert(
                     `La distribucion total de comidas debe ser 100%. Actualmente es ${mealDistributionTotal.toFixed(2)}%.`
-                );
-                return;
-            }
-
-            if (
-                macroDistributionTotals.carbs !== 100 ||
-                macroDistributionTotals.protein !== 100 ||
-                macroDistributionTotals.fat !== 100
-            ) {
-                window.alert(
-                    `La distribucion por macro debe sumar 100% para carbs, proteina y grasa. Totales actuales: carbs ${macroDistributionTotals.carbs.toFixed(2)}%, proteina ${macroDistributionTotals.protein.toFixed(2)}%, grasa ${macroDistributionTotals.fat.toFixed(2)}%.`
                 );
                 return;
             }
@@ -993,6 +1209,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             <PatientBreadcrumb
                 patientId={patientId}
                 currentPageLabel='Protocolo'
+                onNavigate={requestNavigation}
             />
 
             {/* Patient Header */}
@@ -1069,6 +1286,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     targetCalories={getTargetCaloriesForMeal(
                         selectedDayMeal.mealType
                     )}
+                    macroTarget={getMacroTargetsForMeal(
+                        selectedDayMeal.mealType
+                    )}
                     excludedRecipeIds={
                         countWeeksInPlan(weekPlan) > 1
                             ? [
@@ -1099,15 +1319,42 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 <ProtocolStartDialog
                     open={isStartDialogOpen}
                     templates={protocolTemplateOptions}
+                    draft={
+                        existingDraft
+                            ? ({
+                                  protocolId: existingDraft.protocolId,
+                                  title: existingDraft.title,
+                                  updatedAt: existingDraft.updatedAt,
+                                  currentStep:
+                                      existingDraft.draftSnapshot.currentStep ||
+                                      1
+                              } satisfies ProtocolDraftOption)
+                            : null
+                    }
                     isLoadingTemplates={isLoadingTemplates}
                     isApplyingTemplate={isApplyingTemplate}
                     templateError={templateError}
                     onStartClean={handleStartCleanProtocol}
+                    onContinueDraft={handleContinueDraft}
                     onBrowseTemplates={() => fetchProtocolTemplates()}
                     onRetryTemplates={() => fetchProtocolTemplates(true)}
                     onApplyTemplate={handleApplyTemplate}
                 />
             ) : null}
+
+            <ProtocolLeaveDialog
+                open={showLeaveDialog}
+                isSaving={isSavingDraft}
+                onOpenChange={open => {
+                    if (!open) {
+                        handleStayEditing();
+                    }
+                }}
+                onStay={handleStayEditing}
+                onSaveDraft={() => {
+                    void handleSaveDraftAndLeave();
+                }}
+            />
         </div>
     );
 }

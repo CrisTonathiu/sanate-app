@@ -16,6 +16,7 @@ import {
     Copy,
     FileText,
     Loader2,
+    RotateCcw,
     Sparkles
 } from 'lucide-react';
 import {useEffect, useMemo, useState} from 'react';
@@ -29,13 +30,22 @@ export interface ProtocolTemplateOption {
     weekCount: number;
 }
 
+export interface ProtocolDraftOption {
+    protocolId: string;
+    title: string;
+    updatedAt: string;
+    currentStep: number;
+}
+
 interface ProtocolStartDialogProps {
     open: boolean;
     templates: ProtocolTemplateOption[];
+    draft?: ProtocolDraftOption | null;
     isLoadingTemplates: boolean;
     isApplyingTemplate: boolean;
     templateError: string | null;
     onStartClean: () => void;
+    onContinueDraft?: () => void;
     onBrowseTemplates: () => Promise<void> | void;
     onRetryTemplates: () => Promise<void> | void;
     onApplyTemplate: (templateId: string) => Promise<void> | void;
@@ -46,10 +56,12 @@ type StartView = 'choice' | 'templates';
 export default function ProtocolStartDialog({
     open,
     templates,
+    draft = null,
     isLoadingTemplates,
     isApplyingTemplate,
     templateError,
     onStartClean,
+    onContinueDraft,
     onBrowseTemplates,
     onRetryTemplates,
     onApplyTemplate
@@ -98,7 +110,9 @@ export default function ProtocolStartDialog({
                             </DialogTitle>
                             <DialogDescription className='text-sm text-muted-foreground'>
                                 {view === 'choice'
-                                    ? 'Puedes comenzar desde cero o reutilizar una plantilla guardada para adelantar el plan semanal.'
+                                    ? draft
+                                        ? 'Tienes un borrador guardado. Puedes continuar donde lo dejaste, empezar limpio o usar una plantilla.'
+                                        : 'Puedes comenzar desde cero o reutilizar una plantilla guardada para adelantar el plan semanal.'
                                     : 'Las plantillas rellenan el flujo con una configuración ya guardada y puedes ajustarla antes de terminar.'}
                             </DialogDescription>
                         </DialogHeader>
@@ -116,6 +130,31 @@ export default function ProtocolStartDialog({
                                 animate={{opacity: 1, x: 0}}
                                 exit={{opacity: 0, x: 12}}
                                 className='grid gap-3 sm:grid-cols-2 sm:gap-4'>
+                                {draft && onContinueDraft ? (
+                                    <button
+                                        type='button'
+                                        onClick={onContinueDraft}
+                                        className='group rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary/10 sm:col-span-2 sm:p-5'>
+                                        <div className='mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary'>
+                                            <RotateCcw className='h-5 w-5' />
+                                        </div>
+                                        <div className='space-y-2'>
+                                            <div className='text-base font-semibold text-foreground'>
+                                                Continuar borrador
+                                            </div>
+                                            <p className='text-sm text-muted-foreground'>
+                                                Retoma &quot;{draft.title}&quot;
+                                                desde el paso {draft.currentStep}
+                                                . Actualizado{' '}
+                                                {new Date(
+                                                    draft.updatedAt
+                                                ).toLocaleDateString('es-MX')}
+                                                .
+                                            </p>
+                                        </div>
+                                    </button>
+                                ) : null}
+
                                 <button
                                     type='button'
                                     onClick={onStartClean}

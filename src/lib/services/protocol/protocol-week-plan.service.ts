@@ -69,7 +69,7 @@ export type PatientProtocolListItem = {
     id: string;
     title: string;
     weekCount: number;
-    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'DRAFT';
     createdAt: string;
     generalRecommendations: string | null;
     tips: string | null;
@@ -78,8 +78,37 @@ export type PatientProtocolListItem = {
 };
 
 export type PatientProtocolDetail = ActiveProtocolSummary & {
-    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+    status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'DRAFT';
     createdAt: string;
+};
+
+export type ProtocolDraftSnapshot = {
+    currentStep: number;
+    reason: string;
+    diagnosis: string;
+    notes: string;
+    planCalories: number;
+    weekCount: number;
+    macroPercents: Record<string, number>;
+    enabledMeals: Record<string, boolean>;
+    mealPercentages: Record<string, number>;
+    macroMealPercentages: Record<string, Record<string, number>>;
+    weekPlan: DayMeals[];
+    affiliateLinks: unknown[];
+    generalRecommendations: string;
+    tips: string;
+    hydrationRecommendations: string;
+    supplementRecommendations: string;
+    selectedTemplateName: string | null;
+};
+
+export type ProtocolDraftSummary = {
+    protocolId: string;
+    title: string;
+    weekCount: number;
+    createdAt: string;
+    updatedAt: string;
+    draftSnapshot: ProtocolDraftSnapshot;
 };
 
 export const protocolMealWithPortionsSelect = {
@@ -127,6 +156,10 @@ export const protocolMealWithPortionsSelect = {
     },
     portions: {
         select: {
+            targetCalories: true,
+            targetProtein: true,
+            targetCarbs: true,
+            targetFat: true,
             actualCalories: true,
             actualProtein: true,
             actualCarbs: true,
@@ -293,7 +326,10 @@ export async function listProtocolsForPatient(
     patientId: string
 ): Promise<PatientProtocolListItem[]> {
     const protocols = await prisma.protocol.findMany({
-        where: {patientId},
+        where: {
+            patientId,
+            status: {not: 'DRAFT'}
+        },
         orderBy: {createdAt: 'desc'},
         select: {
             id: true,
@@ -517,6 +553,168 @@ type ProtocolRecommendationsInput = {
     supplementRecommendations?: string | null;
 };
 
+function isProtocolDraftSnapshot(
+    value: unknown
+): value is ProtocolDraftSnapshot {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const snapshot = value as Record<string, unknown>;
+    return (
+        typeof snapshot.currentStep === 'number' &&
+        typeof snapshot.reason === 'string' &&
+        typeof snapshot.diagnosis === 'string' &&
+        Array.isArray(snapshot.weekPlan)
+    );
+}
+
+export async function getDraftProtocolForPatient(
+    patientId: string
+): Promise<ProtocolDraftSummary | null> {
+    const protocol = await prisma.protocol.findFirst({
+        where: {
+            patientId,
+            status: 'DRAFT'
+        },
+        orderBy: {updatedAt: 'desc'},
+        select: {
+            id: true,
+            title: true,
+            weekCount: true,
+            createdAt: true,
+            updatedAt: true,
+            draftSnapshot: true
+        }
+    });
+
+    if (!protocol || !isProtocolDraftSnapshot(protocol.draftSnapshot)) {
+        return null;
+    }
+
+    return {
+        protocolId: protocol.id,
+        title: protocol.title,
+        weekCount: protocol.weekCount,
+        createdAt: protocol.createdAt.toISOString(),
+        updatedAt: protocol.updatedAt.toISOString(),
+        draftSnapshot: protocol.draftSnapshot
+    };
+}
+
+export async function saveProtocolDraft(input: {
+    patientId: string;
+    protocolId?: string;
+    title: string;
+    weekCount?: number;
+    draftSnapshot: ProtocolDraftSnapshot;
+    affiliateLinks?: Prisma.InputJsonValue;
+} & ProtocolRecommendationsInput): Promise<ProtocolDraftSummary> {
+    const weekCount = input.weekCount ?? input.draftSnapshot.weekCount ?? 1;
+    const title =
+        input.title.trim().length >= 3
+            ? input.title.trim()
+            : 'Borrador de protocolo';
+
+    const existingDraft = input.protocolId
+        ? await prisma.protocol.findFirst({
+              where: {
+                  id: input.protocolId,
+                  patientId: input.patientId,
+                  status: 'DRAFT'
+              },
+              select: {id: true}
+          })
+        : await prisma.protocol.findFirst({
+              where: {
+                  patientId: input.patientId,
+                  status: 'DRAFT'
+              },
+              orderBy: {updatedAt: 'desc'},
+              select: {id: true}
+          });
+
+    const protocol = existingDraft
+        ? await prisma.protocol.update({
+              where: {id: existingDraft.id},
+              data: {
+                  title,
+                  weekCount,
+                  status: 'DRAFT',
+                  draftSnapshot:
+                      input.draftSnapshot as unknown as Prisma.InputJsonValue,
+                  affiliateLinks: input.affiliateLinks,
+                  generalRecommendations:
+                      input.generalRecommendations ?? null,
+                  tips: input.tips ?? null,
+                  hydrationRecommendations:
+                      input.hydrationRecommendations ?? null,
+                  supplementRecommendations:
+                      input.supplementRecommendations ?? null
+              },
+              select: {
+                  id: true,
+                  title: true,
+                  weekCount: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  draftSnapshot: true
+              }
+          })
+        : await prisma.protocol.create({
+              data: {
+                  title,
+                  weekCount,
+                  patientId: input.patientId,
+                  status: 'DRAFT',
+                  draftSnapshot:
+                      input.draftSnapshot as unknown as Prisma.InputJsonValue,
+                  affiliateLinks: input.affiliateLinks,
+                  generalRecommendations:
+                      input.generalRecommendations ?? null,
+                  tips: input.tips ?? null,
+                  hydrationRecommendations:
+                      input.hydrationRecommendations ?? null,
+                  supplementRecommendations:
+                      input.supplementRecommendations ?? null
+              },
+              select: {
+                  id: true,
+                  title: true,
+                  weekCount: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  draftSnapshot: true
+              }
+          });
+
+    if (!isProtocolDraftSnapshot(protocol.draftSnapshot)) {
+        throw new Error('No se pudo guardar el borrador del protocolo');
+    }
+
+    return {
+        protocolId: protocol.id,
+        title: protocol.title,
+        weekCount: protocol.weekCount,
+        createdAt: protocol.createdAt.toISOString(),
+        updatedAt: protocol.updatedAt.toISOString(),
+        draftSnapshot: protocol.draftSnapshot
+    };
+}
+
+export async function deleteDraftProtocolsForPatient(
+    patientId: string,
+    exceptProtocolId?: string
+) {
+    await prisma.protocol.deleteMany({
+        where: {
+            patientId,
+            status: 'DRAFT',
+            ...(exceptProtocolId ? {id: {not: exceptProtocolId}} : {})
+        }
+    });
+}
+
 export async function createPatientProtocol(input: {
     patientId: string;
     title: string;
@@ -533,6 +731,7 @@ export async function createPatientProtocol(input: {
             weekCount,
             patientId: input.patientId,
             status: 'ACTIVE',
+            draftSnapshot: Prisma.JsonNull,
             affiliateLinks: input.affiliateLinks,
             generalRecommendations: input.generalRecommendations ?? null,
             tips: input.tips ?? null,
@@ -556,6 +755,8 @@ export async function createPatientProtocol(input: {
         }
     });
 
+    await deleteDraftProtocolsForPatient(input.patientId, protocol.id);
+
     return {
         protocolId: protocol.id,
         title: protocol.title,
@@ -574,11 +775,17 @@ export async function updatePatientProtocol(input: {
     weekCount?: number;
     weekPlan: WeekPlanPayload;
     affiliateLinks?: Prisma.InputJsonValue;
+    promoteFromDraft?: boolean;
 } & ProtocolRecommendationsInput) {
     const weekCount = input.weekCount ?? 1;
     // Build nested create payloads before opening the interactive transaction
     // so CPU work does not consume the transaction timeout budget.
     const weekCreates = buildProtocolWeekCreates(input.weekPlan, weekCount);
+
+    const protocolMeta = await prisma.protocol.findUnique({
+        where: {id: input.protocolId},
+        select: {patientId: true, status: true}
+    });
 
     await prisma.$transaction(
         async tx => {
@@ -587,6 +794,10 @@ export async function updatePatientProtocol(input: {
                 data: {
                     title: input.title,
                     weekCount,
+                    status: input.promoteFromDraft ? 'ACTIVE' : undefined,
+                    draftSnapshot: input.promoteFromDraft
+                        ? Prisma.JsonNull
+                        : undefined,
                     affiliateLinks: input.affiliateLinks,
                     generalRecommendations:
                         input.generalRecommendations ?? null,
@@ -605,6 +816,17 @@ export async function updatePatientProtocol(input: {
             timeout: 60_000
         }
     );
+
+    if (
+        input.promoteFromDraft &&
+        protocolMeta?.patientId &&
+        protocolMeta.status === 'DRAFT'
+    ) {
+        await deleteDraftProtocolsForPatient(
+            protocolMeta.patientId,
+            input.protocolId
+        );
+    }
 
     const protocol = await prisma.protocol.findUnique({
         where: {id: input.protocolId},

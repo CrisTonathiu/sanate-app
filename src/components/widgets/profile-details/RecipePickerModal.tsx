@@ -9,11 +9,14 @@ import {
 } from '@/lib/config/meal-config';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
 import {
-    resolveIngredientNutritionGrams,
-    scaleIngredientQuantity,
-    targetGramsForPieceQuantity,
-    usesUnitBasedGramScaling
+    resolveIngredientNutritionGrams
 } from '@/lib/utils/ingredient-quantity';
+import {
+    computeIngredientScalesForMacros,
+    macroKcalToGrams,
+    scaleIngredientByFactor,
+    type MacroKcalTarget
+} from '@/lib/utils/recipe-macro-scale';
 import {
     Dialog,
     DialogContent,
@@ -46,6 +49,10 @@ const MEAL_TYPE_MAP: Record<string, string[]> = {
 
 function round1(v: number) {
     return Number(v.toFixed(1));
+}
+
+function round2(v: number) {
+    return Number(v.toFixed(2));
 }
 
 function computeNutrition(recipe: Recipe) {
@@ -84,25 +91,65 @@ function computeNutrition(recipe: Recipe) {
     };
 }
 
-function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
+function recipeToMealSlot(
+    recipe: Recipe,
+    targetCalories?: number,
+    macroTarget?: MacroKcalTarget
+): MealSlot {
     const base = computeNutrition(recipe);
-    const scale =
-        base.calories > 0 && targetCalories
-            ? Number((targetCalories / base.calories).toFixed(2))
+    const effectiveTargetCalories = macroTarget?.totalKcal ?? targetCalories;
+    const gramTargets = macroTarget
+        ? macroKcalToGrams({
+              totalKcal: macroTarget.totalKcal || effectiveTargetCalories || 0,
+              proteinKcal: macroTarget.proteinKcal,
+              carbsKcal: macroTarget.carbsKcal,
+              fatKcal: macroTarget.fatKcal
+          })
+        : null;
+
+    const scalableIngredients = recipe.ingredients.map(item => {
+        const food = item.ingredient?.food;
+        const grams = item.grams ?? 0;
+        const qty = item.quantity ?? (item.unit === 'PIECE' ? 1 : grams);
+        const kcal =
+            food?.caloriesPer100g != null
+                ? food.caloriesPer100g
+                : (food?.proteinPer100g ?? 0) * 4 +
+                  (food?.carbsPer100g ?? 0) * 4 +
+                  (food?.fatPer100g ?? 0) * 9;
+
+        return {
+            quantity: qty,
+            grams,
+            unit: item.unit ?? 'GRAM',
+            caloriesPer100g: kcal ?? 0,
+            proteinPer100g: food?.proteinPer100g ?? 0,
+            carbsPer100g: food?.carbsPer100g ?? 0,
+            fatPer100g: food?.fatPer100g ?? 0,
+            isDiscrete: food?.isDiscrete ?? false,
+            density: food?.density
+        };
+    });
+
+    const scales = computeIngredientScalesForMacros(
+        scalableIngredients,
+        base.calories,
+        effectiveTargetCalories && effectiveTargetCalories > 0
+            ? effectiveTargetCalories
+            : base.calories || 1,
+        gramTargets
+    );
+    const avgScale =
+        scales.length > 0
+            ? scales.reduce((sum, scale) => sum + scale, 0) / scales.length
             : 1;
 
     const ingredientPortions: MealIngredientPortion[] = recipe.ingredients.map(
-        item => {
-            const grams = item.grams ?? 0;
-            const qty = item.quantity ?? (item.unit === 'PIECE' ? 1 : grams);
-            const unit = item.unit ?? 'GRAM';
+        (item, index) => {
+            const scalable = scalableIngredients[index];
+            const scale = scales[index] ?? 1;
+            const scaled = scaleIngredientByFactor(scalable, scale);
             const food = item.ingredient?.food;
-            const baseNutritionGrams = resolveIngredientNutritionGrams(
-                qty,
-                unit,
-                grams,
-                food?.density
-            );
             const kcal =
                 food?.caloriesPer100g != null
                     ? food.caloriesPer100g
@@ -110,27 +157,14 @@ function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
                       (food?.carbsPer100g ?? 0) * 4 +
                       (food?.fatPer100g ?? 0) * 9;
 
-            const isDiscrete = food?.isDiscrete ?? false;
-
-            const targetQuantity = scaleIngredientQuantity(qty, scale, unit, {
-                isDiscrete
-            });
-            const targetGrams = usesUnitBasedGramScaling(unit)
-                ? targetGramsForPieceQuantity(
-                      baseNutritionGrams,
-                      qty,
-                      targetQuantity
-                  )
-                : Math.round(baseNutritionGrams * scale);
-
             return {
                 ingredientName: item.ingredient?.name ?? '',
-                baseQuantity: qty,
-                targetQuantity,
-                baseGrams: baseNutritionGrams,
-                targetGrams,
-                unit,
-                isDiscrete,
+                baseQuantity: scalable.quantity,
+                targetQuantity: scaled.targetQuantity,
+                baseGrams: scaled.baseNutritionGrams,
+                targetGrams: scaled.targetGrams,
+                unit: scaled.unit,
+                isDiscrete: scaled.isDiscrete,
                 baseCalories: kcal ?? 0,
                 baseProtein: food?.proteinPer100g ?? 0,
                 baseCarbs: food?.carbsPer100g ?? 0,
@@ -143,11 +177,19 @@ function recipeToMealSlot(recipe: Recipe, targetCalories?: number): MealSlot {
         id: recipe.id,
         recipeName: recipe.title,
         imageUrl: recipe.imageUrl ?? undefined,
-        calories: Math.round(base.calories * scale),
-        protein: round1(base.protein * scale),
-        carbs: round1(base.carbs * scale),
-        fat: round1(base.fat * scale),
-        portionMultiplier: scale,
+        calories: gramTargets
+            ? Math.round(gramTargets.calories)
+            : Math.round(base.calories * avgScale),
+        protein: gramTargets
+            ? round1(gramTargets.protein)
+            : round1(base.protein * avgScale),
+        carbs: gramTargets
+            ? round1(gramTargets.carbs)
+            : round1(base.carbs * avgScale),
+        fat: gramTargets
+            ? round1(gramTargets.fat)
+            : round1(base.fat * avgScale),
+        portionMultiplier: round2(avgScale),
         ingredientPortions
     };
 }
@@ -156,6 +198,7 @@ interface RecipePickerModalProps {
     open: boolean;
     mealType: MealType;
     targetCalories?: number;
+    macroTarget?: MacroKcalTarget;
     /** Recipe IDs already used in other weeks — hidden when replacing in a multi-week plan. */
     excludedRecipeIds?: string[];
     onClose: () => void;
@@ -166,6 +209,7 @@ export default function RecipePickerModal({
     open,
     mealType,
     targetCalories,
+    macroTarget,
     excludedRecipeIds = [],
     onClose,
     onSelect
@@ -192,7 +236,7 @@ export default function RecipePickerModal({
     }, [allRecipes, mealType, search, excluded]);
 
     function handleSelect(recipe: Recipe) {
-        onSelect(recipeToMealSlot(recipe, targetCalories));
+        onSelect(recipeToMealSlot(recipe, targetCalories, macroTarget));
         onClose();
     }
 

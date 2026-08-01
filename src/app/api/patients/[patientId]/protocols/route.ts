@@ -2,7 +2,10 @@ import {requireRole} from '@/lib/auth/requireRole';
 import {
     createPatientProtocol,
     getActiveProtocolForPatient,
+    getDraftProtocolForPatient,
+    saveProtocolDraft,
     updatePatientProtocol,
+    type ProtocolDraftSnapshot,
     type WeekPlanPayload
 } from '@/lib/services/protocol/protocol-week-plan.service';
 import {affiliateLinkSchema} from '@/lib/validations/protocol-template.schema';
@@ -32,6 +35,7 @@ function parseProtocolBody(body: unknown) {
             ? Math.floor(payload.weekCount)
             : 1;
     const status =
+        payload?.status === 'DRAFT' ||
         payload?.status === 'ACTIVE' ||
         payload?.status === 'COMPLETED' ||
         payload?.status === 'ARCHIVED'
@@ -42,6 +46,10 @@ function parseProtocolBody(body: unknown) {
         : [];
     const protocolId =
         typeof payload?.protocolId === 'string' ? payload.protocolId : undefined;
+    const draftSnapshot =
+        payload?.draftSnapshot && typeof payload.draftSnapshot === 'object'
+            ? (payload.draftSnapshot as ProtocolDraftSnapshot)
+            : null;
 
     const affiliateLinksResult = z
         .array(affiliateLinkSchema)
@@ -54,6 +62,7 @@ function parseProtocolBody(body: unknown) {
         status,
         weekPlan,
         protocolId,
+        draftSnapshot,
         affiliateLinksResult,
         generalRecommendations: parseOptionalRecommendationText(
             payload?.generalRecommendations
@@ -81,7 +90,10 @@ export async function GET(
         );
     }
 
-    const activeProtocol = await getActiveProtocolForPatient(patientId);
+    const [activeProtocol, draftProtocol] = await Promise.all([
+        getActiveProtocolForPatient(patientId),
+        getDraftProtocolForPatient(patientId)
+    ]);
 
     return Response.json(
         {
@@ -98,7 +110,8 @@ export async function GET(
                 hydrationRecommendations:
                     activeProtocol?.hydrationRecommendations ?? null,
                 supplementRecommendations:
-                    activeProtocol?.supplementRecommendations ?? null
+                    activeProtocol?.supplementRecommendations ?? null,
+                draft: draftProtocol
             }
         },
         {status: 200}
@@ -125,8 +138,10 @@ export async function POST(
         const {
             title,
             weekCount,
+            status,
             weekPlan,
             protocolId,
+            draftSnapshot,
             affiliateLinksResult,
             generalRecommendations,
             tips,
@@ -149,6 +164,44 @@ export async function POST(
             ? (affiliateLinksResult.data as Prisma.InputJsonValue)
             : undefined;
 
+        const recommendations = {
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations
+        };
+
+        if (status === 'DRAFT') {
+            if (!draftSnapshot) {
+                return Response.json(
+                    {
+                        success: false,
+                        message: 'El borrador del protocolo es requerido'
+                    },
+                    {status: 400}
+                );
+            }
+
+            const savedDraft = await saveProtocolDraft({
+                patientId,
+                protocolId,
+                title: title || 'Borrador de protocolo',
+                weekCount,
+                draftSnapshot,
+                affiliateLinks,
+                ...recommendations
+            });
+
+            return Response.json(
+                {
+                    success: true,
+                    message: 'Borrador guardado correctamente',
+                    data: savedDraft
+                },
+                {status: 200}
+            );
+        }
+
         if (title.length < 3) {
             return Response.json(
                 {
@@ -170,30 +223,40 @@ export async function POST(
             );
         }
 
-        const recommendations = {
-            generalRecommendations,
-            tips,
-            hydrationRecommendations,
-            supplementRecommendations
-        };
+        const existingDraft = protocolId
+            ? await getDraftProtocolForPatient(patientId)
+            : null;
+        const shouldPromoteDraft =
+            Boolean(protocolId) &&
+            existingDraft?.protocolId === protocolId;
 
-        const saved = protocolId
+        const saved = shouldPromoteDraft
             ? await updatePatientProtocol({
-                  protocolId,
+                  protocolId: protocolId!,
                   title,
                   weekCount,
                   weekPlan,
                   affiliateLinks,
+                  promoteFromDraft: true,
                   ...recommendations
               })
-            : await createPatientProtocol({
-                  patientId,
-                  title,
-                  weekCount,
-                  weekPlan,
-                  affiliateLinks,
-                  ...recommendations
-              });
+            : protocolId
+              ? await updatePatientProtocol({
+                    protocolId,
+                    title,
+                    weekCount,
+                    weekPlan,
+                    affiliateLinks,
+                    ...recommendations
+                })
+              : await createPatientProtocol({
+                    patientId,
+                    title,
+                    weekCount,
+                    weekPlan,
+                    affiliateLinks,
+                    ...recommendations
+                });
 
         return Response.json(
             {
@@ -238,8 +301,10 @@ export async function PUT(
         const {
             title,
             weekCount,
+            status,
             weekPlan,
             protocolId,
+            draftSnapshot,
             affiliateLinksResult,
             generalRecommendations,
             tips,
@@ -261,6 +326,44 @@ export async function PUT(
         const affiliateLinks = affiliateLinksResult.data?.length
             ? (affiliateLinksResult.data as Prisma.InputJsonValue)
             : undefined;
+
+        const recommendations = {
+            generalRecommendations,
+            tips,
+            hydrationRecommendations,
+            supplementRecommendations
+        };
+
+        if (status === 'DRAFT') {
+            if (!draftSnapshot) {
+                return Response.json(
+                    {
+                        success: false,
+                        message: 'El borrador del protocolo es requerido'
+                    },
+                    {status: 400}
+                );
+            }
+
+            const savedDraft = await saveProtocolDraft({
+                patientId,
+                protocolId,
+                title: title || 'Borrador de protocolo',
+                weekCount,
+                draftSnapshot,
+                affiliateLinks,
+                ...recommendations
+            });
+
+            return Response.json(
+                {
+                    success: true,
+                    message: 'Borrador guardado correctamente',
+                    data: savedDraft
+                },
+                {status: 200}
+            );
+        }
 
         if (title.length < 3) {
             return Response.json(
@@ -284,6 +387,12 @@ export async function PUT(
         }
 
         let targetProtocolId = protocolId;
+        let promoteFromDraft = false;
+
+        if (targetProtocolId) {
+            const draft = await getDraftProtocolForPatient(patientId);
+            promoteFromDraft = draft?.protocolId === targetProtocolId;
+        }
 
         if (!targetProtocolId) {
             const activeProtocol = await getActiveProtocolForPatient(patientId);
@@ -306,6 +415,7 @@ export async function PUT(
             weekCount,
             weekPlan,
             affiliateLinks,
+            promoteFromDraft,
             generalRecommendations,
             tips,
             hydrationRecommendations,

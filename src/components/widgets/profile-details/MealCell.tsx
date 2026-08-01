@@ -39,6 +39,8 @@ export default function MealCell({
     };
     const Icon = mealIcons[mealType];
     const [editOpen, setEditOpen] = useState<boolean>(false);
+    const [showAllIngredients, setShowAllIngredients] = useState(false);
+    const [showWarnings, setShowWarnings] = useState(false);
 
     const getUnitLabel = (unit?: string) => {
         const normalized = unit?.trim().toLowerCase();
@@ -151,22 +153,29 @@ export default function MealCell({
                     {meal.ingredientPortions &&
                         meal.ingredientPortions.length > 0 && (
                             <div className='flex flex-col gap-0.5'>
-                                {meal.ingredientPortions
-                                    .slice(0, 3)
-                                    .map((ing, idx) => (
-                                        <span
-                                            key={idx}
-                                            className='text-xs text-muted-foreground truncate'>
-                                            {getDisplayAmount(ing)}{' '}
-                                            {getUnitLabel(ing.unit)}{' '}
-                                            {ing.ingredientName}
-                                        </span>
-                                    ))}
-                                {meal.ingredientPortions.length > 3 && (
-                                    <span className='text-xs text-muted-foreground/60 italic'>
-                                        +{meal.ingredientPortions.length - 3}{' '}
-                                        más
+                                {(showAllIngredients
+                                    ? meal.ingredientPortions
+                                    : meal.ingredientPortions.slice(0, 3)
+                                ).map((ing, idx) => (
+                                    <span
+                                        key={idx}
+                                        className='text-xs text-muted-foreground truncate'>
+                                        {getDisplayAmount(ing)}{' '}
+                                        {getUnitLabel(ing.unit)}{' '}
+                                        {ing.ingredientName}
                                     </span>
+                                ))}
+                                {meal.ingredientPortions.length > 3 && (
+                                    <button
+                                        type='button'
+                                        onClick={() =>
+                                            setShowAllIngredients(prev => !prev)
+                                        }
+                                        className='w-fit text-left text-xs text-muted-foreground/60 italic transition-colors hover:text-muted-foreground'>
+                                        {showAllIngredients
+                                            ? 'Ver menos'
+                                            : `+${meal.ingredientPortions.length - 3} más`}
+                                    </button>
                                 )}
                             </div>
                         )}
@@ -199,13 +208,26 @@ export default function MealCell({
                         meal.warnings &&
                         meal.warnings.length > 0 && (
                             <div className='mt-1 flex flex-col gap-0.5'>
-                                {meal.warnings.map((w, i) => (
-                                    <span
-                                        key={i}
-                                        className='text-xs text-red-500'>
-                                        ⚠ {w}
-                                    </span>
-                                ))}
+                                <button
+                                    type='button'
+                                    onClick={() =>
+                                        setShowWarnings(prev => !prev)
+                                    }
+                                    className='w-fit text-left text-xs font-medium text-red-500 transition-colors hover:text-red-600'>
+                                    ⚠ {meal.warnings.length}{' '}
+                                    {meal.warnings.length === 1
+                                        ? 'advertencia'
+                                        : 'advertencias'}
+                                    {showWarnings ? ' · Ocultar' : ' · Ver'}
+                                </button>
+                                {showWarnings &&
+                                    meal.warnings.map((w, i) => (
+                                        <span
+                                            key={i}
+                                            className='text-xs text-red-500'>
+                                            ⚠ {w}
+                                        </span>
+                                    ))}
                             </div>
                         )}
                 </div>
