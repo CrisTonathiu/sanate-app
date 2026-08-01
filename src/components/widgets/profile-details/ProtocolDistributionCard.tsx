@@ -22,7 +22,6 @@ import {
 import {cn} from '@/lib/utils';
 import {AnimatePresence, motion} from 'framer-motion';
 import {
-    AlertCircle,
     Beef,
     CalendarDays,
     Check,
@@ -224,8 +223,7 @@ export function ProtocolDistributionCard({
     >({});
 
     const canRemove = Object.values(enabledMeals).filter(Boolean).length > 1;
-    const totalMealsToGenerate =
-        enabledMealsList.length * 7 * weekCount;
+    const totalMealsToGenerate = enabledMealsList.length * 7 * weekCount;
 
     return (
         <motion.div
@@ -280,8 +278,8 @@ export function ProtocolDistributionCard({
                         <p className='text-xs text-muted-foreground'>
                             Se generaran {totalMealsToGenerate} comidas (
                             {enabledMealsList.length} por dia x 7 dias x{' '}
-                            {weekCount}{' '}
-                            {weekCount === 1 ? 'semana' : 'semanas'}).
+                            {weekCount} {weekCount === 1 ? 'semana' : 'semanas'}
+                            ).
                         </p>
                     </div>
                     {/* Add Meal Types Section */}

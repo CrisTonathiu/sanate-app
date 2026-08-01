@@ -8,11 +8,13 @@ import {useGetPatientProfile} from '@/hooks/use-patients';
 interface PatientBreadcrumbProps {
     patientId: string;
     currentPageLabel?: string;
+    onNavigate?: (href: string) => void;
 }
 
 export default function PatientBreadcrumb({
     patientId,
-    currentPageLabel
+    currentPageLabel,
+    onNavigate
 }: PatientBreadcrumbProps) {
     const router = useRouter();
     const {data: patient} = useGetPatientProfile(patientId);
@@ -20,6 +22,14 @@ export default function PatientBreadcrumb({
     const patientLabel = patient
         ? `${patient.firstName} ${patient.lastName}`
         : 'Paciente';
+
+    const navigate = (href: string) => {
+        if (onNavigate) {
+            onNavigate(href);
+            return;
+        }
+        router.push(href);
+    };
 
     return (
         <motion.nav
@@ -29,7 +39,7 @@ export default function PatientBreadcrumb({
             aria-label='breadcrumb'
             className='mb-6 flex items-center gap-2 text-sm'>
             <button
-                onClick={() => router.push('/pacientes')}
+                onClick={() => navigate('/pacientes')}
                 className='text-muted-foreground transition-colors hover:text-foreground'>
                 Lista de pacientes
             </button>
@@ -37,7 +47,7 @@ export default function PatientBreadcrumb({
             {currentPageLabel ? (
                 <>
                     <button
-                        onClick={() => router.push(`/pacientes/${patientId}`)}
+                        onClick={() => navigate(`/pacientes/${patientId}`)}
                         className='text-muted-foreground transition-colors hover:text-foreground'>
                         {patientLabel}
                     </button>

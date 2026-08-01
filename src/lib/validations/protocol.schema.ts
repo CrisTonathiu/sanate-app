@@ -13,7 +13,7 @@ export const createProtocolSchema = z.object({
         .min(3, 'El nombre del protocolo debe tener al menos 3 caracteres'),
     weekCount: z.number().optional(),
     patientId: z.string().cuid('ID de paciente no válido'),
-    status: z.enum(['ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
+    status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
     generalRecommendations: optionalRecommendationText,
     tips: optionalRecommendationText,
     hydrationRecommendations: optionalRecommendationText,
@@ -28,7 +28,7 @@ export type ProtocolIdInput = z.infer<typeof protocolIdSchema>;
 
 export const updateProtocolStatusSchema = z.object({
     protocolId: protocolIdSchema,
-    status: z.enum(['ACTIVE', 'COMPLETED', 'ARCHIVED'])
+    status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'ARCHIVED'])
 });
 
 export type UpdateProtocolStatusInput = z.infer<

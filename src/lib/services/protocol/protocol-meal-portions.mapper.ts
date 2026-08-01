@@ -60,20 +60,30 @@ export function buildProtocolMealPortionsCreateData(
         .filter(portion => portion.ingredientName.trim().length > 0)
         .map(mapPortionToDbIngredient);
 
-    const calories = meal.calories ?? 0;
-    const protein = meal.protein ?? 0;
-    const carbs = meal.carbs ?? 0;
-    const fat = meal.fat ?? 0;
+    const targetCalories = meal.calories ?? 0;
+    const targetProtein = meal.protein ?? 0;
+    const targetCarbs = meal.carbs ?? 0;
+    const targetFat = meal.fat ?? 0;
+
+    const actualTotals =
+        meal.ingredientPortions.length > 0
+            ? computeMealTotals(meal.ingredientPortions)
+            : {
+                  calories: targetCalories,
+                  protein: targetProtein,
+                  carbs: targetCarbs,
+                  fat: targetFat
+              };
 
     return {
-        targetCalories: calories,
-        targetProtein: protein,
-        targetCarbs: carbs,
-        targetFat: fat,
-        actualCalories: calories,
-        actualProtein: protein,
-        actualCarbs: carbs,
-        actualFat: fat,
+        targetCalories,
+        targetProtein,
+        targetCarbs,
+        targetFat,
+        actualCalories: Math.round(actualTotals.calories),
+        actualProtein: round1(actualTotals.protein),
+        actualCarbs: round1(actualTotals.carbs),
+        actualFat: round1(actualTotals.fat),
         ingredients: {
             create: ingredientRows
         }
@@ -178,6 +188,10 @@ function computeMealTotals(portions: MealIngredientPortion[]) {
 }
 
 export type StoredProtocolMealPortions = {
+    targetCalories?: number;
+    targetProtein?: number;
+    targetCarbs?: number;
+    targetFat?: number;
     actualCalories: number;
     actualProtein: number;
     actualCarbs: number;
@@ -226,14 +240,34 @@ export function buildMealSlotFromProtocolMeal(meal: {
     }
 
     if (meal.portions) {
+        const hasTargets =
+            typeof meal.portions.targetCalories === 'number' &&
+            typeof meal.portions.targetProtein === 'number';
+
         return {
             id: recipe.id,
             recipeName: recipe.title,
             imageUrl: recipe.imageUrl ?? undefined,
-            calories: Math.round(meal.portions.actualCalories),
-            protein: round1(meal.portions.actualProtein),
-            carbs: round1(meal.portions.actualCarbs),
-            fat: round1(meal.portions.actualFat),
+            calories: Math.round(
+                hasTargets
+                    ? meal.portions.targetCalories!
+                    : meal.portions.actualCalories
+            ),
+            protein: round1(
+                hasTargets
+                    ? meal.portions.targetProtein!
+                    : meal.portions.actualProtein
+            ),
+            carbs: round1(
+                hasTargets
+                    ? (meal.portions.targetCarbs ?? meal.portions.actualCarbs)
+                    : meal.portions.actualCarbs
+            ),
+            fat: round1(
+                hasTargets
+                    ? (meal.portions.targetFat ?? meal.portions.actualFat)
+                    : meal.portions.actualFat
+            ),
             ingredientPortions: mapDbIngredientsToMealPortions(
                 meal.portions.ingredients,
                 recipe.ingredients.map(ingredient => ({
