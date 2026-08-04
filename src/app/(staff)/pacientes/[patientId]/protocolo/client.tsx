@@ -831,11 +831,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }));
 
     const getTargetCaloriesForMeal = (mealType: MealType): number => {
-        const total = (Object.keys(enabledMeals) as MealType[])
-            .filter(k => enabledMeals[k])
-            .reduce((sum, k) => sum + (mealPercentages[k] ?? 0), 0);
         const pct = mealPercentages[mealType] ?? 0;
-        return total > 0 ? Math.round((pct / total) * planCalories) : 0;
+        return Math.round((planCalories * pct) / 100);
     };
 
     const getMacroTargetsForMeal = (mealType: MealType) => {
@@ -863,15 +860,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             )
         };
     };
-
-    const enabledMealKeys = (Object.keys(enabledMeals) as MealType[]).filter(
-        key => enabledMeals[key]
-    );
-    const mealDistributionTotal = enabledMealKeys.reduce(
-        (sum, key) => sum + (mealPercentages[key] ?? 0),
-        0
-    );
-    const isMealDistributionStepValid = mealDistributionTotal === 100;
 
     const renderStepContent = () => {
         if (!patient) return null;
@@ -1094,13 +1082,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
     const nextStep = () => {
         if (currentStep === 3) {
-            if (mealDistributionTotal !== 100) {
-                window.alert(
-                    `La distribucion total de comidas debe ser 100%. Actualmente es ${mealDistributionTotal.toFixed(2)}%.`
-                );
-                return;
-            }
-
             // Build mealDistribution payload from enabled meals + percentages
             const mealDistribution: Record<string, number> = {};
             const macroCalories = {
@@ -1274,9 +1255,6 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 onComplete={handleGenerateProtocol}
                 isGenerating={isGenerating}
                 isCompleting={isSavingProtocol}
-                disableNextStep={
-                    currentStep === 3 && !isMealDistributionStepValid
-                }
             />
 
             {selectedDayMeal && (

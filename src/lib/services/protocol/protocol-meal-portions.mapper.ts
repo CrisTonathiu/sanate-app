@@ -102,7 +102,14 @@ export function mapDbIngredientsToMealPortions(
     recipeIngredients?: Array<{
         ingredient: {
             name: string;
-            food?: {isDiscrete?: boolean | null} | null;
+            food?: {
+                isDiscrete?: boolean | null;
+                caloriesPer100g?: number | null;
+                proteinPer100g?: number | null;
+                carbsPer100g?: number | null;
+                fatPer100g?: number | null;
+                density?: number | null;
+            } | null;
         };
     }>
 ): MealIngredientPortion[] {
@@ -112,6 +119,15 @@ export function mapDbIngredientsToMealPortions(
                 item.ingredient.name.trim().toLowerCase() ===
                 row.ingredientName.trim().toLowerCase()
         );
+        const food = recipeRow?.ingredient.food;
+        const kcal =
+            food?.caloriesPer100g != null
+                ? food.caloriesPer100g
+                : food
+                  ? (food.proteinPer100g ?? 0) * 4 +
+                    (food.carbsPer100g ?? 0) * 4 +
+                    (food.fatPer100g ?? 0) * 9
+                  : undefined;
 
         return {
             ingredientName: row.ingredientName,
@@ -120,7 +136,11 @@ export function mapDbIngredientsToMealPortions(
             baseGrams: row.baseGrams,
             targetGrams: row.targetGrams,
             unit: row.unit,
-            isDiscrete: recipeRow?.ingredient.food?.isDiscrete ?? false
+            isDiscrete: food?.isDiscrete ?? false,
+            baseCalories: kcal,
+            baseProtein: food?.proteinPer100g ?? undefined,
+            baseCarbs: food?.carbsPer100g ?? undefined,
+            baseFat: food?.fatPer100g ?? undefined
         };
     });
 }
@@ -240,34 +260,14 @@ export function buildMealSlotFromProtocolMeal(meal: {
     }
 
     if (meal.portions) {
-        const hasTargets =
-            typeof meal.portions.targetCalories === 'number' &&
-            typeof meal.portions.targetProtein === 'number';
-
         return {
             id: recipe.id,
             recipeName: recipe.title,
             imageUrl: recipe.imageUrl ?? undefined,
-            calories: Math.round(
-                hasTargets
-                    ? meal.portions.targetCalories!
-                    : meal.portions.actualCalories
-            ),
-            protein: round1(
-                hasTargets
-                    ? meal.portions.targetProtein!
-                    : meal.portions.actualProtein
-            ),
-            carbs: round1(
-                hasTargets
-                    ? (meal.portions.targetCarbs ?? meal.portions.actualCarbs)
-                    : meal.portions.actualCarbs
-            ),
-            fat: round1(
-                hasTargets
-                    ? (meal.portions.targetFat ?? meal.portions.actualFat)
-                    : meal.portions.actualFat
-            ),
+            calories: Math.round(meal.portions.actualCalories),
+            protein: round1(meal.portions.actualProtein),
+            carbs: round1(meal.portions.actualCarbs),
+            fat: round1(meal.portions.actualFat),
             ingredientPortions: mapDbIngredientsToMealPortions(
                 meal.portions.ingredients,
                 recipe.ingredients.map(ingredient => ({
@@ -337,7 +337,16 @@ export function formatScaledIngredientDisplay(
     const unit = normalizeIngredientUnit(scaled.unit ?? recipeBase.unit);
     const unitLabel =
         INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
-    const quantityOptions = {isDiscrete: scaled.isDiscrete};
+    // Automatic scaling keeps discrete foods on whole pieces, so a stored
+    // fraction means someone set it by hand (1/2 tortilla) and must be kept.
+    const hasFractionalQuantity =
+        Number.isFinite(scaled.targetQuantity) &&
+        Math.abs(scaled.targetQuantity - Math.round(scaled.targetQuantity)) >
+            0.001;
+    const quantityOptions = {
+        isDiscrete: scaled.isDiscrete,
+        allowFractions: hasFractionalQuantity
+    };
 
     if (unit === 'GRAM') {
         return {

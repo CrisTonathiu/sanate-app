@@ -12,7 +12,7 @@ import {
 } from '@/lib/utils/ingredient-quantity';
 import {
     computeIngredientScalesForMacros,
-    macroKcalToGrams,
+    correctPortionsToTargetCalories,
     scaleIngredientByFactor
 } from '@/lib/utils/recipe-macro-scale';
 
@@ -453,20 +453,17 @@ function buildMeal(
     targetCalories: number,
     macroTarget?: MacroMealTarget
 ): MealSlot {
-    const gramTargets = macroTarget
-        ? macroKcalToGrams({
-              totalKcal: macroTarget.totalKcal || targetCalories,
-              proteinKcal: macroTarget.proteinKcal,
-              carbsKcal: macroTarget.carbsKcal,
-              fatKcal: macroTarget.fatKcal
-          })
-        : null;
+    const plannedCalories = round2(
+        macroTarget?.totalKcal && macroTarget.totalKcal > 0
+            ? macroTarget.totalKcal
+            : targetCalories
+    );
 
     const scales = computeIngredientScalesForMacros(
         recipe.ingredients,
         recipe.calories,
-        targetCalories,
-        gramTargets
+        plannedCalories,
+        null
     );
     const avgScale =
         scales.length > 0
@@ -476,7 +473,7 @@ function buildMeal(
     const realism = evaluateMealRealism(recipe.ingredients, scales);
     const warnings = [...realism.warnings];
 
-    const ingredientPortions = recipe.ingredients.map((item, index) => {
+    let ingredientPortions = recipe.ingredients.map((item, index) => {
         const scale = scales[index] ?? 1;
         const scaled = scaleIngredientByFactor(item, scale);
         const ingredientMacroKcal = getIngredientMacroKcal(
@@ -507,6 +504,11 @@ function buildMeal(
         };
     });
 
+    ingredientPortions = correctPortionsToTargetCalories(
+        ingredientPortions,
+        plannedCalories
+    );
+
     const portionTotals = ingredientPortions.reduce(
         (sum, portion) => {
             const nutrition = computePortionNutrition(portion);
@@ -521,22 +523,16 @@ function buildMeal(
         {calories: 0, protein: 0, carbs: 0, fat: 0}
     );
 
-    // Prefer planned meal-type targets so Mon–Sun stay consistent for the
-    // same meal slot. Ingredient portions are scaled toward those targets.
     const slot: MealSlot = {
         id: recipe.id,
         recipeName: recipe.title,
         imageUrl: recipe.imageUrl ?? undefined,
-        calories: gramTargets
-            ? Math.round(gramTargets.calories)
-            : Math.round(portionTotals.calories),
-        protein: gramTargets
-            ? round1(gramTargets.protein)
-            : round1(portionTotals.protein),
-        carbs: gramTargets
-            ? round1(gramTargets.carbs)
-            : round1(portionTotals.carbs),
-        fat: gramTargets ? round1(gramTargets.fat) : round1(portionTotals.fat),
+        // Planned meal-type calories stay fixed every day (e.g. all lunches =
+        // 25% of plan calories), even when distribution totals under 100%.
+        calories: Math.round(plannedCalories),
+        protein: round1(portionTotals.protein),
+        carbs: round1(portionTotals.carbs),
+        fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
         isRealistic: realism.isRealistic && warnings.length === 0,
         warnings,

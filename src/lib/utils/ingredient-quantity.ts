@@ -1,6 +1,12 @@
 export type IngredientQuantityOptions = {
     /** Food marked as discrete (eggs, bread slices) — whole pieces only. */
     isDiscrete?: boolean;
+    /**
+     * Lets discrete foods keep fractional pieces (1/2 tortilla). Used by manual
+     * editing and display so a staff-entered fraction is not rounded to a whole
+     * piece; automatic scaling keeps whole pieces.
+     */
+    allowFractions?: boolean;
 };
 
 /** Quarter-cup steps for patient-facing meal planner display. */
@@ -29,7 +35,9 @@ const COOKING_CUP_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
 const PIECE_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
     {num: 1, den: 4},
     {num: 1, den: 3},
-    {num: 1, den: 2}
+    {num: 1, den: 2},
+    {num: 2, den: 3},
+    {num: 3, den: 4}
 ];
 
 export function normalizeIngredientUnit(unit?: string | null): string {
@@ -119,7 +127,9 @@ function usesWholePiecesOnly(
     options?: IngredientQuantityOptions
 ): boolean {
     return (
-        normalizeIngredientUnit(unit) === 'PIECE' && options?.isDiscrete === true
+        normalizeIngredientUnit(unit) === 'PIECE' &&
+        options?.isDiscrete === true &&
+        options?.allowFractions !== true
     );
 }
 

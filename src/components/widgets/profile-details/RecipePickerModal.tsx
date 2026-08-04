@@ -13,7 +13,7 @@ import {
 } from '@/lib/utils/ingredient-quantity';
 import {
     computeIngredientScalesForMacros,
-    macroKcalToGrams,
+    correctPortionsToTargetCalories,
     scaleIngredientByFactor,
     type MacroKcalTarget
 } from '@/lib/utils/recipe-macro-scale';
@@ -97,15 +97,12 @@ function recipeToMealSlot(
     macroTarget?: MacroKcalTarget
 ): MealSlot {
     const base = computeNutrition(recipe);
-    const effectiveTargetCalories = macroTarget?.totalKcal ?? targetCalories;
-    const gramTargets = macroTarget
-        ? macroKcalToGrams({
-              totalKcal: macroTarget.totalKcal || effectiveTargetCalories || 0,
-              proteinKcal: macroTarget.proteinKcal,
-              carbsKcal: macroTarget.carbsKcal,
-              fatKcal: macroTarget.fatKcal
-          })
-        : null;
+    const plannedCalories =
+        macroTarget?.totalKcal && macroTarget.totalKcal > 0
+            ? macroTarget.totalKcal
+            : targetCalories && targetCalories > 0
+              ? targetCalories
+              : base.calories;
 
     const scalableIngredients = recipe.ingredients.map(item => {
         const food = item.ingredient?.food;
@@ -134,17 +131,15 @@ function recipeToMealSlot(
     const scales = computeIngredientScalesForMacros(
         scalableIngredients,
         base.calories,
-        effectiveTargetCalories && effectiveTargetCalories > 0
-            ? effectiveTargetCalories
-            : base.calories || 1,
-        gramTargets
+        plannedCalories || base.calories || 1,
+        null
     );
     const avgScale =
         scales.length > 0
             ? scales.reduce((sum, scale) => sum + scale, 0) / scales.length
             : 1;
 
-    const ingredientPortions: MealIngredientPortion[] = recipe.ingredients.map(
+    let ingredientPortions: MealIngredientPortion[] = recipe.ingredients.map(
         (item, index) => {
             const scalable = scalableIngredients[index];
             const scale = scales[index] ?? 1;
@@ -173,22 +168,32 @@ function recipeToMealSlot(
         }
     );
 
+    ingredientPortions = correctPortionsToTargetCalories(
+        ingredientPortions,
+        plannedCalories
+    );
+
+    const portionTotals = ingredientPortions.reduce(
+        (sum, portion) => {
+            const ratio = portion.targetGrams / 100;
+            return {
+                calories: sum.calories + (portion.baseCalories ?? 0) * ratio,
+                protein: sum.protein + (portion.baseProtein ?? 0) * ratio,
+                carbs: sum.carbs + (portion.baseCarbs ?? 0) * ratio,
+                fat: sum.fat + (portion.baseFat ?? 0) * ratio
+            };
+        },
+        {calories: 0, protein: 0, carbs: 0, fat: 0}
+    );
+
     return {
         id: recipe.id,
         recipeName: recipe.title,
         imageUrl: recipe.imageUrl ?? undefined,
-        calories: gramTargets
-            ? Math.round(gramTargets.calories)
-            : Math.round(base.calories * avgScale),
-        protein: gramTargets
-            ? round1(gramTargets.protein)
-            : round1(base.protein * avgScale),
-        carbs: gramTargets
-            ? round1(gramTargets.carbs)
-            : round1(base.carbs * avgScale),
-        fat: gramTargets
-            ? round1(gramTargets.fat)
-            : round1(base.fat * avgScale),
+        calories: Math.round(plannedCalories),
+        protein: round1(portionTotals.protein),
+        carbs: round1(portionTotals.carbs),
+        fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
         ingredientPortions
     };
