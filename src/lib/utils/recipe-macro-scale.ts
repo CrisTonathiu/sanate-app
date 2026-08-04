@@ -1,6 +1,7 @@
 import {
     resolveIngredientNutritionGrams,
     scaleIngredientQuantity,
+    snapQuantityForUnit,
     targetGramsForPieceQuantity,
     usesUnitBasedGramScaling
 } from '@/lib/utils/ingredient-quantity';
@@ -31,8 +32,6 @@ export type ScalableIngredient = {
     density?: number | null;
 };
 
-type DominantMacro = 'protein' | 'carbs' | 'fat' | 'balanced';
-
 function round4(value: number) {
     return Number(value.toFixed(4));
 }
@@ -46,40 +45,15 @@ export function macroKcalToGrams(target: MacroKcalTarget): MacroGramTargets {
     };
 }
 
-function getDominantMacro(item: ScalableIngredient): DominantMacro {
-    const proteinKcal = (item.proteinPer100g ?? 0) * 4;
-    const carbsKcal = (item.carbsPer100g ?? 0) * 4;
-    const fatKcal = (item.fatPer100g ?? 0) * 9;
-    const total = proteinKcal + carbsKcal + fatKcal;
-
-    if (total <= 0) {
-        return 'balanced';
-    }
-
-    const max = Math.max(proteinKcal, carbsKcal, fatKcal);
-    if (proteinKcal === max && proteinKcal / total >= 0.45) {
-        return 'protein';
-    }
-    if (carbsKcal === max && carbsKcal / total >= 0.45) {
-        return 'carbs';
-    }
-    if (fatKcal === max && fatKcal / total >= 0.45) {
-        return 'fat';
-    }
-
-    return 'balanced';
-}
-
 /**
- * Compute per-ingredient scales so the recipe approaches fixed meal macro
- * targets (same breakfast/lunch/... targets every day). Falls back to a
- * uniform calorie scale when no macro targets are provided.
+ * Uniform calorie scale so every meal of the same type hits the same kcal
+ * target (e.g. all breakfasts = 25% of plan calories).
  */
 export function computeIngredientScalesForMacros(
     ingredients: ScalableIngredient[],
     recipeCalories: number,
     targetCalories: number,
-    gramTargets: MacroGramTargets | null
+    _gramTargets?: MacroGramTargets | null
 ): number[] {
     const count = ingredients.length;
     if (count === 0) {
@@ -89,80 +63,7 @@ export function computeIngredientScalesForMacros(
     const calorieScale =
         recipeCalories > 0 ? targetCalories / recipeCalories : 1;
 
-    if (!gramTargets) {
-        return ingredients.map(() => round4(calorieScale));
-    }
-
-    const bases = ingredients.map(item => {
-        const grams = resolveIngredientNutritionGrams(
-            item.quantity,
-            item.unit,
-            item.grams,
-            item.density
-        );
-        const ratio = grams / 100;
-
-        return {
-            protein: (item.proteinPer100g ?? 0) * ratio,
-            carbs: (item.carbsPer100g ?? 0) * ratio,
-            fat: (item.fatPer100g ?? 0) * ratio,
-            dominant: getDominantMacro(item)
-        };
-    });
-
-    const scales = bases.map(() => calorieScale);
-
-    const refine = (macro: 'protein' | 'carbs' | 'fat') => {
-        const target = gramTargets[macro];
-        const dominantIdx = bases
-            .map((base, index) => (base.dominant === macro ? index : -1))
-            .filter(index => index >= 0);
-
-        const contributorIdx =
-            dominantIdx.length > 0
-                ? dominantIdx
-                : bases
-                      .map((base, index) => (base[macro] > 0.05 ? index : -1))
-                      .filter(index => index >= 0);
-
-        if (contributorIdx.length === 0) {
-            return;
-        }
-
-        const total = bases.reduce(
-            (sum, base, index) => sum + base[macro] * scales[index],
-            0
-        );
-        const groupTotal = contributorIdx.reduce(
-            (sum, index) => sum + bases[index][macro] * scales[index],
-            0
-        );
-
-        if (groupTotal <= 0) {
-            return;
-        }
-
-        const others = total - groupTotal;
-        const neededFromGroup = Math.max(target - others, 0);
-        const factor = Math.min(Math.max(neededFromGroup / groupTotal, 0.15), 6);
-
-        for (const index of contributorIdx) {
-            scales[index] *= factor;
-        }
-    };
-
-    for (let pass = 0; pass < 3; pass++) {
-        refine('protein');
-        refine('carbs');
-        refine('fat');
-    }
-
-    const minScale = Math.max(calorieScale * 0.2, 0.05);
-    const maxScale = Math.max(calorieScale * 5, 1);
-
-    return scales.map(scale =>
-        round4(Math.min(Math.max(scale, minScale), maxScale))
-    );
+    return ingredients.map(() => round4(calorieScale));
 }
 
 export function scaleIngredientByFactor(
@@ -198,4 +99,77 @@ export function scaleIngredientByFactor(
         unit,
         isDiscrete
     };
+}
+
+export type CalorieScaledPortion = {
+    targetGrams: number;
+    targetQuantity?: number;
+    unit?: string | null;
+    isDiscrete?: boolean | null;
+    baseCalories?: number | null;
+    baseProtein?: number | null;
+    baseCarbs?: number | null;
+    baseFat?: number | null;
+};
+
+/**
+ * After kitchen-unit snapping, nudge all portions so total calories match the
+ * planned meal target exactly (same breakfast kcal every day, etc.).
+ */
+export function correctPortionsToTargetCalories<T extends CalorieScaledPortion>(
+    portions: T[],
+    targetCalories: number
+): T[] {
+    if (portions.length === 0 || targetCalories <= 0) {
+        return portions;
+    }
+
+    const currentCalories = portions.reduce((sum, portion) => {
+        const ratio = portion.targetGrams / 100;
+        return sum + (portion.baseCalories ?? 0) * ratio;
+    }, 0);
+
+    if (currentCalories <= 0) {
+        return portions;
+    }
+
+    const factor = targetCalories / currentCalories;
+    if (Math.abs(factor - 1) < 0.005) {
+        return portions;
+    }
+
+    return portions.map(portion => {
+        const nextGrams = Math.max(1, Math.round(portion.targetGrams * factor));
+        const unit = portion.unit ?? 'GRAM';
+
+        if (!usesUnitBasedGramScaling(unit)) {
+            return {
+                ...portion,
+                targetGrams: nextGrams,
+                targetQuantity: nextGrams
+            };
+        }
+
+        const baseQuantity =
+            typeof portion.targetQuantity === 'number' &&
+            portion.targetQuantity > 0
+                ? portion.targetQuantity
+                : 1;
+        const gramsPerUnit =
+            portion.targetGrams > 0
+                ? portion.targetGrams / baseQuantity
+                : nextGrams;
+        const rawQuantity =
+            gramsPerUnit > 0 ? nextGrams / gramsPerUnit : baseQuantity * factor;
+        const targetQuantity = snapQuantityForUnit(rawQuantity, unit, {
+            isDiscrete: portion.isDiscrete ?? false
+        });
+
+        return {
+            ...portion,
+            targetQuantity:
+                targetQuantity > 0 ? targetQuantity : baseQuantity * factor,
+            targetGrams: nextGrams
+        };
+    });
 }

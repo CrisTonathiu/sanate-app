@@ -57,6 +57,22 @@ const LINE_HEIGHT = 1.5;
 const SECTION_GAP_LINES = 2;
 const SECTION_GAP_PT = BODY_FONT_SIZE * LINE_HEIGHT * SECTION_GAP_LINES;
 
+/** A3 portrait in @react-pdf/renderer points */
+const A3_PAGE_WIDTH_PT = 841.89;
+const A3_PAGE_HEIGHT_PT = 1190.55;
+const RECOMMENDATION_LINE_HEIGHT_PT = BODY_FONT_SIZE * LINE_HEIGHT;
+const RECOMMENDATION_TITLE_HEIGHT_PT =
+    RECOMMENDATION_LINE_HEIGHT_PT + 4;
+/** Helvetica average glyph width ≈ 0.5em; pad slightly so wraps are not cut. */
+const RECOMMENDATION_CHARS_PER_LINE = Math.floor(
+    (A3_PAGE_WIDTH_PT - CONTENT_HORIZONTAL_PT * 2) / (BODY_FONT_SIZE * 0.52)
+);
+const RECOMMENDATION_PAGE_CONTENT_HEIGHT_PT =
+    A3_PAGE_HEIGHT_PT - PLAN_CONTENT_TOP_PT - CONTENT_BOTTOM_PT;
+/** Leave a small safety margin so estimated wraps do not clip the letterhead footer. */
+const RECOMMENDATION_USABLE_HEIGHT_PT =
+    RECOMMENDATION_PAGE_CONTENT_HEIGHT_PT - RECOMMENDATION_LINE_HEIGHT_PT;
+
 const styles = StyleSheet.create({
     page: {
         position: 'relative'
@@ -350,6 +366,18 @@ type RecommendationSection = {
     content: string;
 };
 
+type RecommendationPageSection = {
+    title?: string;
+    content: string;
+    isContinuation?: boolean;
+};
+
+type RecommendationPageData = {
+    sections: RecommendationPageSection[];
+    affiliateLinks: AffiliateLink[];
+    showAffiliateTitle: boolean;
+};
+
 function hasText(value: string | null | undefined): value is string {
     return typeof value === 'string' && value.trim().length > 0;
 }
@@ -393,6 +421,259 @@ function buildRecommendationSections(
 function getValidAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
     return links.filter(
         link => link.name.trim().length > 0 && link.url.trim().length > 0
+    );
+}
+
+/**
+ * Wrap plain text into visual lines using an estimated character budget.
+ * Keeps paragraph breaks from the source text.
+ */
+function wrapTextToLines(text: string, charsPerLine: number): string[] {
+    const paragraphs = text.replace(/\r\n/g, '\n').split('\n');
+    const lines: string[] = [];
+
+    for (const paragraph of paragraphs) {
+        const trimmed = paragraph.trim();
+        if (!trimmed) {
+            lines.push('');
+            continue;
+        }
+
+        const words = trimmed.split(/\s+/).filter(Boolean);
+        let current = '';
+
+        for (const word of words) {
+            const next = current ? `${current} ${word}` : word;
+
+            if (next.length <= charsPerLine) {
+                current = next;
+                continue;
+            }
+
+            if (current) {
+                lines.push(current);
+            }
+
+            if (word.length <= charsPerLine) {
+                current = word;
+                continue;
+            }
+
+            let remaining = word;
+            while (remaining.length > charsPerLine) {
+                lines.push(remaining.slice(0, charsPerLine));
+                remaining = remaining.slice(charsPerLine);
+            }
+            current = remaining;
+        }
+
+        if (current) {
+            lines.push(current);
+        }
+    }
+
+    return lines.length > 0 ? lines : [''];
+}
+
+function estimateAffiliateBlockHeight(linkCount: number, includeTitle: boolean) {
+    const titleHeight = includeTitle ? RECOMMENDATION_TITLE_HEIGHT_PT : 0;
+    // Each affiliate link renders name + url (2 body lines) + marginBottom 4.
+    const linksHeight =
+        linkCount * (RECOMMENDATION_LINE_HEIGHT_PT * 2 + 4);
+    return titleHeight + linksHeight;
+}
+
+/**
+ * Pack recommendation sections (and optional affiliate links) into as many
+ * A3 pages as the estimated text height requires.
+ */
+function paginateRecommendationContent(
+    sections: RecommendationSection[],
+    affiliateLinks: AffiliateLink[]
+): RecommendationPageData[] {
+    if (sections.length === 0 && affiliateLinks.length === 0) {
+        return [];
+    }
+
+    const pages: RecommendationPageData[] = [];
+    let currentSections: RecommendationPageSection[] = [];
+    let currentAffiliateLinks: AffiliateLink[] = [];
+    let showAffiliateTitle = false;
+    let usedHeight = 0;
+
+    const pushPage = () => {
+        if (currentSections.length === 0 && currentAffiliateLinks.length === 0) {
+            return;
+        }
+
+        pages.push({
+            sections: currentSections,
+            affiliateLinks: currentAffiliateLinks,
+            showAffiliateTitle
+        });
+        currentSections = [];
+        currentAffiliateLinks = [];
+        showAffiliateTitle = false;
+        usedHeight = 0;
+    };
+
+    const ensureSpace = (needed: number) => {
+        if (
+            usedHeight > 0 &&
+            usedHeight + needed > RECOMMENDATION_USABLE_HEIGHT_PT
+        ) {
+            pushPage();
+        }
+    };
+
+    for (const section of sections) {
+        const bodyLines = wrapTextToLines(
+            section.content,
+            RECOMMENDATION_CHARS_PER_LINE
+        );
+        let lineIndex = 0;
+        let isContinuation = false;
+
+        while (lineIndex < bodyLines.length) {
+            const titleHeight = RECOMMENDATION_TITLE_HEIGHT_PT;
+            const gapBefore = usedHeight > 0 ? SECTION_GAP_PT : 0;
+
+            ensureSpace(
+                gapBefore + titleHeight + RECOMMENDATION_LINE_HEIGHT_PT
+            );
+
+            const availableForBody =
+                RECOMMENDATION_USABLE_HEIGHT_PT -
+                usedHeight -
+                gapBefore -
+                titleHeight;
+            const maxLines = Math.max(
+                1,
+                Math.floor(availableForBody / RECOMMENDATION_LINE_HEIGHT_PT)
+            );
+            const chunkLines = bodyLines.slice(lineIndex, lineIndex + maxLines);
+            const chunkHeight =
+                gapBefore +
+                titleHeight +
+                chunkLines.length * RECOMMENDATION_LINE_HEIGHT_PT;
+
+            currentSections.push({
+                title: section.title,
+                content: chunkLines.join('\n'),
+                isContinuation
+            });
+            usedHeight += chunkHeight;
+            lineIndex += chunkLines.length;
+            isContinuation = true;
+        }
+    }
+
+    if (affiliateLinks.length > 0) {
+        let linkIndex = 0;
+        let needsTitle = true;
+
+        while (linkIndex < affiliateLinks.length) {
+            const gapBefore = usedHeight > 0 ? SECTION_GAP_PT : 0;
+            const remainingLinks = affiliateLinks.length - linkIndex;
+
+            // Fit as many links as possible on the current page.
+            let fitted = 0;
+            for (let count = remainingLinks; count >= 1; count--) {
+                const blockHeight =
+                    gapBefore +
+                    estimateAffiliateBlockHeight(count, needsTitle);
+                if (
+                    usedHeight + blockHeight <=
+                    RECOMMENDATION_USABLE_HEIGHT_PT
+                ) {
+                    fitted = count;
+                    break;
+                }
+            }
+
+            if (fitted === 0) {
+                if (usedHeight === 0) {
+                    // Single link taller than a page — force one link anyway.
+                    fitted = 1;
+                } else {
+                    pushPage();
+                    continue;
+                }
+            }
+
+            const chunk = affiliateLinks.slice(linkIndex, linkIndex + fitted);
+            const blockHeight =
+                gapBefore + estimateAffiliateBlockHeight(fitted, needsTitle);
+
+            if (needsTitle) {
+                showAffiliateTitle = true;
+                needsTitle = false;
+            }
+            currentAffiliateLinks = currentAffiliateLinks.concat(chunk);
+            usedHeight += blockHeight;
+            linkIndex += fitted;
+
+            if (linkIndex < affiliateLinks.length) {
+                pushPage();
+            }
+        }
+    }
+
+    pushPage();
+    return pages;
+}
+
+type PlanRecommendationsPageProps = {
+    letterheadSrc: string;
+    page: RecommendationPageData;
+};
+
+function PlanRecommendationsPage({
+    letterheadSrc,
+    page
+}: PlanRecommendationsPageProps) {
+    return (
+        <Page size='A3' style={styles.page}>
+            <View fixed style={styles.backgroundLayer}>
+                <Image src={letterheadSrc} style={styles.backgroundImage} />
+            </View>
+
+            <View style={styles.content}>
+                {page.sections.map((section, index) => (
+                    <View
+                        key={`${section.title ?? 'cont'}-${index}`}
+                        style={styles.section}>
+                        {section.title ? (
+                            <Text style={styles.sectionTitle}>
+                                {section.title}
+                                {section.isContinuation ? ' (cont.)' : ''}
+                            </Text>
+                        ) : null}
+                        <Text style={styles.bodyText}>{section.content}</Text>
+                    </View>
+                ))}
+
+                {page.affiliateLinks.length > 0 ? (
+                    <View style={styles.section}>
+                        {page.showAffiliateTitle ? (
+                            <Text style={styles.sectionTitle}>
+                                Link de productos recomendados
+                            </Text>
+                        ) : null}
+                        {page.affiliateLinks.map(link => (
+                            <View key={link.id} style={styles.affiliateLink}>
+                                <Text style={styles.bodyText}>
+                                    {link.name.trim()}
+                                </Text>
+                                <Text style={styles.bodyText}>
+                                    {link.url.trim()}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                ) : null}
+            </View>
+        </Page>
     );
 }
 
@@ -765,49 +1046,23 @@ export function PlanPdf({
     const affiliateLinks = getValidAffiliateLinks(
         recommendations.affiliateLinks
     );
-    const hasAffiliateLinks = affiliateLinks.length > 0;
+    const recommendationPages = paginateRecommendationContent(
+        sections,
+        affiliateLinks
+    );
     const showWeekNumber = weekSchedules.length > 1;
 
     return (
         <Document>
-            <Page size='A3' style={styles.page}>
-                <View fixed style={styles.backgroundLayer}>
-                    <Image src={letterheadSrc} style={styles.backgroundImage} />
-                </View>
-
-                <View style={styles.content}>
-                    {sections.map(section => (
-                        <View key={section.title} style={styles.section}>
-                            <Text style={styles.sectionTitle}>
-                                {section.title}
-                            </Text>
-                            <Text style={styles.bodyText}>
-                                {section.content}
-                            </Text>
-                        </View>
-                    ))}
-
-                    {hasAffiliateLinks ? (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>
-                                Link de productos recomendados
-                            </Text>
-                            {affiliateLinks.map(link => (
-                                <View
-                                    key={link.id}
-                                    style={styles.affiliateLink}>
-                                    <Text style={styles.bodyText}>
-                                        {link.name.trim()}
-                                    </Text>
-                                    <Text style={styles.bodyText}>
-                                        {link.url.trim()}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
-                    ) : null}
-                </View>
-            </Page>
+            {recommendationPages.length > 0
+                ? recommendationPages.map((page, index) => (
+                      <PlanRecommendationsPage
+                          key={`recommendations-page-${index}`}
+                          letterheadSrc={letterheadSrc}
+                          page={page}
+                      />
+                  ))
+                : null}
 
             {staticPageSrcs.map(src => (
                 <Page key={src} size='A3'>

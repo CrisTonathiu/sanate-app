@@ -3,7 +3,7 @@
 import {Button} from '@/components/ui/button';
 import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
-import {formatFriendlyIngredientQuantity} from '@/lib/utils/ingredient-quantity';
+import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
 import {Coffee, Apple, Sun, Moon, Replace, Pencil} from 'lucide-react';
 import {useState} from 'react';
 import MealEditModal from './MealEditModal';
@@ -75,29 +75,31 @@ export default function MealCell({
         isDiscrete?: boolean;
     }) => {
         const unitLabel = getUnitLabel(portion.unit);
-        const quantityOptions = {isDiscrete: portion.isDiscrete};
+        // Fractions are kept so manually edited halves/thirds of a piece
+        // (1/2 tortilla) are not shown as a whole piece.
+        const quantityOptions = {
+            isDiscrete: portion.isDiscrete,
+            allowFractions: true
+        };
         const unit = portion.unit;
 
+        // Match MealEditModal: grams show the stored targetGrams exactly.
         if (unitLabel === 'g') {
-            return formatFriendlyIngredientQuantity(
-                portion.targetGrams,
-                unit ?? 'GRAM',
-                quantityOptions
-            );
+            return String(Math.round(portion.targetGrams));
         }
 
         if (
             typeof portion.targetQuantity === 'number' &&
             !Number.isNaN(portion.targetQuantity)
         ) {
-            return formatFriendlyIngredientQuantity(
+            return formatIngredientQuantity(
                 portion.targetQuantity,
                 unit,
                 quantityOptions
             );
         }
 
-        return formatFriendlyIngredientQuantity(
+        return formatIngredientQuantity(
             portion.targetGrams,
             unit ?? 'GRAM',
             quantityOptions
