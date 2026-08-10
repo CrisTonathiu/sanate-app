@@ -359,6 +359,40 @@ export default function MealEditModal({
                     };
                 }
 
+                // Volume / count-like units: reset to 1 unit. Leaving the old
+                // gram quantity (often 100) made "1 taza" save as "100 tz".
+                if (
+                    value === 'CUP' ||
+                    value === 'TBSP' ||
+                    value === 'TSP' ||
+                    value === 'ML' ||
+                    value === 'OZ'
+                ) {
+                    const gramsPerUnit = Math.max(
+                        1,
+                        Math.round(
+                            unitLabel(p.unit) === 'g'
+                                ? Number(p._grams) || p.targetGrams || 100
+                                : p.baseQuantity && p.baseQuantity > 0
+                                  ? p.baseGrams / p.baseQuantity
+                                  : p.targetGrams || 100
+                        )
+                    );
+
+                    return {
+                        ...p,
+                        unit: value,
+                        baseQuantity: 1,
+                        targetQuantity: 1,
+                        baseGrams: gramsPerUnit,
+                        targetGrams: gramsPerUnit,
+                        _quantity: '1',
+                        _grams: String(gramsPerUnit),
+                        _sourceTargetQuantity: 1,
+                        _sourceTargetGrams: gramsPerUnit
+                    };
+                }
+
                 return {...p, unit: value};
             });
         });
