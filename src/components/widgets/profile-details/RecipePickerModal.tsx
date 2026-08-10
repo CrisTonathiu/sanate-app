@@ -195,7 +195,11 @@ function recipeToMealSlot(
         carbs: round1(portionTotals.carbs),
         fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
-        ingredientPortions
+        ingredientPortions,
+        instructions: [...(recipe.steps ?? [])]
+            .sort((a, b) => a.stepNumber - b.stepNumber)
+            .map(step => step.instruction.trim())
+            .filter(Boolean)
     };
 }
 

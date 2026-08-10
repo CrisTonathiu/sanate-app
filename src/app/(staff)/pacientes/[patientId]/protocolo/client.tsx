@@ -213,6 +213,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         useState<string>('');
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
     const [showMenuDownload, setShowMenuDownload] = useState<boolean>(false);
+    const [aiInstructionsGenerated, setAiInstructionsGenerated] =
+        useState(false);
     const [existingDraft, setExistingDraft] =
         useState<StoredProtocolDraft | null>(null);
     const [baselineFormState, setBaselineFormState] = useState<string | null>(
@@ -373,6 +375,28 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         });
     };
 
+    const handleRecipeInstructionsUpdate = (
+        recipeId: string,
+        instructions: string[]
+    ) => {
+        setWeekPlan(prev =>
+            prev.map(day => {
+                const updatedDay = {...day};
+
+                (Object.keys(DEFAULT_ENABLED_MEALS) as MealType[]).forEach(
+                    mealType => {
+                        const slot = day[mealType];
+                        if (slot?.id === recipeId) {
+                            updatedDay[mealType] = {...slot, instructions};
+                        }
+                    }
+                );
+
+                return updatedDay;
+            })
+        );
+    };
+
     const fetchProtocolTemplates = async (force = false) => {
         if (isLoadingTemplates) {
             return;
@@ -503,6 +527,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         try {
             setActiveProtocolId(existingDraft?.protocolId ?? null);
             setWeekPlan(template.weeklyPlan);
+            setAiInstructionsGenerated(false);
             setWeekCount(
                 template.weekCount ?? countWeeksInPlan(template.weeklyPlan)
             );
@@ -993,6 +1018,15 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                             isSavingTemplate={isSavingTemplate}
                             templateSaveError={templateSaveError}
                             onSaveTemplate={handleSaveTemplate}
+                            onInstructionsUpdate={
+                                handleRecipeInstructionsUpdate
+                            }
+                            shouldGenerateAiInstructions={
+                                !aiInstructionsGenerated
+                            }
+                            onAiInstructionsGenerated={() =>
+                                setAiInstructionsGenerated(true)
+                            }
                         />
                     );
             }
@@ -1068,6 +1102,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             }
 
             setWeekPlan(generatedWeekPlan);
+            setAiInstructionsGenerated(false);
             setCurrentStep(4);
         } catch (error) {
             window.alert(

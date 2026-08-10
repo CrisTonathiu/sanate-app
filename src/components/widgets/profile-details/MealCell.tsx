@@ -3,7 +3,7 @@
 import {Button} from '@/components/ui/button';
 import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
-import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
+import {formatScaledIngredientDisplay} from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {Coffee, Apple, Sun, Moon, Replace, Pencil} from 'lucide-react';
 import {useState} from 'react';
 import MealEditModal from './MealEditModal';
@@ -42,68 +42,33 @@ export default function MealCell({
     const [showAllIngredients, setShowAllIngredients] = useState(false);
     const [showWarnings, setShowWarnings] = useState(false);
 
-    const getUnitLabel = (unit?: string) => {
-        const normalized = unit?.trim().toLowerCase();
-        if (!normalized) return 'g';
-
-        const unitLabels: Record<string, string> = {
-            g: 'g',
-            gram: 'g',
-            gramo: 'g',
-            gramos: 'g',
-            gr: 'g',
-            piece: 'pz',
-            pieza: 'pz',
-            cup: 'tz',
-            tbsp: 'cda',
-            tsp: 'cdita',
-            ml: 'ml',
-            oz: 'oz',
-            taza: 'tz',
-            cda: 'cda',
-            cdita: 'cdita',
-            pz: 'pz'
-        };
-
-        return unitLabels[normalized] ?? unit;
-    };
-
-    const getDisplayAmount = (portion: {
+    const getDisplayPortion = (portion: {
+        ingredientName?: string;
         targetQuantity?: number;
         targetGrams: number;
+        baseQuantity?: number;
+        baseGrams?: number;
         unit?: string;
         isDiscrete?: boolean;
     }) => {
-        const unitLabel = getUnitLabel(portion.unit);
-        // Fractions are kept so manually edited halves/thirds of a piece
-        // (1/2 tortilla) are not shown as a whole piece.
-        const quantityOptions = {
-            isDiscrete: portion.isDiscrete,
-            allowFractions: true
-        };
-        const unit = portion.unit;
-
-        // Match MealEditModal: grams show the stored targetGrams exactly.
-        if (unitLabel === 'g') {
-            return String(Math.round(portion.targetGrams));
-        }
-
-        if (
-            typeof portion.targetQuantity === 'number' &&
-            !Number.isNaN(portion.targetQuantity)
-        ) {
-            return formatIngredientQuantity(
-                portion.targetQuantity,
-                unit,
-                quantityOptions
-            );
-        }
-
-        return formatIngredientQuantity(
-            portion.targetGrams,
-            unit ?? 'GRAM',
-            quantityOptions
+        const {amount, unit} = formatScaledIngredientDisplay(
+            {
+                unit: portion.unit ?? 'GRAM',
+                targetGrams: portion.targetGrams,
+                targetQuantity: portion.targetQuantity ?? portion.targetGrams,
+                isDiscrete: portion.isDiscrete
+            },
+            {
+                quantity: portion.baseQuantity ?? portion.targetQuantity ?? null,
+                grams: portion.baseGrams || portion.targetGrams,
+                unit: portion.unit ?? 'GRAM'
+            }
         );
+
+        const unitLabel =
+            unit === 'taza' ? 'tz' : unit === 'cdta' ? 'cdita' : unit;
+
+        return {amount, unitLabel};
     };
 
     if (!meal) return null;
@@ -158,15 +123,19 @@ export default function MealCell({
                                 {(showAllIngredients
                                     ? meal.ingredientPortions
                                     : meal.ingredientPortions.slice(0, 3)
-                                ).map((ing, idx) => (
-                                    <span
-                                        key={idx}
-                                        className='text-xs text-muted-foreground truncate'>
-                                        {getDisplayAmount(ing)}{' '}
-                                        {getUnitLabel(ing.unit)}{' '}
-                                        {ing.ingredientName}
-                                    </span>
-                                ))}
+                                ).map((ing, idx) => {
+                                    const {amount, unitLabel} =
+                                        getDisplayPortion(ing);
+
+                                    return (
+                                        <span
+                                            key={idx}
+                                            className='text-xs text-muted-foreground truncate'>
+                                            {amount} {unitLabel}{' '}
+                                            {ing.ingredientName}
+                                        </span>
+                                    );
+                                })}
                                 {meal.ingredientPortions.length > 3 && (
                                     <button
                                         type='button'

@@ -38,6 +38,7 @@ type RecipeSummary = {
     protein: number;
     carbs: number;
     fat: number;
+    instructions: string[];
     ingredients: Array<{
         id: string;
         name: string;
@@ -536,7 +537,8 @@ function buildMeal(
         portionMultiplier: round2(avgScale),
         isRealistic: realism.isRealistic && warnings.length === 0,
         warnings,
-        ingredientPortions
+        ingredientPortions,
+        instructions: recipe.instructions
     };
 
     return slot;
@@ -647,7 +649,14 @@ export async function generateProtocolPlanForPatient(
                     }
                 }
             },
-            extraIngredients: true
+            extraIngredients: true,
+            steps: {
+                orderBy: {stepNumber: 'asc'},
+                select: {
+                    stepNumber: true,
+                    instruction: true
+                }
+            }
         }
     });
 
@@ -665,6 +674,9 @@ export async function generateProtocolPlanForPatient(
                 protein: nutrition.protein,
                 carbs: nutrition.carbs,
                 fat: nutrition.fat,
+                instructions: recipe.steps
+                    .map(step => step.instruction.trim())
+                    .filter(Boolean),
                 ingredients: recipe.ingredients.map(item => {
                     const recipeIngredient = item as {
                         id: string;

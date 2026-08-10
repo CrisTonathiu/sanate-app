@@ -230,6 +230,19 @@ function round1(value: number) {
     return Number(value.toFixed(1));
 }
 
+function mapRecipeStepsToInstructions(
+    steps?: Array<{stepNumber: number; instruction: string}> | null
+): string[] {
+    if (!steps?.length) {
+        return [];
+    }
+
+    return [...steps]
+        .sort((a, b) => a.stepNumber - b.stepNumber)
+        .map(step => step.instruction.trim())
+        .filter(Boolean);
+}
+
 export function buildMealSlotFromProtocolMeal(meal: {
     recipeId: string | null;
     recipe: {
@@ -251,6 +264,7 @@ export function buildMealSlotFromProtocolMeal(meal: {
                 } | null;
             };
         }>;
+        steps?: Array<{stepNumber: number; instruction: string}>;
     } | null;
     portions: StoredProtocolMealPortions | null;
 }): MealSlot | null {
@@ -258,6 +272,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
     if (!recipe || !meal.recipeId) {
         return null;
     }
+
+    const instructions = mapRecipeStepsToInstructions(recipe.steps);
 
     if (meal.portions) {
         return {
@@ -285,7 +301,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
                         } as any
                     }
                 }))
-            )
+            ),
+            instructions
         };
     }
 
@@ -300,7 +317,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
         protein: round1(totals.protein),
         carbs: round1(totals.carbs),
         fat: round1(totals.fat),
-        ingredientPortions
+        ingredientPortions,
+        instructions
     };
 }
 

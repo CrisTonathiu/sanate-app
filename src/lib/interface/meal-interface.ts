@@ -27,6 +27,8 @@ export interface MealSlot {
     isRealistic?: boolean;
     warnings?: string[];
     ingredientPortions?: MealIngredientPortion[];
+    /** Recipe preparation steps; editable in protocol preview and shown on the PDF. */
+    instructions?: string[];
 }
 
 export interface Recipe {
