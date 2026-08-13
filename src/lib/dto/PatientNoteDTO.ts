@@ -1,3 +1,5 @@
+export type PatientNoteStatus = 'DRAFT' | 'SAVED';
+
 export interface PatientNoteDTO {
     id: string;
     patientId: string;
@@ -5,6 +7,7 @@ export interface PatientNoteDTO {
     content: string;
     transcript: string | null;
     summary: string | null;
+    status: PatientNoteStatus;
     createdAt: string;
     updatedAt: string;
     patient?: {
@@ -22,6 +25,15 @@ export interface CreatePatientNotePayload {
     content: string;
     transcript?: string;
     summary?: string;
+    status?: PatientNoteStatus;
+}
+
+export interface UpdatePatientNotePayload {
+    title?: string;
+    content?: string;
+    transcript?: string;
+    summary?: string;
+    status?: PatientNoteStatus;
 }
 
 export interface TranscribeNoteResult {

@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useState} from 'react';
 import {useRouter} from 'next/navigation';
 import {motion, AnimatePresence} from 'framer-motion';
 import {Cog, MoreVertical, Pencil, Trash2} from 'lucide-react';
@@ -16,6 +16,7 @@ import {
 import PatientInfoTab from '@/components/widgets/profile-details/PatientInfoTab';
 import AppointmentHistoryTab from '@/components/widgets/profile-details/AppointmentHistoryTab';
 import MedicalRecordsTab from '@/components/widgets/profile-details/MedicalRecordsTab';
+import PatientNotesTab from '@/components/widgets/profile-details/PatientNotesTab';
 import ProfileDetailsLoader from '@/components/loaders/ProfileDetailsLoader';
 import {PatientEditForm} from '@/components/forms/PatientEditForm';
 import DeletePatientDialog from '@/components/widgets/DeletePatientDialog';
@@ -26,12 +27,13 @@ interface ClientPageProps {
     patientId: string;
 }
 // --- Types ---
-type TabKey = 'info' | 'appointments' | 'treatments' | 'records';
+type TabKey = 'info' | 'appointments' | 'treatments' | 'records' | 'notes';
 
 // --- Static data ---
 const TABS: {key: TabKey; label: string}[] = [
     {key: 'info', label: 'Información del paciente'},
     {key: 'appointments', label: 'Historial de protocolos'},
+    {key: 'notes', label: 'Notas'},
     // {key: 'treatments', label: 'Próximo tratamiento'},
     {key: 'records', label: 'Historial médico'}
 ];
@@ -83,6 +85,8 @@ export default function ClientPage({patientId}: ClientPageProps) {
                 return <PatientInfoTab patient={patient} />;
             case 'appointments':
                 return <AppointmentHistoryTab patientId={patientId} />;
+            case 'notes':
+                return <PatientNotesTab patientId={patientId} />;
             // case 'treatments':
             //     return <NextTreatmentTab />;
             case 'records':

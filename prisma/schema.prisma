@@ -53,6 +53,11 @@ enum ProtocolStatus {
   ARCHIVED
 }
 
+enum PatientNoteStatus {
+  DRAFT
+  SAVED
+}
+
 model User {
   id             String   @id @default(cuid())
   email          String   @unique
@@ -237,6 +242,7 @@ model PatientNote {
   content    String
   transcript String?
   summary    String?
+  status     PatientNoteStatus @default(SAVED)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

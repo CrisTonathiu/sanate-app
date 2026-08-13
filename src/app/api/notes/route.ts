@@ -43,7 +43,8 @@ export async function POST(request: Request) {
             title: body.title,
             content: body.content,
             transcript: body.transcript,
-            summary: body.summary
+            summary: body.summary,
+            status: body.status
         });
 
         return Response.json(
