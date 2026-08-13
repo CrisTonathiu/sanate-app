@@ -3,6 +3,7 @@
 import {Button} from '@/components/ui/button';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
+import {useGetAppSettings} from '@/hooks/use-app-settings';
 import {
     countWeeksInPlan,
     getDaysForWeekIndex
@@ -36,6 +37,8 @@ export default function WeeklyMealPlanner({
 }: WeeklyMealPlannerProps) {
     const totalWeeks = countWeeksInPlan(weekPlan);
     const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
+    const {data: appSettings} = useGetAppSettings();
+    const mixMainMeals = appSettings?.mixMainMeals ?? false;
 
     const visibleDays = useMemo(
         () => getDaysForWeekIndex(weekPlan, selectedWeekIndex),
@@ -65,6 +68,13 @@ export default function WeeklyMealPlanner({
                         <p className='text-sm text-muted-foreground mt-1'>
                             {totalWeeks} semanas · {weekPlan.length} dias en
                             total
+                        </p>
+                    )}
+                    {mixMainMeals && (
+                        <p className='text-sm text-muted-foreground mt-1'>
+                            Desayuno, comida y cena pueden intercambiar recetas.
+                            Batidos, colaciones y bebidas se mantienen en su
+                            horario.
                         </p>
                     )}
                 </div>

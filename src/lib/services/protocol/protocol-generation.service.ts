@@ -5,6 +5,8 @@ import {prisma} from '@/lib/prisma';
 import {GenerateProtocolPlanInput} from '@/lib/validations/protocol-generation.schema';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import {buildWeeklyRecipeSchedule} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {getAppSettings} from '@/lib/services/settings/app-settings.service';
+import {applyMixableMainMealsCatalog} from '@/lib/utils/mix-main-meals';
 import {formatDayLabelWithWeek} from '@/lib/utils/protocol-week-plan';
 import {
     resolveIngredientNutritionGrams,
@@ -710,13 +712,17 @@ export async function generateProtocolPlanForPatient(
         })
         .filter(recipe => recipe.calories > 0 || recipe.mealType === 'DRINKS');
 
-    const catalog = buildMealCatalog(allowedRecipes);
+    const catalog = applyMixableMainMealsCatalog(
+        buildMealCatalog(allowedRecipes),
+        (await getAppSettings()).mixMainMeals
+    );
 
     const activeMealOrder = getActiveMealKeys(input.mealDistribution);
 
-    const mealsWithoutOptions = activeMealOrder.filter(
-        meal => catalog[meal].length === 0
-    );
+    const mealsWithoutOptions = activeMealOrder.filter(meal => {
+        const key = meal.toLowerCase();
+        return (catalog[key] ?? []).length === 0;
+    });
 
     if (mealsWithoutOptions.length > 0) {
         console.warn('[protocol.generate] Faltan recetas por tipo de comida', {

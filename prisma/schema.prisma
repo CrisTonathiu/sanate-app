@@ -78,6 +78,7 @@ model User {
   consultations        Consultation[]
   protocolTemplates    ProtocolTemplate[]
   videos               Video[]
+  updatedAppSettings   AppSettings[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -554,6 +555,22 @@ model Organization {
   users User[]
 
   createdAt DateTime @default(now())
+}
+
+// Singleton app-wide settings (id = "default"). Extra columns are ready for
+// future toggles without another schema change for the mix-meals feature.
+model AppSettings {
+  id String @id @default("default")
+
+  // When true, breakfast/lunch/dinner recipes may be assigned to any of those
+  // slots. Smoothies, snacks, and drinks always stay in their own slots.
+  mixMainMeals Boolean @default(false)
+
+  updatedById String?
+  updatedBy   User?   @relation(fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Video {
