@@ -2,6 +2,7 @@ import {
     Apple,
     FileHeart,
     LayoutDashboard,
+    Settings,
     StickyNote,
     Users,
     Video
@@ -70,5 +71,10 @@ export const sidebarItems: SidebarItem[] = [
             {title: 'Mis Notas', url: '/notas'},
             {title: 'Nueva nota', url: '/notas/nuevo'}
         ]
+    },
+    {
+        title: 'Configuración',
+        icon: <Settings className='size-4' />,
+        items: [{title: 'Ajustes de la app', url: '/configuracion'}]
     }
 ];

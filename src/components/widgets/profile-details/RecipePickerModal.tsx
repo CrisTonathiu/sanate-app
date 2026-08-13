@@ -2,6 +2,8 @@
 
 import {useState, useMemo} from 'react';
 import {useGetRecipes, Recipe} from '@/hooks/use-recipes';
+import {useGetAppSettings} from '@/hooks/use-app-settings';
+import {getAllowedRecipeTypesForSlot} from '@/lib/utils/mix-main-meals';
 import {
     MealType,
     mealTypeConfig,
@@ -224,6 +226,8 @@ export default function RecipePickerModal({
     onSelect
 }: RecipePickerModalProps) {
     const {data: allRecipes = [], isPending} = useGetRecipes();
+    const {data: appSettings} = useGetAppSettings();
+    const mixMainMeals = appSettings?.mixMainMeals ?? false;
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState<string>('all');
 
@@ -233,7 +237,9 @@ export default function RecipePickerModal({
     );
 
     const filtered = useMemo(() => {
-        const allowed = MEAL_TYPE_MAP[mealType] ?? [];
+        const allowed = mixMainMeals
+            ? getAllowedRecipeTypesForSlot(mealType, true)
+            : (MEAL_TYPE_MAP[mealType] ?? []);
         return allRecipes
             .filter(r => allowed.includes(r.mealType))
             .filter(r => !excluded.has(r.id))
@@ -242,7 +248,7 @@ export default function RecipePickerModal({
                     search.trim() === '' ||
                     r.title.toLowerCase().includes(search.trim().toLowerCase())
             );
-    }, [allRecipes, mealType, search, excluded]);
+    }, [allRecipes, mealType, search, excluded, mixMainMeals]);
 
     function handleSelect(recipe: Recipe) {
         onSelect(recipeToMealSlot(recipe, targetCalories, macroTarget));
