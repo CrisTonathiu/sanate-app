@@ -3,7 +3,8 @@
 import type {
     CreatePatientNotePayload,
     PatientNoteDTO,
-    TranscribeNoteResult
+    TranscribeNoteResult,
+    UpdatePatientNotePayload
 } from '@/lib/dto/PatientNoteDTO';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
@@ -94,6 +95,39 @@ export function useCreatePatientNote() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({queryKey: ['patientNotes']});
+        }
+    });
+}
+
+export function useUpdatePatientNote() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            noteId,
+            ...payload
+        }: UpdatePatientNotePayload & {noteId: string}) => {
+            const res = await fetch(`/api/notes/${noteId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData?.message || 'No se pudo actualizar la nota'
+                );
+            }
+
+            const rawData = await res.json();
+            return rawData?.data as PatientNoteDTO;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({queryKey: ['patientNotes']});
+            queryClient.invalidateQueries({
+                queryKey: ['patientNote', variables.noteId]
+            });
         }
     });
 }
