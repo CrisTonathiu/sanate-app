@@ -61,6 +61,7 @@ type RecipeInstructionRequest = {
     title: string;
     mealType: PrismaMealType;
     ingredients: string[];
+    extraIngredients: string[];
 };
 
 interface ProtocolPreviewProps {
@@ -247,6 +248,28 @@ function MealPreviewCard({
                                 </li>
                             );
                         })}
+                        {(meal.extraIngredients ?? []).map((extra, index) => (
+                            <li
+                                key={`extra-${extra}-${index}`}
+                                className='text-xs text-muted-foreground'>
+                                {extra}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : (meal.extraIngredients ?? []).length > 0 ? (
+                <div className='border-t border-border px-3 py-2.5'>
+                    <p className='mb-1.5 text-xs font-medium text-foreground'>
+                        Ingredientes
+                    </p>
+                    <ul className='space-y-0.5'>
+                        {(meal.extraIngredients ?? []).map((extra, index) => (
+                            <li
+                                key={`extra-${extra}-${index}`}
+                                className='text-xs text-muted-foreground'>
+                                {extra}
+                            </li>
+                        ))}
                     </ul>
                 </div>
             ) : null}
@@ -425,7 +448,8 @@ export default function ProtocolPreview({
                     id: meal.id,
                     title: meal.recipeName,
                     mealType: PLANNER_MEAL_TO_PRISMA[key as MealType],
-                    ingredients
+                    ingredients,
+                    extraIngredients: meal.extraIngredients ?? []
                 });
             }
         }
@@ -439,7 +463,8 @@ export default function ProtocolPreview({
             JSON.stringify(
                 recipesForAiGeneration.map(recipe => ({
                     id: recipe.id,
-                    ingredients: recipe.ingredients
+                    ingredients: recipe.ingredients,
+                    extraIngredients: recipe.extraIngredients
                 }))
             ),
         [recipesForAiGeneration]
@@ -683,9 +708,10 @@ export default function ProtocolPreview({
                             {patientName ? ` | Paciente: ${patientName}` : ''}
                         </p>
                         <p className='mt-2 text-xs text-muted-foreground'>
-                            Revisa ingredientes y macros de cada comida. Solo
-                            puedes editar las instrucciones; al guardarlas se
-                            incluirán en el PDF del menú.
+                            Revisa ingredientes (incluidos extras) y macros de
+                            cada comida. Los extras no cambian calorías. Solo
+                            puedes editar las instrucciones aquí; al guardarlas
+                            se incluirán en el PDF del menú.
                         </p>
                         {isGeneratingInstructions ? (
                             <p className='mt-2 text-xs text-primary flex items-center gap-1.5'>

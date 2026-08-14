@@ -6,7 +6,7 @@ export interface MealIngredientPortion {
     baseGrams: number;
     targetGrams: number;
     unit?: string;
-    /** When true, piece counts must stay whole (e.g. eggs). From Food.isDiscrete. */
+    /** From Food.isDiscrete. Manual piece edits may still be fractional. */
     isDiscrete?: boolean;
     baseCalories?: number;
     baseProtein?: number;
@@ -29,6 +29,8 @@ export interface MealSlot {
     ingredientPortions?: MealIngredientPortion[];
     /** Recipe preparation steps; editable in protocol preview and shown on the PDF. */
     instructions?: string[];
+    /** Name-only extras (salt, herbs, etc.). Shown on menus/PDF; ignored by macros. */
+    extraIngredients?: string[];
 }
 
 export interface Recipe {

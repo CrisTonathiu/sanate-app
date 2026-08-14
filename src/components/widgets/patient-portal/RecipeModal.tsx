@@ -125,11 +125,17 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                     <li key={index} className='relative'>
                                         <div className='flex items-center justify-between rounded-lg bg-muted/50 p-3'>
                                             <div className='flex items-center gap-3'>
-                                                <div className='flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold leading-tight text-amber-500'>
-                                                    <span>
-                                                        {ingredient.amount}
-                                                    </span>
-                                                </div>
+                                                {ingredient.amount ? (
+                                                    <div className='flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold leading-tight text-amber-500'>
+                                                        <span>
+                                                            {ingredient.amount}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground'>
+                                                        +
+                                                    </div>
+                                                )}
                                                 <div>
                                                     <p
                                                         className={`font-medium text-card-foreground ${isSwapped ? 'line-through opacity-50' : ''}`}>
@@ -140,9 +146,11 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                                             {isSwapped}
                                                         </p>
                                                     )}
-                                                    <p className='text-sm text-muted-foreground'>
-                                                        {ingredient.unit}
-                                                    </p>
+                                                    {ingredient.unit ? (
+                                                        <p className='text-sm text-muted-foreground'>
+                                                            {ingredient.unit}
+                                                        </p>
+                                                    ) : null}
                                                 </div>
                                             </div>
 

@@ -1,10 +1,10 @@
 export type IngredientQuantityOptions = {
-    /** Food marked as discrete (eggs, bread slices) — whole pieces only. */
+    /** Food marked as discrete (eggs, bread slices). */
     isDiscrete?: boolean;
     /**
-     * Lets discrete foods keep fractional pieces (1/2 tortilla). Used by manual
-     * editing and display so a staff-entered fraction is not rounded to a whole
-     * piece; automatic scaling keeps whole pieces.
+     * Keep fractional pieces (1/2, 1 1/4). Used by manual editing and display
+     * so a staff-entered fraction is not rounded to a whole piece. Automatic
+     * recipe generation always rounds pieces to the nearest whole number.
      */
     allowFractions?: boolean;
 };
@@ -128,7 +128,6 @@ function usesWholePiecesOnly(
 ): boolean {
     return (
         normalizeIngredientUnit(unit) === 'PIECE' &&
-        options?.isDiscrete === true &&
         options?.allowFractions !== true
     );
 }
@@ -363,14 +362,15 @@ export function parseIngredientQuantity(
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Piece count snapped to 1/4, 1/3, or 1/2 when fractional. */
+/** Piece count snapped to the nearest whole number (1.5 → 2, 2.25 → 2). */
 export function roundPieceQuantity(quantity: number): number {
-    return snapToPieceFraction(quantity);
+    return snapToWholeQuantity(quantity);
 }
 
 /**
  * Scales a quantity while preserving fractional precision.
- * For PIECE (pz), snaps to the nearest 1/4, 1/3, or 1/2 after scaling.
+ * For PIECE (pz), automatic scaling rounds to the nearest whole piece unless
+ * `allowFractions` is set (manual edits).
  */
 export function scaleIngredientQuantity(
     quantity: number,

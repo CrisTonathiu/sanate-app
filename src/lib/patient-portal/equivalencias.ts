@@ -36,6 +36,7 @@ const COLUMN_DEFS: Array<{
         key: 'carbohidratos',
         title: 'CARBOHIDRATOS',
         groups: [
+            {name: 'CARBOHIDRATOS'},
             {
                 name: 'FRUTOS ROJOS',
                 noteWhenFree: 'Libres'

@@ -22,6 +22,10 @@ export interface RecipeIngredient {
             isDiscrete?: boolean;
             maxPortionGrams?: number | null;
             density?: number | null;
+            group?: {
+                id: string;
+                name: string;
+            } | null;
         } | null;
     };
 }

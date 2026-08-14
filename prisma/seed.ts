@@ -274,6 +274,7 @@ async function main() {
         {name: 'VEGETALES', isFree: true},
         {name: 'FRUTAS', isFree: false},
         {name: 'CEREALES', isFree: false},
+        {name: 'CARBOHIDRATOS', isFree: false},
         {name: 'LEGUMINOSAS', isFree: false},
         {name: 'TUBERCULOS', isFree: false},
         {name: 'PROTEINAS', isFree: false},
