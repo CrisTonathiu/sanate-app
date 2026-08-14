@@ -7,7 +7,9 @@ import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
 import {buildWeeklyRecipeSchedule} from '@/lib/services/protocol/protocol-week-recipe-schedule';
 import {getAppSettings} from '@/lib/services/settings/app-settings.service';
 import {applyMixableMainMealsCatalog} from '@/lib/utils/mix-main-meals';
+import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
 import {formatDayLabelWithWeek} from '@/lib/utils/protocol-week-plan';
+import {normalizeExtraIngredientNames} from '@/lib/utils/extra-ingredients';
 import {
     resolveIngredientNutritionGrams,
     scaleIngredientQuantity
@@ -41,6 +43,7 @@ type RecipeSummary = {
     carbs: number;
     fat: number;
     instructions: string[];
+    extraIngredients: string[];
     ingredients: Array<{
         id: string;
         name: string;
@@ -54,6 +57,7 @@ type RecipeSummary = {
         isDiscrete: boolean;
         maxPortionGrams: number | null;
         density: number | null;
+        foodGroupName: string | null;
     }>;
 };
 
@@ -540,7 +544,8 @@ function buildMeal(
         isRealistic: realism.isRealistic && warnings.length === 0,
         warnings,
         ingredientPortions,
-        instructions: recipe.instructions
+        instructions: recipe.instructions,
+        extraIngredients: recipe.extraIngredients
     };
 
     return slot;
@@ -644,7 +649,12 @@ export async function generateProtocolPlanForPatient(
                                     fatPer100g: true,
                                     isDiscrete: true,
                                     maxPortionGrams: true,
-                                    density: true
+                                    density: true,
+                                    group: {
+                                        select: {
+                                            name: true
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -679,6 +689,9 @@ export async function generateProtocolPlanForPatient(
                 instructions: recipe.steps
                     .map(step => step.instruction.trim())
                     .filter(Boolean),
+                extraIngredients: normalizeExtraIngredientNames(
+                    recipe.extraIngredients
+                ),
                 ingredients: recipe.ingredients.map(item => {
                     const recipeIngredient = item as {
                         id: string;
@@ -705,17 +718,27 @@ export async function generateProtocolPlanForPatient(
                         isDiscrete: item.ingredient.food?.isDiscrete ?? false,
                         maxPortionGrams:
                             item.ingredient.food?.maxPortionGrams ?? null,
-                        density: item.ingredient.food?.density ?? null
+                        density: item.ingredient.food?.density ?? null,
+                        foodGroupName:
+                            item.ingredient.food?.group?.name ?? null
                     };
                 })
             };
         })
         .filter(recipe => recipe.calories > 0 || recipe.mealType === 'DRINKS');
 
-    const catalog = applyMixableMainMealsCatalog(
+    const mixedCatalog = applyMixableMainMealsCatalog(
         buildMealCatalog(allowedRecipes),
         (await getAppSettings()).mixMainMeals
     );
+
+    const catalog: Record<string, RecipeSummary[]> = {};
+    for (const [key, recipes] of Object.entries(mixedCatalog)) {
+        catalog[key] = filterRecipesByMacroFoodGroups(
+            recipes,
+            getMacroMealTarget(input.macroMealDistribution, key as MealType)
+        );
+    }
 
     const activeMealOrder = getActiveMealKeys(input.mealDistribution);
 

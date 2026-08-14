@@ -347,6 +347,10 @@ model ProtocolMeal {
 
   recipeId String?
 
+  // Name-only extras copied from the recipe and editable per meal. Null means
+  // fall back to Recipe.extraIngredients. Does not affect macros.
+  extraIngredients Json?
+
   day      ProtocolDay           @relation(fields: [dayId], references: [id])
   recipe   Recipe?               @relation(fields: [recipeId], references: [id])
   portions ProtocolMealPortions?

@@ -73,6 +73,18 @@ export default function MealCell({
 
     if (!meal) return null;
 
+    const extraIngredients = meal.extraIngredients ?? [];
+    const ingredientLines = [
+        ...(meal.ingredientPortions ?? []).map(ing => {
+            const {amount, unitLabel} = getDisplayPortion(ing);
+            return `${amount} ${unitLabel} ${ing.ingredientName}`.trim();
+        }),
+        ...extraIngredients
+    ].filter(Boolean);
+    const visibleLines = showAllIngredients
+        ? ingredientLines
+        : ingredientLines.slice(0, 3);
+
     return (
         <>
             <div
@@ -117,26 +129,16 @@ export default function MealCell({
                     <span className='text-sm font-medium text-foreground line-clamp-1'>
                         {meal.recipeName}
                     </span>
-                    {meal.ingredientPortions &&
-                        meal.ingredientPortions.length > 0 && (
+                    {ingredientLines.length > 0 && (
                             <div className='flex flex-col gap-0.5'>
-                                {(showAllIngredients
-                                    ? meal.ingredientPortions
-                                    : meal.ingredientPortions.slice(0, 3)
-                                ).map((ing, idx) => {
-                                    const {amount, unitLabel} =
-                                        getDisplayPortion(ing);
-
-                                    return (
-                                        <span
-                                            key={idx}
-                                            className='text-xs text-muted-foreground truncate'>
-                                            {amount} {unitLabel}{' '}
-                                            {ing.ingredientName}
-                                        </span>
-                                    );
-                                })}
-                                {meal.ingredientPortions.length > 3 && (
+                                {visibleLines.map((line, idx) => (
+                                    <span
+                                        key={idx}
+                                        className='text-xs text-muted-foreground truncate'>
+                                        {line}
+                                    </span>
+                                ))}
+                                {ingredientLines.length > 3 && (
                                     <button
                                         type='button'
                                         onClick={() =>
@@ -145,7 +147,7 @@ export default function MealCell({
                                         className='w-fit text-left text-xs text-muted-foreground/60 italic transition-colors hover:text-muted-foreground'>
                                         {showAllIngredients
                                             ? 'Ver menos'
-                                            : `+${meal.ingredientPortions.length - 3} más`}
+                                            : `+${ingredientLines.length - 3} más`}
                                     </button>
                                 )}
                             </div>

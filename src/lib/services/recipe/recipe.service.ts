@@ -18,7 +18,16 @@ export async function getAllRecipes() {
                     include: {
                         ingredient: {
                             include: {
-                                food: true
+                                food: {
+                                    include: {
+                                        group: {
+                                            select: {
+                                                id: true,
+                                                name: true
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -55,7 +64,16 @@ export async function getRecipeById(recipeId: RecipeIdInput) {
                     include: {
                         ingredient: {
                             include: {
-                                food: true
+                                food: {
+                                    include: {
+                                        group: {
+                                            select: {
+                                                id: true,
+                                                name: true
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

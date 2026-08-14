@@ -6,6 +6,7 @@ import {
 } from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {PROTOCOL_MEAL_LABELS} from '@/lib/config/protocol-meal-times';
 import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
+import {resolveMealExtraIngredients} from '@/lib/utils/extra-ingredients';
 
 /**
  * Shape aligned with MealSlider / RecipeModal (name, image, time, calories,
@@ -107,7 +108,9 @@ function formatIngredientAmount(
     }
 
     return {
-        amount: formatIngredientQuantity(quantity ?? 1, u),
+            amount: formatIngredientQuantity(quantity ?? 1, u, {
+                allowFractions: true
+            }),
         unit: INGREDIENT_UNIT_LABEL[u] ?? u.toLowerCase()
     };
 }
@@ -129,6 +132,7 @@ type ProtocolRecipeForSlider = {
 type ProtocolMealForSlider = {
     id: string;
     mealType: MealType;
+    extraIngredients?: unknown;
     recipe: ProtocolRecipeForSlider | null;
     portions?: StoredProtocolMealPortions | null;
 };
@@ -171,15 +175,14 @@ export function mapProtocolMealToSliderRecipe(
               };
           });
 
-    for (const extra of recipe.extraIngredients) {
-        if (storedPortions) {
-            continue;
-        }
-
+    for (const extraName of resolveMealExtraIngredients(
+        meal.extraIngredients,
+        recipe.extraIngredients
+    )) {
         ingredients.push({
-            name: extra.name,
-            amount: '1',
-            unit: 'porción'
+            name: extraName,
+            amount: '',
+            unit: ''
         });
     }
 

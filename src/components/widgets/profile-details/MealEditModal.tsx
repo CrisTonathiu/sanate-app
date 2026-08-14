@@ -237,6 +237,9 @@ export default function MealEditModal({
 }: MealEditModalProps) {
     const {data: allFoods = []} = useGetFoods();
     const [portions, setPortions] = useState<EditablePortion[]>([]);
+    const [extras, setExtras] = useState<Array<{_key: string; name: string}>>(
+        []
+    );
     const [recipeName, setRecipeName] = useState('');
     const [applyToAllDays, setApplyToAllDays] = useState(false);
     const [portionsDirty, setPortionsDirty] = useState(false);
@@ -270,6 +273,12 @@ export default function MealEditModal({
                     _quantity: quantityLabel
                 };
             })
+        );
+        setExtras(
+            (meal.extraIngredients ?? []).map(name => ({
+                _key: crypto.randomUUID(),
+                name
+            }))
         );
         setActiveSuggestionIdx(null);
         setApplyToAllDays(false);
@@ -608,7 +617,10 @@ export default function MealEditModal({
                 protein: round1(totals.protein),
                 carbs: round1(totals.carbs),
                 fat: round1(totals.fat),
-                ingredientPortions: updatedPortions
+                ingredientPortions: updatedPortions,
+                extraIngredients: extras
+                    .map(extra => extra.name.trim())
+                    .filter(Boolean)
             },
             {applyToAllDays}
         );
@@ -943,6 +955,73 @@ export default function MealEditModal({
                             <p className='text-sm'>Sin ingredientes</p>
                         </div>
                     )}
+
+                    <div className='flex items-center justify-between gap-3 pt-2'>
+                        <div>
+                            <Label className='text-sm font-medium'>
+                                Extras ({extras.length})
+                            </Label>
+                            <p className='text-[11px] text-muted-foreground'>
+                                No afectan calorías ni macros
+                            </p>
+                        </div>
+                        <Button
+                            type='button'
+                            variant='outline'
+                            size='sm'
+                            onClick={() =>
+                                setExtras(prev => [
+                                    ...prev,
+                                    {_key: crypto.randomUUID(), name: ''}
+                                ])
+                            }
+                            className='h-8'>
+                            <Plus className='h-4 w-4 mr-1.5' />
+                            Agregar extra
+                        </Button>
+                    </div>
+
+                    <AnimatePresence mode='popLayout'>
+                        {extras.map((extra, idx) => (
+                            <motion.div
+                                key={extra._key}
+                                initial={{opacity: 0, height: 0}}
+                                animate={{opacity: 1, height: 'auto'}}
+                                exit={{opacity: 0, height: 0}}
+                                className='flex items-center gap-2 p-3 rounded-lg border border-border bg-card'>
+                                <Input
+                                    value={extra.name}
+                                    onChange={e =>
+                                        setExtras(prev =>
+                                            prev.map((item, itemIdx) =>
+                                                itemIdx === idx
+                                                    ? {
+                                                          ...item,
+                                                          name: e.target.value
+                                                      }
+                                                    : item
+                                            )
+                                        )
+                                    }
+                                    placeholder='ej. Sal, pimienta, cilantro...'
+                                    className='h-9 bg-background'
+                                />
+                                <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    onClick={() =>
+                                        setExtras(prev =>
+                                            prev.filter(
+                                                (_, itemIdx) => itemIdx !== idx
+                                            )
+                                        )
+                                    }
+                                    className='h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0'>
+                                    <Trash2 className='h-4 w-4' />
+                                </Button>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
                 </div>
 
                 {/* Footer */}

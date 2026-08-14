@@ -114,6 +114,7 @@ export type ProtocolDraftSummary = {
 export const protocolMealWithPortionsSelect = {
     mealType: true,
     recipeId: true,
+    extraIngredients: true,
     recipe: {
         select: {
             id: true,
@@ -181,6 +182,7 @@ export const protocolMealWithPortionsSelect = {
 type ProtocolMealCreateInput = {
     mealType: MealType;
     recipeId: string;
+    extraIngredients?: string[];
     portions?: {
         create: NonNullable<
             ReturnType<typeof buildProtocolMealPortionsCreateData>
@@ -215,6 +217,9 @@ function buildMealsCreateInput(
                     return {
                         mealType: MEAL_TYPE_BY_KEY[mealKey],
                         recipeId: meal.id,
+                        ...(Array.isArray(meal.extraIngredients)
+                            ? {extraIngredients: meal.extraIngredients}
+                            : {}),
                         ...(portionsData
                             ? {
                                   portions: {

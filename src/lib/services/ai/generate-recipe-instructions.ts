@@ -263,14 +263,12 @@ export async function generateAndSaveRecipeInstructions(
             ? dedupeIngredientLines(override.ingredients ?? [])
             : recipe.ingredients.map(formatBaseIngredientName);
 
-        // When the planner sent the current portion list, that list is the
-        // source of truth (includes adds, excludes removals). Only fall back to
-        // DB extras when no override ingredients were provided.
-        const extraIngredients = hasOverrideIngredients
-            ? dedupeIngredientLines(override?.extraIngredients ?? [])
-            : recipe.extraIngredients
-                  .map(item => item.name.trim())
-                  .filter(Boolean);
+        const extraIngredients =
+            override?.extraIngredients !== undefined
+                ? dedupeIngredientLines(override.extraIngredients)
+                : recipe.extraIngredients
+                      .map(item => item.name.trim())
+                      .filter(Boolean);
 
         return {
             id: recipe.id,

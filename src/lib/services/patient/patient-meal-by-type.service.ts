@@ -113,6 +113,7 @@ async function loadActiveProtocolWeekDays(userId: string, now: Date = new Date()
                                 select: {
                                     id: true,
                                     mealType: true,
+                                    extraIngredients: true,
                                     recipe: {
                                         select: protocolMealRecipeSelect
                                     },

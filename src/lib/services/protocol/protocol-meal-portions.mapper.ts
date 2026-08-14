@@ -4,6 +4,7 @@ import {
     resolveIngredientNutritionGrams,
     snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
+import {resolveMealExtraIngredients} from '@/lib/utils/extra-ingredients';
 import {IngredientUnit, Prisma} from '@prisma/client';
 
 export function normalizeIngredientUnit(unit?: string | null): IngredientUnit {
@@ -245,6 +246,7 @@ function mapRecipeStepsToInstructions(
 
 export function buildMealSlotFromProtocolMeal(meal: {
     recipeId: string | null;
+    extraIngredients?: unknown;
     recipe: {
         id: string;
         title: string;
@@ -264,6 +266,7 @@ export function buildMealSlotFromProtocolMeal(meal: {
                 } | null;
             };
         }>;
+        extraIngredients?: Array<{name: string}>;
         steps?: Array<{stepNumber: number; instruction: string}>;
     } | null;
     portions: StoredProtocolMealPortions | null;
@@ -274,6 +277,10 @@ export function buildMealSlotFromProtocolMeal(meal: {
     }
 
     const instructions = mapRecipeStepsToInstructions(recipe.steps);
+    const extraIngredients = resolveMealExtraIngredients(
+        meal.extraIngredients,
+        recipe.extraIngredients
+    );
 
     if (meal.portions) {
         return {
@@ -302,7 +309,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
                     }
                 }))
             ),
-            instructions
+            instructions,
+            extraIngredients
         };
     }
 
@@ -318,7 +326,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
         carbs: round1(totals.carbs),
         fat: round1(totals.fat),
         ingredientPortions,
-        instructions
+        instructions,
+        extraIngredients
     };
 }
 
@@ -355,8 +364,8 @@ export function formatScaledIngredientDisplay(
     const unit = normalizeIngredientUnit(scaled.unit ?? recipeBase.unit);
     const unitLabel =
         INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
-    // Automatic scaling keeps discrete foods on whole pieces, so a stored
-    // fraction means someone set it by hand (1/2 tortilla) and must be kept.
+    // Automatic scaling stores whole pieces. A stored fraction means someone
+    // typed it by hand (1/2 tortilla) and must be kept for display and math.
     const hasFractionalQuantity =
         Number.isFinite(scaled.targetQuantity) &&
         Math.abs(scaled.targetQuantity - Math.round(scaled.targetQuantity)) >
@@ -371,6 +380,23 @@ export function formatScaledIngredientDisplay(
             amount: formatIngredientQuantity(
                 scaled.targetGrams || 0,
                 'GRAM',
+                quantityOptions
+            ),
+            unit: unitLabel
+        };
+    }
+
+    if (unit === 'PIECE') {
+        const displayQuantity = snapQuantityForUnit(
+            scaled.targetQuantity,
+            unit,
+            quantityOptions
+        );
+
+        return {
+            amount: formatIngredientQuantity(
+                displayQuantity,
+                unit,
                 quantityOptions
             ),
             unit: unitLabel

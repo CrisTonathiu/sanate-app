@@ -1,4 +1,5 @@
 import {
+    normalizeIngredientUnit,
     resolveIngredientNutritionGrams,
     scaleIngredientQuantity,
     snapQuantityForUnit,
@@ -139,8 +140,15 @@ export function correctPortionsToTargetCalories<T extends CalorieScaledPortion>(
     }
 
     return portions.map(portion => {
-        const nextGrams = Math.max(1, Math.round(portion.targetGrams * factor));
         const unit = portion.unit ?? 'GRAM';
+
+        // Generated piece counts stay whole; grams already match that count.
+        // Nudging grams here would reintroduce fractions like 2 1/4 pz.
+        if (normalizeIngredientUnit(unit) === 'PIECE') {
+            return portion;
+        }
+
+        const nextGrams = Math.max(1, Math.round(portion.targetGrams * factor));
 
         if (!usesUnitBasedGramScaling(unit)) {
             return {

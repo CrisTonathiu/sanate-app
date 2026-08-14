@@ -53,7 +53,9 @@ const mealSlotSchema = z.object({
     portionMultiplier: optionalNumberSchema,
     isRealistic: z.boolean().optional(),
     warnings: z.array(z.string()).optional(),
-    ingredientPortions: z.array(mealIngredientPortionSchema).optional()
+    ingredientPortions: z.array(mealIngredientPortionSchema).optional(),
+    instructions: z.array(z.string()).optional(),
+    extraIngredients: z.array(z.string()).optional()
 });
 
 export const affiliateLinkSchema = z.object({

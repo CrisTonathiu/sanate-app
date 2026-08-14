@@ -15,9 +15,10 @@ const protocolWeekSelect = {
     days: {
         orderBy: {dayIndex: 'asc' as const},
         select: {
-            meals: {
-                select: {
-                    portions: {
+                    meals: {
+                        select: {
+                            extraIngredients: true,
+                            portions: {
                         select: {
                             ingredients: {
                                 select: {

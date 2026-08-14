@@ -4,6 +4,8 @@ import {useState, useMemo} from 'react';
 import {useGetRecipes, Recipe} from '@/hooks/use-recipes';
 import {useGetAppSettings} from '@/hooks/use-app-settings';
 import {getAllowedRecipeTypesForSlot} from '@/lib/utils/mix-main-meals';
+import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
+import {normalizeExtraIngredientNames} from '@/lib/utils/extra-ingredients';
 import {
     MealType,
     mealTypeConfig,
@@ -201,7 +203,8 @@ function recipeToMealSlot(
         instructions: [...(recipe.steps ?? [])]
             .sort((a, b) => a.stepNumber - b.stepNumber)
             .map(step => step.instruction.trim())
-            .filter(Boolean)
+            .filter(Boolean),
+        extraIngredients: normalizeExtraIngredientNames(recipe.extraIngredients)
     };
 }
 
@@ -240,15 +243,20 @@ export default function RecipePickerModal({
         const allowed = mixMainMeals
             ? getAllowedRecipeTypesForSlot(mealType, true)
             : (MEAL_TYPE_MAP[mealType] ?? []);
-        return allRecipes
-            .filter(r => allowed.includes(r.mealType))
-            .filter(r => !excluded.has(r.id))
-            .filter(
-                r =>
-                    search.trim() === '' ||
-                    r.title.toLowerCase().includes(search.trim().toLowerCase())
-            );
-    }, [allRecipes, mealType, search, excluded, mixMainMeals]);
+        return filterRecipesByMacroFoodGroups(
+            allRecipes
+                .filter(r => allowed.includes(r.mealType))
+                .filter(r => !excluded.has(r.id))
+                .filter(
+                    r =>
+                        search.trim() === '' ||
+                        r.title
+                            .toLowerCase()
+                            .includes(search.trim().toLowerCase())
+                ),
+            macroTarget
+        );
+    }, [allRecipes, mealType, search, excluded, mixMainMeals, macroTarget]);
 
     function handleSelect(recipe: Recipe) {
         onSelect(recipeToMealSlot(recipe, targetCalories, macroTarget));

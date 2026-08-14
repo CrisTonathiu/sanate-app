@@ -99,6 +99,7 @@ const PROTOCOL_MEAL_TO_PDF_SECTION: Partial<Record<MealType, PlanMenuSection>> =
 const protocolMealRecipeSelect = {
     id: true,
     mealType: true,
+    extraIngredients: true,
     recipe: {
         select: {
             id: true,

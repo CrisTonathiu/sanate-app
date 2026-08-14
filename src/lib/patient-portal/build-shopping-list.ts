@@ -4,6 +4,7 @@ import {
     mapRecipeRowsToMealPortions
 } from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
+import {resolveMealExtraIngredients} from '@/lib/utils/extra-ingredients';
 import type {
     ShoppingCategory,
     ShoppingItem,
@@ -26,7 +27,12 @@ const PRODUCE_GROUPS = new Set([
 ]);
 const PROTEIN_GROUPS = new Set(['PROTEINAS', 'LEGUMINOSAS']);
 const DAIRY_GROUPS = new Set(['LACTEOS']);
-const GRAIN_GROUPS = new Set(['CEREALES', 'SEMILLAS', 'FRUTOS SECOS']);
+const GRAIN_GROUPS = new Set([
+    'CEREALES',
+    'CARBOHIDRATOS',
+    'SEMILLAS',
+    'FRUTOS SECOS'
+]);
 
 type IngredientMeta = {
     foodId: string | null;
@@ -57,6 +63,7 @@ type RecipeIngredientRow = {
 };
 
 type ProtocolMealInput = {
+    extraIngredients?: unknown;
     portions: {
         ingredients: PortionRow[];
     } | null;
@@ -170,7 +177,8 @@ function addPortionToBucket(bucket: AggregatedBucket, portion: PortionRow) {
 function formatAggregatedQuantity(bucket: AggregatedBucket): string {
     if (bucket.isDiscrete && bucket.pieceTotal > 0) {
         const amount = formatIngredientQuantity(bucket.pieceTotal, 'PIECE', {
-            isDiscrete: true
+            isDiscrete: true,
+            allowFractions: true
         });
         return `${amount} ${INGREDIENT_UNIT_LABEL.PIECE}`;
     }
@@ -192,7 +200,9 @@ function formatAggregatedQuantity(bucket: AggregatedBucket): string {
     }
 
     if (bucket.pieceTotal > 0) {
-        const amount = formatIngredientQuantity(bucket.pieceTotal, 'PIECE');
+        const amount = formatIngredientQuantity(bucket.pieceTotal, 'PIECE', {
+            allowFractions: true
+        });
         return `${amount} ${INGREDIENT_UNIT_LABEL.PIECE}`;
     }
 
@@ -265,13 +275,11 @@ function aggregateWeekMeals(meals: ProtocolMealInput[]) {
             addPortionToBucket(bucket, portion);
         }
 
-        for (const extra of meal.recipe?.extraIngredients ?? []) {
-            const name = extra.name.trim();
-            if (!name) {
-                continue;
-            }
-
-            const key = `extra:${normalizeName(name)}`;
+        for (const extraName of resolveMealExtraIngredients(
+            meal.extraIngredients,
+            meal.recipe?.extraIngredients
+        )) {
+            const key = `extra:${normalizeName(extraName)}`;
             extraCounts.set(key, (extraCounts.get(key) ?? 0) + 1);
         }
     }
@@ -301,11 +309,15 @@ function aggregateWeekMeals(meals: ProtocolMealInput[]) {
 
         let label = normalizedExtraName;
         for (const meal of meals) {
-            const match = meal.recipe?.extraIngredients.find(
-                extra => normalizeName(extra.name) === normalizedExtraName
+            const extras = resolveMealExtraIngredients(
+                meal.extraIngredients,
+                meal.recipe?.extraIngredients
+            );
+            const match = extras.find(
+                extra => normalizeName(extra) === normalizedExtraName
             );
             if (match) {
-                label = match.name.trim();
+                label = match;
                 break;
             }
         }
