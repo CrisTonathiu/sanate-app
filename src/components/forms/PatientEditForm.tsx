@@ -33,11 +33,15 @@ import FormField from '../widgets/FormField';
 import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
 import {
     useAddPatientFoodDislike,
+    useAddPatientFoodGroupDislike,
     useDeletePatientFoodDislike,
+    useDeletePatientFoodGroupDislike,
     useGetPatientFoodDislikes,
+    useGetPatientFoodGroupDislikes,
     useUpdatePatient
 } from '@/hooks/use-patients';
-import {useGetFoods} from '@/hooks/use-foods';
+import {useGetFoods, useGetIngredientGroups} from '@/hooks/use-foods';
+import {IngredientGroupPill} from '@/components/widgets/food/IngredientGroupPill';
 
 const containerVariants = {
     hidden: {opacity: 0},
@@ -86,26 +90,57 @@ export function PatientEditForm({
     const {mutateAsync: updatePatientProfile, isPending: isUpdating} =
         useUpdatePatient(patientProfile.id || '');
     const {data: allFoods = [], isPending: isLoadingFoods} = useGetFoods();
+    const {data: ingredientGroups = [], isPending: isLoadingGroups} =
+        useGetIngredientGroups();
     const {data: foodDislikes = [], isPending: isLoadingFoodDislikes} =
         useGetPatientFoodDislikes(patientProfile.id);
+    const {data: foodGroupDislikes = [], isPending: isLoadingGroupDislikes} =
+        useGetPatientFoodGroupDislikes(patientProfile.id);
     const {mutateAsync: addFoodDislike, isPending: isAddingFoodDislike} =
         useAddPatientFoodDislike(patientProfile.id || '');
     const {mutateAsync: deleteFoodDislike, isPending: isDeletingFoodDislike} =
         useDeletePatientFoodDislike(patientProfile.id || '');
+    const {mutateAsync: addGroupDislike, isPending: isAddingGroupDislike} =
+        useAddPatientFoodGroupDislike(patientProfile.id || '');
+    const {mutateAsync: deleteGroupDislike, isPending: isDeletingGroupDislike} =
+        useDeletePatientFoodGroupDislike(patientProfile.id || '');
     const [isSaving, setIsSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [foodSearch, setFoodSearch] = useState('');
 
     const selectedFoodIds = new Set(foodDislikes.map(item => item.id));
+    const selectedGroupIds = new Set(foodGroupDislikes.map(item => item.id));
+    const normalizedSearch = foodSearch.trim().toLowerCase();
     const filteredFoods = allFoods
         .filter(food => !selectedFoodIds.has(food.id))
-        .filter(food =>
-            food.name.toLowerCase().includes(foodSearch.trim().toLowerCase())
-        )
+        .filter(food => food.name.toLowerCase().includes(normalizedSearch))
+        .slice(0, 8);
+    const filteredGroups = ingredientGroups
+        .filter(group => !selectedGroupIds.has(group.id))
+        .filter(group => {
+            if (!normalizedSearch) return true;
+            if (group.name.toLowerCase().includes(normalizedSearch)) {
+                return true;
+            }
+            return group.items.some(item =>
+                item.food?.name?.toLowerCase().includes(normalizedSearch)
+            );
+        })
         .slice(0, 8);
 
     const isMutatingFoodDislikes =
-        isAddingFoodDislike || isDeletingFoodDislike || isSaving;
+        isAddingFoodDislike ||
+        isDeletingFoodDislike ||
+        isAddingGroupDislike ||
+        isDeletingGroupDislike ||
+        isSaving;
+    const hasSelectedRestrictions =
+        foodDislikes.length > 0 || foodGroupDislikes.length > 0;
+    const isLoadingRestrictions =
+        isLoadingFoods ||
+        isLoadingGroups ||
+        isLoadingFoodDislikes ||
+        isLoadingGroupDislikes;
 
     const onSubmit = async (data: PatientProfileDTO) => {
         if (isUpdating) return;
@@ -134,6 +169,19 @@ export function PatientEditForm({
         if (!foodId || isMutatingFoodDislikes) return;
 
         await deleteFoodDislike(foodId);
+    };
+
+    const handleAddGroupDislike = async (groupId: string) => {
+        if (!groupId || isMutatingFoodDislikes) return;
+
+        await addGroupDislike({groupId});
+        setFoodSearch('');
+    };
+
+    const handleRemoveGroupDislike = async (groupId?: string) => {
+        if (!groupId || isMutatingFoodDislikes) return;
+
+        await deleteGroupDislike(groupId);
     };
 
     return (
@@ -401,7 +449,7 @@ export function PatientEditForm({
                                                     event.target.value
                                                 )
                                             }
-                                            placeholder='Buscar alimento para excluir por preferencia'
+                                            placeholder='Buscar alimento o grupo para excluir'
                                             className={`${inputStyles} pl-9`}
                                             disabled={isMutatingFoodDislikes}
                                         />
@@ -410,39 +458,78 @@ export function PatientEditForm({
                                     <div className='rounded-xl border border-border bg-background/70 p-3'>
                                         <div className='mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground'>
                                             <UtensilsCrossed className='h-3.5 w-3.5' />
-                                            Catálogo de alimentos
+                                            Catálogo de alimentos y grupos
                                         </div>
 
-                                        {isLoadingFoods ||
-                                        isLoadingFoodDislikes ? (
+                                        {isLoadingRestrictions ? (
                                             <p className='text-sm text-muted-foreground'>
                                                 Cargando alimentos...
                                             </p>
-                                        ) : filteredFoods.length > 0 ? (
-                                            <div className='flex flex-wrap gap-2'>
-                                                {filteredFoods.map(food => (
-                                                    <Button
-                                                        key={food.id}
-                                                        type='button'
-                                                        variant='outline'
-                                                        onClick={() =>
-                                                            handleAddFoodDislike(
-                                                                food.id
+                                        ) : filteredGroups.length > 0 ||
+                                          filteredFoods.length > 0 ? (
+                                            <div className='space-y-3'>
+                                                {filteredGroups.length > 0 ? (
+                                                    <div className='flex flex-wrap gap-2'>
+                                                        {filteredGroups.map(
+                                                            group => (
+                                                                <button
+                                                                    key={
+                                                                        group.id
+                                                                    }
+                                                                    type='button'
+                                                                    onClick={() =>
+                                                                        handleAddGroupDislike(
+                                                                            group.id
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        isMutatingFoodDislikes
+                                                                    }
+                                                                    className='disabled:cursor-not-allowed disabled:opacity-50'>
+                                                                    <IngredientGroupPill
+                                                                        name={
+                                                                            group.name
+                                                                        }
+                                                                        color={
+                                                                            group.color
+                                                                        }
+                                                                    />
+                                                                </button>
                                                             )
-                                                        }
-                                                        disabled={
-                                                            isMutatingFoodDislikes
-                                                        }
-                                                        className='h-9 rounded-lg border-border bg-secondary/20 px-3 text-sm text-foreground hover:bg-secondary/50'>
-                                                        {food.name}
-                                                    </Button>
-                                                ))}
+                                                        )}
+                                                    </div>
+                                                ) : null}
+                                                {filteredFoods.length > 0 ? (
+                                                    <div className='flex flex-wrap gap-2'>
+                                                        {filteredFoods.map(
+                                                            food => (
+                                                                <Button
+                                                                    key={
+                                                                        food.id
+                                                                    }
+                                                                    type='button'
+                                                                    variant='outline'
+                                                                    onClick={() =>
+                                                                        handleAddFoodDislike(
+                                                                            food.id
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        isMutatingFoodDislikes
+                                                                    }
+                                                                    className='h-9 rounded-lg border-border bg-secondary/20 px-3 text-sm text-foreground hover:bg-secondary/50'>
+                                                                    {food.name}
+                                                                </Button>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         ) : (
                                             <p className='text-sm text-muted-foreground'>
                                                 {foodSearch.trim()
                                                     ? 'No hay coincidencias disponibles.'
-                                                    : 'Escribe para buscar alimentos del catálogo.'}
+                                                    : 'Escribe para buscar alimentos o grupos.'}
                                             </p>
                                         )}
                                     </div>
@@ -454,8 +541,23 @@ export function PatientEditForm({
                                         Alimentos no deseados
                                     </div>
 
-                                    {foodDislikes.length > 0 ? (
+                                    {hasSelectedRestrictions ? (
                                         <div className='flex flex-wrap gap-2'>
+                                            {foodGroupDislikes.map(item => (
+                                                <IngredientGroupPill
+                                                    key={item.id}
+                                                    name={item.name}
+                                                    color={item.color}
+                                                    disabled={
+                                                        isMutatingFoodDislikes
+                                                    }
+                                                    onRemove={() =>
+                                                        handleRemoveGroupDislike(
+                                                            item.id
+                                                        )
+                                                    }
+                                                />
+                                            ))}
                                             {foodDislikes.map(item => (
                                                 <Badge
                                                     key={item.id}

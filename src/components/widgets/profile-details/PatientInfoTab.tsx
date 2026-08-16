@@ -6,7 +6,11 @@ import {motion} from 'framer-motion';
 import DataGrid from '../DataGrid';
 import SectionHeading from '../SectionHeading';
 import {PatientProfileDTO} from '@/lib/dto/PatientDTO';
-import {useGetPatientFoodDislikes} from '@/hooks/use-patients';
+import {
+    useGetPatientFoodDislikes,
+    useGetPatientFoodGroupDislikes
+} from '@/hooks/use-patients';
+import {IngredientGroupPill} from '@/components/widgets/food/IngredientGroupPill';
 import {getAgeFromDateString} from '@/lib/utils';
 
 interface PatientInfoTabProps {
@@ -47,6 +51,10 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
 
     const {data: foodDislikes = [], isPending: isLoadingFoodDislikes} =
         useGetPatientFoodDislikes(patient.id);
+    const {data: foodGroupDislikes = [], isPending: isLoadingGroupDislikes} =
+        useGetPatientFoodGroupDislikes(patient.id);
+    const hasSelectedRestrictions =
+        foodDislikes.length > 0 || foodGroupDislikes.length > 0;
 
     const patientAge = getAgeFromDateString(patient.birthDate);
 
@@ -90,12 +98,19 @@ export default function PatientInfoTab({patient}: PatientInfoTabProps) {
                     delay={0.2}
                 />
 
-                {isLoadingFoodDislikes ? (
+                {isLoadingFoodDislikes || isLoadingGroupDislikes ? (
                     <p className='text-sm text-muted-foreground'>
                         Cargando preferencias alimentarias...
                     </p>
-                ) : foodDislikes.length > 0 ? (
+                ) : hasSelectedRestrictions ? (
                     <div className='flex flex-wrap gap-2'>
+                        {foodGroupDislikes.map(item => (
+                            <IngredientGroupPill
+                                key={item.id}
+                                name={item.name}
+                                color={item.color}
+                            />
+                        ))}
                         {foodDislikes.map(item => (
                             <Badge
                                 key={item.id}

@@ -23,8 +23,30 @@ export interface Food {
     createdAt?: string;
 }
 
+export interface IngredientGroupFood {
+    id: string;
+    name: string;
+}
+
+export interface IngredientGroup {
+    id: string;
+    name: string;
+    color: string;
+    items: Array<{
+        foodId?: string;
+        food: IngredientGroupFood;
+    }>;
+    _count?: {
+        items: number;
+        dislikedBy?: number;
+    };
+    createdAt?: string;
+    updatedAt?: string;
+}
+
 export const FOODS_QUERY_KEY = ['foods'] as const;
 export const FOOD_GROUPS_QUERY_KEY = ['food-groups'] as const;
+export const INGREDIENT_GROUPS_QUERY_KEY = ['ingredient-groups'] as const;
 
 async function fetchFoods(): Promise<Food[]> {
     const res = await fetch('/api/foods', {credentials: 'include'});
@@ -55,6 +77,18 @@ async function fetchFoodGroups(): Promise<FoodGroup[]> {
     return parsed;
 }
 
+async function fetchIngredientGroups(): Promise<IngredientGroup[]> {
+    const res = await fetch('/api/ingredient-groups', {credentials: 'include'});
+
+    if (!res.ok) {
+        throw new Error('Failed to fetch ingredient groups');
+    }
+
+    const resData = await res.json();
+    const parsed = Array.isArray(resData?.data) ? resData.data : [];
+    return parsed;
+}
+
 export function useGetFoods() {
     return useQuery({
         queryKey: FOODS_QUERY_KEY,
@@ -68,6 +102,15 @@ export function useGetFoodGroups() {
     return useQuery({
         queryKey: FOOD_GROUPS_QUERY_KEY,
         queryFn: fetchFoodGroups,
+        staleTime: 5 * 60 * 1000,
+        gcTime: 30 * 60 * 1000
+    });
+}
+
+export function useGetIngredientGroups() {
+    return useQuery({
+        queryKey: INGREDIENT_GROUPS_QUERY_KEY,
+        queryFn: fetchIngredientGroups,
         staleTime: 5 * 60 * 1000,
         gcTime: 30 * 60 * 1000
     });
@@ -89,5 +132,13 @@ export function useInvalidateFoods() {
 
     return () => {
         queryClient.invalidateQueries({queryKey: FOODS_QUERY_KEY});
+    };
+}
+
+export function useInvalidateIngredientGroups() {
+    const queryClient = useQueryClient();
+
+    return () => {
+        queryClient.invalidateQueries({queryKey: INGREDIENT_GROUPS_QUERY_KEY});
     };
 }

@@ -105,9 +105,10 @@ model Patient {
 
   vitals        PatientVital[]
   conditions    PatientCondition[]
-  allergies     PatientAllergy[]
-  foodDislikes  PatientFoodDislike[]
-  notes         PatientNote[]
+  allergies          PatientAllergy[]
+  foodDislikes       PatientFoodDislike[]
+  foodGroupDislikes  PatientFoodGroupDislike[]
+  notes              PatientNote[]
   consultations Consultation[]
   protocols     Protocol[]
   documents     PatientDocument[]
@@ -458,6 +459,7 @@ model Food {
   equivalents FoodEquivalent[]
   equivalentIn FoodEquivalent[] @relation("EquivalentFood")
   dislikedBy   PatientFoodDislike[]
+  ingredientGroupItems IngredientGroupItem[]
 
   ingredients Ingredient[]
 
@@ -492,6 +494,50 @@ model FoodGroup {
   isFree Boolean @default(false)
 
   foods Food[]
+}
+
+// Custom bundles of catalog foods used to restrict several related ingredients at once
+// (e.g. "Huevos" → scrambled, hard-boiled, poached). Distinct from FoodGroup.
+model IngredientGroup {
+  id    String @id @default(cuid())
+  name  String
+  color String @default("violet")
+
+  items      IngredientGroupItem[]
+  dislikedBy PatientFoodGroupDislike[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model IngredientGroupItem {
+  groupId String
+  foodId  String
+
+  group IngredientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  food  Food            @relation(fields: [foodId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, foodId])
+  @@index([foodId])
+}
+
+model PatientFoodGroupDislike {
+  id        String @id @default(cuid())
+  patientId String
+  groupId   String
+
+  patient Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  group   IngredientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, groupId])
+  @@index([patientId])
+  @@index([groupId])
 }
 
 // Stores the per-patient scaled ingredient portions for a meal inside a protocol.

@@ -61,6 +61,7 @@ export const sidebarItems: SidebarItem[] = [
         icon: <Apple className='size-4' />,
         items: [
             {title: 'Catálogo', url: '/alimentos'},
+            {title: 'Grupos', url: '/alimentos/grupos'},
             {title: 'Agregar alimento', url: '/alimentos/nuevo'}
         ]
     },

@@ -52,3 +52,13 @@ export const createPatientFoodDislikeSchema = z.object({
 export type CreatePatientFoodDislikeInput = z.infer<
     typeof createPatientFoodDislikeSchema
 >;
+
+export const createPatientFoodGroupDislikeSchema = z.object({
+    patientId: patientIdSchema,
+    groupId: z.string().min(1, 'Group ID is required'),
+    notes: z.string().optional()
+});
+
+export type CreatePatientFoodGroupDislikeInput = z.infer<
+    typeof createPatientFoodGroupDislikeSchema
+>;
