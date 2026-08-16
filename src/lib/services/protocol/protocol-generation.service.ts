@@ -604,6 +604,23 @@ export async function generateProtocolPlanForPatient(
                     }
                 }
             },
+            foodGroupDislikes: {
+                include: {
+                    group: {
+                        include: {
+                            items: {
+                                include: {
+                                    food: {
+                                        select: {
+                                            name: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             conditions: {
                 include: {
                     condition: {
@@ -629,9 +646,30 @@ export async function generateProtocolPlanForPatient(
     const dislikedFoodNames = new Set<string>(
         patientFoodDislikes.map(item => normalizeAllergenName(item.food.name))
     );
+    const patientFoodGroupDislikes: Array<{
+        group: {
+            items: Array<{food?: {name?: string} | null}>;
+        };
+    }> =
+        (
+            patient as {
+                foodGroupDislikes?: Array<{
+                    group: {
+                        items: Array<{food?: {name?: string} | null}>;
+                    };
+                }>;
+            }
+        ).foodGroupDislikes ?? [];
+    const dislikedGroupFoodNames = patientFoodGroupDislikes.flatMap(dislike =>
+        dislike.group.items
+            .map(item => item.food?.name)
+            .filter((name): name is string => Boolean(name))
+            .map(name => normalizeAllergenName(name))
+    );
     const restrictedFoodNames = new Set<string>([
         ...allergyNames,
-        ...dislikedFoodNames
+        ...dislikedFoodNames,
+        ...dislikedGroupFoodNames
     ]);
 
     const recipesFromDb = await prisma.recipe.findMany({
@@ -719,8 +757,7 @@ export async function generateProtocolPlanForPatient(
                         maxPortionGrams:
                             item.ingredient.food?.maxPortionGrams ?? null,
                         density: item.ingredient.food?.density ?? null,
-                        foodGroupName:
-                            item.ingredient.food?.group?.name ?? null
+                        foodGroupName: item.ingredient.food?.group?.name ?? null
                     };
                 })
             };
@@ -797,15 +834,18 @@ export async function generateProtocolPlanForPatient(
             const dayMeals: Partial<DayMeals> & {day: string} = {day: dayLabel};
 
             for (const mealKey of activeMealOrder) {
-                const key = mealKey.toLowerCase() as keyof Omit<DayMeals, 'day'>;
-                const recipe =
-                    weeklySchedulesByMeal[key][weekIndex][dayIndex];
+                const key = mealKey.toLowerCase() as keyof Omit<
+                    DayMeals,
+                    'day'
+                >;
+                const recipe = weeklySchedulesByMeal[key][weekIndex][dayIndex];
                 const macroMealTarget = getMacroMealTarget(
                     input.macroMealDistribution,
                     mealKey
                 );
                 const targetCalories =
-                    macroMealTarget?.totalKcal ?? dailyCalories * split[mealKey];
+                    macroMealTarget?.totalKcal ??
+                    dailyCalories * split[mealKey];
 
                 const slotResult = buildMeal(
                     recipe,

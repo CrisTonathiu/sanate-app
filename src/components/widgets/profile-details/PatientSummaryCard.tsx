@@ -1,24 +1,22 @@
 'use client';
 
-import {Button} from '@/components/ui/button';
 import {Avatar, AvatarFallback} from '@/components/ui/avatar';
 import {Badge} from '@/components/ui/badge';
 import {Input} from '@/components/ui/input';
 import {
     useAddPatientFoodDislike,
-    useDeletePatientFoodDislike
+    useAddPatientFoodGroupDislike,
+    useDeletePatientFoodDislike,
+    useDeletePatientFoodGroupDislike,
+    useGetPatientFoodGroupDislikes
 } from '@/hooks/use-patients';
-import {useGetFoods} from '@/hooks/use-foods';
-import {
-    PatientAllergyDTO,
-    PatientConditionDTO,
-    PatientFoodDislikeDTO
-} from '@/lib/dto/PatientDTO';
+import {useGetFoods, useGetIngredientGroups} from '@/hooks/use-foods';
+import {PatientAllergyDTO, PatientConditionDTO} from '@/lib/dto/PatientDTO';
+import {IngredientGroupPill} from '@/components/widgets/food/IngredientGroupPill';
 import {AnimatePresence, motion} from 'framer-motion';
 import {useEffect, useState} from 'react';
 import {
     AlertTriangle,
-    Loader2,
     Plus,
     Ruler,
     Scale,
@@ -63,28 +61,58 @@ export default function PatientSummaryCard({
     foodDislikes
 }: PatientSummaryCardProps) {
     const genderLabel = getGenderLabel(gender);
-    const {data: allFoods = [], isPending: isLoadingFoods} = useGetFoods();
+    const {data: allFoods = []} = useGetFoods();
+    const {data: ingredientGroups = []} = useGetIngredientGroups();
+    const {data: foodGroupDislikes = []} =
+        useGetPatientFoodGroupDislikes(patientId);
     const {mutateAsync: addFoodDislike, isPending: isAddingFoodDislike} =
         useAddPatientFoodDislike(patientId);
     const {mutateAsync: deleteFoodDislike, isPending: isDeletingFoodDislike} =
         useDeletePatientFoodDislike(patientId);
+    const {mutateAsync: addGroupDislike, isPending: isAddingGroupDislike} =
+        useAddPatientFoodGroupDislike(patientId);
+    const {mutateAsync: deleteGroupDislike, isPending: isDeletingGroupDislike} =
+        useDeletePatientFoodGroupDislike(patientId);
     const [foodSearch, setFoodSearch] = useState('');
     const [foodDislikeError, setFoodDislikeError] = useState<string | null>(
         null
     );
     const [showFoodDropdown, setShowFoodDropdown] = useState<boolean>(false);
 
-    const isMutatingFoodDislikes = isAddingFoodDislike || isDeletingFoodDislike;
+    const isMutatingFoodDislikes =
+        isAddingFoodDislike ||
+        isDeletingFoodDislike ||
+        isAddingGroupDislike ||
+        isDeletingGroupDislike;
     const normalizedSearch = foodSearch.trim().toLowerCase();
     const selectedFoodIds = new Set(
         foodDislikes
             .map(item => item.id)
             .filter((id): id is string => Boolean(id))
     );
+    const selectedGroupIds = new Set(
+        foodGroupDislikes.map(item => item.id).filter(Boolean)
+    );
     const filteredFoods = allFoods
         .filter(food => !selectedFoodIds.has(food.id))
         .filter(food => food.name.toLowerCase().includes(normalizedSearch))
         .slice(0, 8);
+    const filteredGroups = ingredientGroups
+        .filter(group => !selectedGroupIds.has(group.id))
+        .filter(group => {
+            if (!normalizedSearch) return false;
+            if (group.name.toLowerCase().includes(normalizedSearch)) {
+                return true;
+            }
+            return group.items.some(item =>
+                item.food?.name?.toLowerCase().includes(normalizedSearch)
+            );
+        })
+        .slice(0, 6);
+    const hasDropdownResults =
+        filteredGroups.length > 0 || filteredFoods.length > 0;
+    const hasSelectedRestrictions =
+        foodDislikes.length > 0 || foodGroupDislikes.length > 0;
 
     const handleAddFoodDislike = async (food: any) => {
         console.log('Adding food dislike:', food);
@@ -113,6 +141,36 @@ export default function PatientSummaryCard({
                 error instanceof Error
                     ? error.message
                     : 'No se pudo eliminar el alimento.'
+            );
+        }
+    };
+
+    const handleAddGroupDislike = async (groupId: string) => {
+        if (!groupId || isMutatingFoodDislikes) return;
+        try {
+            setFoodDislikeError(null);
+            await addGroupDislike({groupId});
+            setFoodSearch('');
+            setShowFoodDropdown(false);
+        } catch (error) {
+            setFoodDislikeError(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo agregar el grupo.'
+            );
+        }
+    };
+
+    const handleRemoveGroupDislike = async (groupId: string) => {
+        if (!groupId || isMutatingFoodDislikes) return;
+        try {
+            setFoodDislikeError(null);
+            await deleteGroupDislike(groupId);
+        } catch (error) {
+            setFoodDislikeError(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo eliminar el grupo.'
             );
         }
     };
@@ -218,7 +276,7 @@ export default function PatientSummaryCard({
                         <div className='relative'>
                             <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
                             <Input
-                                placeholder='Buscar alimento...'
+                                placeholder='Buscar alimento o grupo...'
                                 value={foodSearch}
                                 onChange={event => {
                                     setFoodSearch(event.target.value);
@@ -237,17 +295,35 @@ export default function PatientSummaryCard({
                         <AnimatePresence>
                             {showFoodDropdown &&
                                 foodSearch &&
-                                filteredFoods.length > 0 && (
+                                hasDropdownResults && (
                                     <motion.div
                                         initial={{opacity: 0, y: -4}}
                                         animate={{opacity: 1, y: 0}}
                                         exit={{opacity: 0, y: -4}}
-                                        className='absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto'>
+                                        className='absolute z-10 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-56 overflow-y-auto'>
+                                        {filteredGroups.map(group => (
+                                            <button
+                                                key={group.id}
+                                                type='button'
+                                                onClick={() =>
+                                                    handleAddGroupDislike(
+                                                        group.id
+                                                    )
+                                                }
+                                                className='w-full px-3 py-2 text-left text-sm hover:bg-secondary transition-colors flex items-center gap-2'>
+                                                <Plus className='h-3.5 w-3.5 text-muted-foreground' />
+                                                <IngredientGroupPill
+                                                    name={group.name}
+                                                    color={group.color}
+                                                />
+                                            </button>
+                                        ))}
                                         {filteredFoods
                                             .slice(0, 6)
                                             .map((food: any) => (
                                                 <button
                                                     key={food.id}
+                                                    type='button'
                                                     onClick={() =>
                                                         handleAddFoodDislike(
                                                             food
@@ -265,6 +341,17 @@ export default function PatientSummaryCard({
 
                     {/* Tags */}
                     <div className='flex flex-wrap gap-2'>
+                        {foodGroupDislikes.map(item => (
+                            <IngredientGroupPill
+                                key={item.id}
+                                name={item.name}
+                                color={item.color}
+                                disabled={isMutatingFoodDislikes}
+                                onRemove={() =>
+                                    handleRemoveGroupDislike(item.id)
+                                }
+                            />
+                        ))}
                         {foodDislikes.map(
                             ({id, food}: {id: string; food: string}) => (
                                 <Badge
@@ -273,6 +360,7 @@ export default function PatientSummaryCard({
                                     className='rounded-lg border-muted-foreground/30 text-muted-foreground pr-1.5 flex items-center gap-1'>
                                     {food}
                                     <button
+                                        type='button'
                                         onClick={() =>
                                             handleRemoveFoodDislike(id)
                                         }
@@ -282,7 +370,7 @@ export default function PatientSummaryCard({
                                 </Badge>
                             )
                         )}
-                        {foodDislikes.length === 0 && (
+                        {!hasSelectedRestrictions && (
                             <span className='text-sm text-muted-foreground'>
                                 Sin alimentos registrados
                             </span>

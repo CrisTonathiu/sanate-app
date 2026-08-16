@@ -29,6 +29,13 @@ export interface PatientFoodDislikeDTO {
     notes?: string;
 }
 
+export interface PatientFoodGroupDislikeDTO {
+    id: string;
+    name: string;
+    color: string;
+    notes?: string;
+}
+
 export interface PatientProfileDTO {
     id: string;
 
@@ -55,4 +62,5 @@ export interface PatientProfileDTO {
     conditions: PatientConditionDTO[];
     allergies: PatientAllergyDTO[];
     foodDislikes?: PatientFoodDislikeDTO[];
+    foodGroupDislikes?: PatientFoodGroupDislikeDTO[];
 }

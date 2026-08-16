@@ -4,6 +4,7 @@ import {
     PatientAllergyDTO,
     PatientConditionDTO,
     PatientFoodDislikeDTO,
+    PatientFoodGroupDislikeDTO,
     PatientProfileDTO
 } from '@/lib/dto/PatientDTO';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
@@ -264,6 +265,50 @@ export function useGetPatientFoodDislikes(patientId?: string) {
     });
 }
 
+export function useGetPatientFoodGroupDislikes(patientId?: string) {
+    return useQuery<PatientFoodGroupDislikeDTO[]>({
+        queryKey: ['patientFoodGroupDislikes', patientId],
+        enabled: !!patientId,
+        queryFn: async () => {
+            const res = await fetch(
+                `/api/patients/${patientId}/food-group-dislikes`,
+                {
+                    credentials: 'include'
+                }
+            );
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(
+                    error?.message ||
+                        'Failed to fetch patient food group dislikes'
+                );
+            }
+
+            const rawData = await res.json();
+            const rows = rawData?.data ?? [];
+
+            return rows.map(
+                (row: {
+                    groupId?: string;
+                    notes?: string | null;
+                    group?: {
+                        id?: string;
+                        name?: string;
+                        color?: string;
+                    };
+                }) => ({
+                    id: row.group?.id || row.groupId || '',
+                    name: row.group?.name || 'Sin nombre',
+                    color: row.group?.color || 'violet',
+                    notes: row.notes || undefined
+                })
+            ) as PatientFoodGroupDislikeDTO[];
+        },
+        staleTime: 1000 * 60 * 5
+    });
+}
+
 export function useCreatePatient() {
     const router = useRouter();
     return useMutation({
@@ -433,6 +478,71 @@ export function useDeletePatientFoodDislike(patientId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({
                 queryKey: ['patientFoodDislikes', patientId]
+            });
+        }
+    });
+}
+
+export function useAddPatientFoodGroupDislike(patientId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: {groupId: string; notes?: string}) => {
+            const res = await fetch(
+                `/api/patients/${patientId}/food-group-dislikes`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                }
+            );
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message ||
+                        'Failed to add patient food group dislike'
+                );
+            }
+
+            const resData = await res.json();
+            return resData.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['patientFoodGroupDislikes', patientId]
+            });
+        }
+    });
+}
+
+export function useDeletePatientFoodGroupDislike(patientId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (groupId: string) => {
+            const res = await fetch(
+                `/api/patients/${patientId}/food-group-dislikes/${groupId}`,
+                {
+                    method: 'DELETE'
+                }
+            );
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(
+                    errorData.message ||
+                        'Failed to delete patient food group dislike'
+                );
+            }
+
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['patientFoodGroupDislikes', patientId]
             });
         }
     });

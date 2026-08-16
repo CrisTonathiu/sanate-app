@@ -26,7 +26,11 @@ export function SidebarNav({onNavigate}: SidebarNavProps) {
     };
 
     const prefetchIfNeeded = (url: string) => {
-        if (url === '/recetas/nuevo' || url === '/alimentos/nuevo') {
+        if (
+            url === '/recetas/nuevo' ||
+            url === '/alimentos/nuevo' ||
+            url === '/alimentos/grupos/nuevo'
+        ) {
             prefetchFoods();
         }
     };
