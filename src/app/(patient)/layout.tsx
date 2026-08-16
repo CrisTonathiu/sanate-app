@@ -1,3 +1,4 @@
+import {ZanateWhatsAppButton} from '@/components/widgets/patient-portal/ZanateWhatsAppButton';
 import {getCurrentUser} from '@/lib/auth/getCurrentUser';
 import {redirect} from 'next/navigation';
 
@@ -16,5 +17,10 @@ export default async function PatientLayout({
 		redirect('/');
 	}
 
-	return <div className='min-h-screen bg-background'>{children}</div>;
+	return (
+		<div className='flex min-h-screen flex-col bg-background'>
+			<div className='flex-1 md:pb-24'>{children}</div>
+			<ZanateWhatsAppButton />
+		</div>
+	);
 }
