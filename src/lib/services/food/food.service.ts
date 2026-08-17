@@ -82,7 +82,11 @@ export async function createFood(input: CreateFoodInput) {
                 caloriesPer100g: validatedInput.caloriesPer100g ?? null,
                 density: validatedInput.density ?? null,
                 isDiscrete: validatedInput.isDiscrete ?? false,
-                maxPortionGrams: validatedInput.maxPortionGrams ?? null
+                maxPortionGrams: validatedInput.maxPortionGrams ?? null,
+                gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
+                equivalentDisplayText:
+                    validatedInput.equivalentDisplayText ?? null,
+                isFreePortion: validatedInput.isFreePortion ?? false
             },
             include: foodInclude
         });
@@ -184,7 +188,11 @@ export async function updateFood(foodId: FoodIdInput, input: UpdateFoodInput) {
                 caloriesPer100g: validatedInput.caloriesPer100g ?? null,
                 density: validatedInput.density ?? null,
                 isDiscrete: validatedInput.isDiscrete ?? false,
-                maxPortionGrams: validatedInput.maxPortionGrams ?? null
+                maxPortionGrams: validatedInput.maxPortionGrams ?? null,
+                gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
+                equivalentDisplayText:
+                    validatedInput.equivalentDisplayText ?? null,
+                isFreePortion: validatedInput.isFreePortion ?? false
             },
             include: foodInclude
         });

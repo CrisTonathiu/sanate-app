@@ -20,6 +20,9 @@ export interface Food {
     density?: number | null;
     isDiscrete?: boolean;
     maxPortionGrams?: number | null;
+    gramsPerEquivalent?: number | null;
+    equivalentDisplayText?: string | null;
+    isFreePortion?: boolean;
     createdAt?: string;
 }
 

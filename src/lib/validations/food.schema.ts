@@ -20,7 +20,20 @@ export const createFoodSchema = z.object({
     maxPortionGrams: z
         .union([z.number().positive(), z.null()])
         .optional()
-        .transform(value => (value === undefined ? undefined : value))
+        .transform(value => (value === undefined ? undefined : value)),
+    gramsPerEquivalent: z
+        .union([z.number().positive(), z.null()])
+        .optional()
+        .transform(value => (value === undefined ? undefined : value)),
+    equivalentDisplayText: z
+        .union([z.string().trim().min(1), z.literal(''), z.null()])
+        .optional()
+        .transform(value => {
+            if (value === undefined) return undefined;
+            if (value === null || value === '') return null;
+            return value;
+        }),
+    isFreePortion: z.boolean().optional()
 });
 
 export type CreateFoodInput = z.infer<typeof createFoodSchema>;

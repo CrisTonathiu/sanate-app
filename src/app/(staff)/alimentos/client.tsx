@@ -24,6 +24,25 @@ export default function ClientPage() {
         });
     }, [foods, searchQuery]);
 
+    const equivalentLabel = (food: (typeof foods)[number]) => {
+        if (food.isFreePortion || food.group?.isFree) {
+            return 'Libre';
+        }
+
+        const text = food.equivalentDisplayText?.trim();
+        if (text) return text;
+
+        if (food.gramsPerEquivalent != null) {
+            const grams = food.gramsPerEquivalent;
+            const label = Number.isInteger(grams)
+                ? String(grams)
+                : grams.toFixed(1).replace(/\.0$/, '');
+            return `${label} g`;
+        }
+
+        return '—';
+    };
+
     return (
         <div className='relative w-full md:w-auto mt-3 md:mt-0'>
             <motion.div
@@ -85,6 +104,9 @@ export default function ClientPage() {
                                         Grupo
                                     </th>
                                     <th className='px-4 py-3 font-medium'>
+                                        1 eq
+                                    </th>
+                                    <th className='px-4 py-3 font-medium'>
                                         kcal / 100g
                                     </th>
                                     <th className='px-4 py-3 font-medium'>
@@ -106,6 +128,9 @@ export default function ClientPage() {
                                             </td>
                                             <td className='px-4 py-3 text-muted-foreground'>
                                                 {food.group?.name ?? '—'}
+                                            </td>
+                                            <td className='px-4 py-3 text-muted-foreground'>
+                                                {equivalentLabel(food)}
                                             </td>
                                             <td className='px-4 py-3'>
                                                 {food.caloriesPer100g != null
@@ -136,7 +161,7 @@ export default function ClientPage() {
                                 ) : (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={6}
                                             className='px-4 py-12 text-center text-muted-foreground'>
                                             <div className='flex flex-col items-center gap-3'>
                                                 <Apple className='h-8 w-8 opacity-40' />

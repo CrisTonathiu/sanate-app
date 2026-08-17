@@ -1,3 +1,4 @@
+import {applySmaeEquivalentsToExistingFoods} from '../src/lib/food/smae-equivalents';
 import {prisma} from '../src/lib/prisma';
 type FoodMacro = {
     name: string;
@@ -793,7 +794,10 @@ async function main() {
         });
     }
 
-    console.log('✅ Seeded successfully!');
+    const smae = await applySmaeEquivalentsToExistingFoods(prisma);
+    console.log(
+        `✅ Seeded successfully! SMAE: ${smae.matched.length} alimentos con equivalencia`
+    );
 }
 
 main()
