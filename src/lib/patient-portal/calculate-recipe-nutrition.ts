@@ -1,6 +1,7 @@
 import {resolveIngredientNutritionGrams} from '@/lib/utils/ingredient-quantity';
 
 export type NutritionFood = {
+    name?: string | null;
     caloriesPer100g?: number | null;
     proteinPer100g?: number | null;
     carbsPer100g?: number | null;

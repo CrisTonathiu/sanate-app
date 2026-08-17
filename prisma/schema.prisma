@@ -456,6 +456,11 @@ model Food {
   isDiscrete Boolean @default(false)
   maxPortionGrams Float? // límite realista
 
+  // 1 equivalencia SMAE: gramos de referencia + texto para el PDF ("1 pza", "1 lata")
+  gramsPerEquivalent Float?
+  equivalentDisplayText String?
+  isFreePortion Boolean @default(false) // no cuenta como equivalencia (algunas frutas/verduras)
+
   equivalents FoodEquivalent[]
   equivalentIn FoodEquivalent[] @relation("EquivalentFood")
   dislikedBy   PatientFoodDislike[]

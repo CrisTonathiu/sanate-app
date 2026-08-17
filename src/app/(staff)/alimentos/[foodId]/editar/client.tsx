@@ -24,6 +24,9 @@ interface FoodApiResponse {
         density: number | null;
         isDiscrete: boolean;
         maxPortionGrams: number | null;
+        gramsPerEquivalent: number | null;
+        equivalentDisplayText: string | null;
+        isFreePortion: boolean;
     };
 }
 
@@ -61,7 +64,10 @@ export default function ClientPage({foodId}: {foodId: string}) {
                     fatPer100g: body.data.fatPer100g,
                     density: body.data.density,
                     isDiscrete: body.data.isDiscrete,
-                    maxPortionGrams: body.data.maxPortionGrams
+                    maxPortionGrams: body.data.maxPortionGrams,
+                    gramsPerEquivalent: body.data.gramsPerEquivalent,
+                    equivalentDisplayText: body.data.equivalentDisplayText,
+                    isFreePortion: body.data.isFreePortion
                 });
             } catch (error) {
                 alert(
@@ -140,7 +146,7 @@ export default function ClientPage({foodId}: {foodId: string}) {
                     Editar alimento
                 </h1>
                 <p className='text-sm text-muted-foreground mt-1'>
-                    Actualiza macros, densidad y grupo del alimento
+                    Actualiza macros, equivalencia SMAE y grupo del alimento
                 </p>
             </div>
 

@@ -9,7 +9,10 @@ import {
     mapProtocolMealToSliderRecipe,
     PROTOCOL_MEAL_DISPLAY_ORDER
 } from '@/lib/patient-portal/protocol-meal-slider-map';
-import {loadEquivalenciasColumns} from '@/lib/services/food/equivalencias.service';
+import {
+    loadEquivalenciasColumns,
+    type AssignedMenuPortion
+} from '@/lib/services/food/equivalencias.service';
 import {
     loadPlanShoppingListByProtocolId
 } from '@/lib/services/patient/patient-shopping-list.service';
@@ -115,6 +118,7 @@ const protocolMealRecipeSelect = {
                             name: true,
                             food: {
                                 select: {
+                                    name: true,
                                     caloriesPer100g: true,
                                     proteinPer100g: true,
                                     carbsPer100g: true,
@@ -168,6 +172,71 @@ function formatPlanIngredient(ingredient: {
         .trim();
 
     return quantity ? `${quantity} ${ingredient.name}` : ingredient.name;
+}
+
+function catalogNameForIngredient(
+    ingredientName: string,
+    recipeIngredients: Array<{
+        ingredient: {name: string; food?: {name?: string | null} | null};
+    }>
+): string {
+    const key = ingredientName.trim().toLowerCase();
+    const match = recipeIngredients.find(
+        row => row.ingredient.name.trim().toLowerCase() === key
+    );
+
+    return match?.ingredient.food?.name?.trim() || ingredientName.trim();
+}
+
+function collectAssignedMenuPortions(
+    protocol: ProtocolWeeksForMenu
+): AssignedMenuPortion[] {
+    const byKey = new Map<string, AssignedMenuPortion>();
+
+    const remember = (name: string, grams: number) => {
+        const trimmed = name.trim();
+        if (!trimmed || !Number.isFinite(grams) || grams <= 0) {
+            return;
+        }
+
+        const key = trimmed.toLowerCase();
+        const previous = byKey.get(key);
+        if (!previous || grams > previous.grams) {
+            byKey.set(key, {name: trimmed, grams});
+        }
+    };
+
+    for (const week of protocol.weeksPlan) {
+        for (const day of week.days) {
+            for (const meal of day.meals) {
+                const recipeIngredients = meal.recipe?.ingredients ?? [];
+                const portionRows = meal.portions?.ingredients ?? [];
+
+                if (portionRows.length > 0) {
+                    for (const row of portionRows) {
+                        remember(
+                            catalogNameForIngredient(
+                                row.ingredientName,
+                                recipeIngredients
+                            ),
+                            row.targetGrams
+                        );
+                    }
+                    continue;
+                }
+
+                for (const row of recipeIngredients) {
+                    remember(
+                        row.ingredient.food?.name?.trim() ||
+                            row.ingredient.name,
+                        row.grams
+                    );
+                }
+            }
+        }
+    }
+
+    return [...byKey.values()];
 }
 
 type ProtocolWeeksForMenu = {
@@ -348,14 +417,20 @@ const EMPTY_PLAN_MENU: PlanMenuPayload = {
 export async function loadProtocolPlanMenuByProtocolId(
     protocolId: string
 ): Promise<PlanMenuPayload> {
-    const [protocol, shoppingList, equivalencias] = await Promise.all([
+    const [protocol, shoppingList] = await Promise.all([
         prisma.protocol.findUnique({
             where: {id: protocolId},
             select: protocolWeeksMenuSelect
         }),
-        loadPlanShoppingListByProtocolId(protocolId),
-        loadEquivalenciasColumns()
+        loadPlanShoppingListByProtocolId(protocolId)
     ]);
+
+    const assignedPortions = protocol
+        ? collectAssignedMenuPortions(
+              protocol as unknown as ProtocolWeeksForMenu
+          )
+        : [];
+    const equivalencias = await loadEquivalenciasColumns(assignedPortions);
 
     if (!protocol) {
         return {...EMPTY_PLAN_MENU, equivalencias};
@@ -401,14 +476,11 @@ export async function loadProtocolPlanMenuForUser(
         return {...EMPTY_PLAN_MENU, equivalencias};
     }
 
+    const typedProtocol = protocol as unknown as ProtocolWeeksForMenu;
     const [menu, shoppingList, equivalencias] = await Promise.all([
-        Promise.resolve(
-            buildPlanMenuFromProtocol(
-                protocol as unknown as ProtocolWeeksForMenu
-            )
-        ),
+        Promise.resolve(buildPlanMenuFromProtocol(typedProtocol)),
         loadPlanShoppingListByProtocolId(protocol.id),
-        loadEquivalenciasColumns()
+        loadEquivalenciasColumns(collectAssignedMenuPortions(typedProtocol))
     ]);
 
     return {

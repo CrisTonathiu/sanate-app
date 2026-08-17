@@ -48,8 +48,8 @@ export default function ClientPage() {
                     Agregar alimento
                 </h1>
                 <p className='text-sm text-muted-foreground mt-1'>
-                    Registra un alimento con sus macros por 100 g y densidad
-                    opcional
+                    Registra un alimento con macros, densidad y equivalencia
+                    SMAE
                 </p>
             </div>
 

@@ -29,6 +29,9 @@ export type FoodFormData = {
     density?: number | null;
     isDiscrete?: boolean;
     maxPortionGrams?: number | null;
+    gramsPerEquivalent?: number | null;
+    equivalentDisplayText?: string | null;
+    isFreePortion?: boolean;
 };
 
 type FoodFormProps = {
@@ -77,6 +80,9 @@ export function FoodForm({
     const [density, setDensity] = useState('');
     const [maxPortionGrams, setMaxPortionGrams] = useState('');
     const [isDiscrete, setIsDiscrete] = useState(false);
+    const [gramsPerEquivalent, setGramsPerEquivalent] = useState('');
+    const [equivalentDisplayText, setEquivalentDisplayText] = useState('');
+    const [isFreePortion, setIsFreePortion] = useState(false);
 
     useEffect(() => {
         if (!initialData) return;
@@ -90,6 +96,9 @@ export function FoodForm({
         setDensity(formatNumberField(initialData.density));
         setMaxPortionGrams(formatNumberField(initialData.maxPortionGrams));
         setIsDiscrete(initialData.isDiscrete ?? false);
+        setGramsPerEquivalent(formatNumberField(initialData.gramsPerEquivalent));
+        setEquivalentDisplayText(initialData.equivalentDisplayText ?? '');
+        setIsFreePortion(initialData.isFreePortion ?? false);
     }, [initialData]);
 
     useEffect(() => {
@@ -152,7 +161,10 @@ export function FoodForm({
                 fatPer100g: parseOptionalNumber(fatPer100g),
                 density: parseOptionalNumber(density),
                 maxPortionGrams: parseOptionalNumber(maxPortionGrams),
-                isDiscrete
+                isDiscrete,
+                gramsPerEquivalent: parseOptionalNumber(gramsPerEquivalent),
+                equivalentDisplayText: equivalentDisplayText.trim() || null,
+                isFreePortion
             });
         } catch (submitError) {
             setError(
@@ -382,6 +394,68 @@ export function FoodForm({
                             />
                             <Label htmlFor='isDiscrete' className='text-sm'>
                                 Porción discreta (piezas, unidades)
+                            </Label>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className='border-border bg-card/50 backdrop-blur-sm'>
+                    <CardHeader className='pb-3 border-b border-border'>
+                        <CardTitle className='text-base'>
+                            Equivalencia SMAE
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className='pt-5 grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                        <div>
+                            <Label className='text-xs text-muted-foreground mb-1.5 block'>
+                                Gramos por 1 equivalencia
+                            </Label>
+                            <Input
+                                type='text'
+                                inputMode='decimal'
+                                value={gramsPerEquivalent}
+                                onChange={e =>
+                                    setGramsPerEquivalent(e.target.value)
+                                }
+                                placeholder='30'
+                                disabled={isFreePortion}
+                                className='h-10 bg-background/50'
+                            />
+                            <p className='text-xs text-muted-foreground mt-1.5'>
+                                Porción SMAE de referencia. Ej: 1 eq de pollo =
+                                30 g.
+                            </p>
+                        </div>
+                        <div>
+                            <Label className='text-xs text-muted-foreground mb-1.5 block'>
+                                Texto de porción
+                            </Label>
+                            <Input
+                                value={equivalentDisplayText}
+                                onChange={e =>
+                                    setEquivalentDisplayText(e.target.value)
+                                }
+                                placeholder='1 pza, 1 lata, 10 pzas'
+                                disabled={isFreePortion}
+                                className='h-10 bg-background/50'
+                            />
+                            <p className='text-xs text-muted-foreground mt-1.5'>
+                                Solo la medida, sin el nombre. Si existe, se
+                                muestra en el PDF en lugar de los gramos.
+                            </p>
+                        </div>
+                        <div className='sm:col-span-2 flex items-center gap-2'>
+                            <input
+                                id='isFreePortion'
+                                type='checkbox'
+                                checked={isFreePortion}
+                                onChange={e =>
+                                    setIsFreePortion(e.target.checked)
+                                }
+                                className='h-4 w-4 rounded border-border'
+                            />
+                            <Label htmlFor='isFreePortion' className='text-sm'>
+                                Porción libre (no cuenta como equivalencia)
                             </Label>
                         </div>
                     </CardContent>

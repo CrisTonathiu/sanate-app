@@ -20,6 +20,7 @@ import {
 } from '@/lib/patient-portal/shopping-list-pdf-layout';
 import {
     EQUIVALENCIAS_PDF_COLORS,
+    paginateEquivalenciasColumns,
     type EquivalenciasColumn
 } from '@/lib/patient-portal/equivalencias';
 import {PlanRecipePage, type PlanRecipeData} from './PlanRecipePage';
@@ -283,8 +284,7 @@ const styles = StyleSheet.create({
     equivalenciasContent: {
         marginTop: PLAN_CONTENT_TOP_PT,
         paddingHorizontal: 28,
-        paddingBottom: CONTENT_BOTTOM_PT,
-        flex: 1
+        paddingBottom: CONTENT_BOTTOM_PT
     },
     equivalenciasTitle: {
         fontSize: 26,
@@ -295,13 +295,10 @@ const styles = StyleSheet.create({
         letterSpacing: 1
     },
     equivalenciasTable: {
-        flex: 1,
         flexDirection: 'row',
         backgroundColor: EQUIVALENCIAS_PDF_COLORS.bodyBg,
         borderWidth: 1,
-        borderColor: EQUIVALENCIAS_PDF_COLORS.border,
-        borderRadius: 4,
-        overflow: 'hidden'
+        borderColor: EQUIVALENCIAS_PDF_COLORS.border
     },
     equivalenciasColumn: {
         flex: 1,
@@ -327,7 +324,7 @@ const styles = StyleSheet.create({
     },
     equivalenciasColumnBody: {
         paddingVertical: 8,
-        paddingHorizontal: 7
+        paddingHorizontal: 6
     },
     equivalenciasNote: {
         fontSize: 7,
@@ -344,12 +341,27 @@ const styles = StyleSheet.create({
         marginBottom: 3,
         letterSpacing: 0.3
     },
-    equivalenciasItem: {
+    equivalenciasItemRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 2.5
+    },
+    equivalenciasItemName: {
+        flexGrow: 1,
+        flexShrink: 1,
         fontSize: 7.5,
         fontFamily: 'Helvetica',
         color: EQUIVALENCIAS_PDF_COLORS.text,
-        marginBottom: 2.5,
-        lineHeight: 1.2
+        lineHeight: 1.2,
+        paddingRight: 4
+    },
+    equivalenciasItemAmount: {
+        flexShrink: 0,
+        fontSize: 7.5,
+        fontFamily: 'Helvetica-Bold',
+        color: EQUIVALENCIAS_PDF_COLORS.text,
+        lineHeight: 1.2,
+        textAlign: 'right'
     }
 });
 
@@ -945,70 +957,109 @@ function PlanEquivalenciasPage({
         return null;
     }
 
+    const pages = paginateEquivalenciasColumns(columns);
+
     return (
-        <Page size='A3' style={styles.page}>
-            <View fixed style={styles.backgroundLayer}>
-                <Image src={letterheadSrc} style={styles.backgroundImage} />
-            </View>
+        <>
+            {pages.map((pageColumns, pageIndex) => (
+                <Page
+                    key={`equivalencias-page-${pageIndex}`}
+                    size='A3'
+                    style={styles.page}>
+                    <View fixed style={styles.backgroundLayer}>
+                        <Image
+                            src={letterheadSrc}
+                            style={styles.backgroundImage}
+                        />
+                    </View>
 
-            <View style={styles.equivalenciasContent}>
-                <Text style={styles.equivalenciasTitle}>Equivalencias</Text>
+                    <View style={styles.equivalenciasContent}>
+                        <Text style={styles.equivalenciasTitle}>
+                            {pageIndex === 0
+                                ? 'Equivalencias'
+                                : 'Equivalencias (cont.)'}
+                        </Text>
 
-                <View style={styles.equivalenciasTable}>
-                    {columns.map((column, columnIndex) => (
-                        <View
-                            key={column.key}
-                            style={
-                                columnIndex === columns.length - 1
-                                    ? [
-                                          styles.equivalenciasColumn,
-                                          styles.equivalenciasColumnLast
-                                      ]
-                                    : styles.equivalenciasColumn
-                            }>
-                            <View style={styles.equivalenciasColumnHeader}>
-                                <Text style={styles.equivalenciasColumnHeaderText}>
-                                    {column.title}
-                                </Text>
-                            </View>
-                            <View style={styles.equivalenciasColumnBody}>
-                                {column.lines.map((line, lineIndex) => {
-                                    if (line.kind === 'note') {
-                                        return (
-                                            <Text
-                                                key={`${column.key}-note-${lineIndex}`}
-                                                style={styles.equivalenciasNote}>
-                                                {line.text}
-                                            </Text>
-                                        );
-                                    }
-
-                                    if (line.kind === 'subheader') {
-                                        return (
-                                            <Text
-                                                key={`${column.key}-sub-${lineIndex}`}
-                                                style={
-                                                    styles.equivalenciasSubheader
-                                                }>
-                                                {line.text}
-                                            </Text>
-                                        );
-                                    }
-
-                                    return (
+                        <View style={styles.equivalenciasTable}>
+                            {pageColumns.map((column, columnIndex) => (
+                                <View
+                                    key={`${column.key}-page-${pageIndex}`}
+                                    style={
+                                        columnIndex === pageColumns.length - 1
+                                            ? [
+                                                  styles.equivalenciasColumn,
+                                                  styles.equivalenciasColumnLast
+                                              ]
+                                            : styles.equivalenciasColumn
+                                    }>
+                                    <View
+                                        style={
+                                            styles.equivalenciasColumnHeader
+                                        }>
                                         <Text
-                                            key={`${column.key}-item-${lineIndex}`}
-                                            style={styles.equivalenciasItem}>
-                                            {line.text}
+                                            style={
+                                                styles.equivalenciasColumnHeaderText
+                                            }>
+                                            {column.title}
                                         </Text>
-                                    );
-                                })}
-                            </View>
+                                    </View>
+                                    <View style={styles.equivalenciasColumnBody}>
+                                        {column.lines.map((line, lineIndex) => {
+                                            if (line.kind === 'note') {
+                                                return (
+                                                    <Text
+                                                        key={`${column.key}-note-${pageIndex}-${lineIndex}`}
+                                                        style={
+                                                            styles.equivalenciasNote
+                                                        }>
+                                                        {line.text}
+                                                    </Text>
+                                                );
+                                            }
+
+                                            if (line.kind === 'subheader') {
+                                                return (
+                                                    <Text
+                                                        key={`${column.key}-sub-${pageIndex}-${lineIndex}`}
+                                                        style={
+                                                            styles.equivalenciasSubheader
+                                                        }>
+                                                        {line.text}
+                                                    </Text>
+                                                );
+                                            }
+
+                                            return (
+                                                <View
+                                                    key={`${column.key}-item-${pageIndex}-${lineIndex}`}
+                                                    style={
+                                                        styles.equivalenciasItemRow
+                                                    }>
+                                                    <Text
+                                                        style={
+                                                            styles.equivalenciasItemName
+                                                        }>
+                                                        {line.name}
+                                                    </Text>
+                                                    {line.amount ? (
+                                                        <Text
+                                                            style={
+                                                                styles.equivalenciasItemAmount
+                                                            }>
+                                                            {line.amount}
+                                                        </Text>
+                                                    ) : null}
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            ))}
                         </View>
-                    ))}
-                </View>
-            </View>
-        </Page>
+                    </View>
+                </Page>
+            ))}
+        </>
     );
 }
 
