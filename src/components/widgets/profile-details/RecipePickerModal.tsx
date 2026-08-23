@@ -213,7 +213,7 @@ interface RecipePickerModalProps {
     mealType: MealType;
     targetCalories?: number;
     macroTarget?: MacroKcalTarget;
-    /** Recipe IDs already used in other weeks — hidden when replacing in a multi-week plan. */
+    /** Recipe IDs already used in other weeks (any meal) — hidden when replacing in a multi-week plan. */
     excludedRecipeIds?: string[];
     onClose: () => void;
     onSelect: (meal: MealSlot) => void;
