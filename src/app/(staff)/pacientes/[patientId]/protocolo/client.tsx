@@ -39,7 +39,10 @@ import {
 import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
 import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
-import {collectRecipeIdsUsedInOtherWeeks} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {
+    collectRecipeIdsUsedInOtherWeeks,
+    collectRecipeIdsUsedOnSameDay
+} from '@/lib/services/protocol/protocol-week-recipe-schedule';
 import type {ProtocolDraftSnapshot} from '@/lib/services/protocol/protocol-week-plan.service';
 import {
     countWeeksInPlan,
@@ -1302,8 +1305,13 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     macroTarget={getMacroTargetsForMeal(
                         selectedDayMeal.mealType
                     )}
-                    excludedRecipeIds={
-                        countWeeksInPlan(weekPlan) > 1
+                    excludedRecipeIds={[
+                        ...collectRecipeIdsUsedOnSameDay(
+                            weekPlan,
+                            selectedDayMeal.day,
+                            selectedDayMeal.mealType
+                        ),
+                        ...(countWeeksInPlan(weekPlan) > 1
                             ? [
                                   ...collectRecipeIdsUsedInOtherWeeks(
                                       weekPlan,
@@ -1312,8 +1320,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                                       parseWeekIndexFromDayLabel
                                   )
                               ]
-                            : []
-                    }
+                            : [])
+                    ]}
                     onClose={() => {
                         setRecipeModalOpen(false);
                         setSelectedDayMeal(null);

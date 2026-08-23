@@ -4,10 +4,7 @@ import {MealType} from '@prisma/client';
 import {prisma} from '@/lib/prisma';
 import {GenerateProtocolPlanInput} from '@/lib/validations/protocol-generation.schema';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
-import {
-    buildMultiMealWeeklySchedules,
-    buildWeeklyRecipeSchedule
-} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {buildMultiMealWeeklySchedules} from '@/lib/services/protocol/protocol-week-recipe-schedule';
 import {getAppSettings} from '@/lib/services/settings/app-settings.service';
 import {
     applyMixableMainMealsCatalog,
@@ -816,34 +813,17 @@ export async function generateProtocolPlanForPatient(
         .reduce((sum, char) => sum + char.charCodeAt(0), 0);
 
     const activeMealKeys = activeMealOrder.map(meal => meal.toLowerCase());
-    const mixableMealKeys = mixMainMeals
+    const sharedPoolKeys = mixMainMeals
         ? MIXABLE_MAIN_MEAL_KEYS.filter(key => activeMealKeys.includes(key))
         : [];
-    const mixableMealKeySet = new Set<string>(mixableMealKeys);
-    const independentMealKeys = activeMealKeys.filter(
-        key => !mixableMealKeySet.has(key)
-    );
 
-    const weeklySchedulesByMeal: Record<string, RecipeSummary[][]> = {
-        ...Object.fromEntries(
-            independentMealKeys.map(key => [
-                key,
-                buildWeeklyRecipeSchedule(
-                    catalog[key],
-                    weekCount,
-                    shuffleSeed + key.length
-                )
-            ])
-        ),
-        ...(mixableMealKeys.length > 0
-            ? buildMultiMealWeeklySchedules(
-                  catalog,
-                  mixableMealKeys,
-                  weekCount,
-                  shuffleSeed
-              )
-            : {})
-    };
+    const weeklySchedulesByMeal = buildMultiMealWeeklySchedules(
+        catalog,
+        activeMealKeys,
+        weekCount,
+        shuffleSeed,
+        sharedPoolKeys
+    );
 
     const weekPlan: DayMeals[] = [];
 

@@ -66,45 +66,6 @@ export function partitionRecipesAcrossWeeks<T extends SchedulableRecipe>(
     return partitions;
 }
 
-/**
- * Seven day slots for one week: spread recipes evenly, allow repeats when the
- * pool is small, but never place the same recipe on consecutive days.
- */
-function buildWeekDaySlots<T extends SchedulableRecipe>(
-    recipes: T[],
-    weekIndex: number,
-    shuffleSeed: number
-): T[] {
-    if (recipes.length === 0) {
-        return [];
-    }
-
-    if (recipes.length === 1) {
-        return Array.from({length: DAYS_PER_WEEK}, () => recipes[0]);
-    }
-
-    const shuffled = shuffleRecipes(recipes, shuffleSeed + weekIndex * 31);
-    const slots: T[] = [];
-    const useCount = new Map<string, number>();
-
-    for (let day = 0; day < DAYS_PER_WEEK; day++) {
-        const previousId = slots[day - 1]?.id;
-
-        const candidates = shuffled
-            .filter(recipe => recipe.id !== previousId)
-            .sort(
-                (a, b) =>
-                    (useCount.get(a.id) ?? 0) - (useCount.get(b.id) ?? 0)
-            );
-
-        const picked = candidates[0] ?? shuffled[0];
-        slots.push(picked);
-        useCount.set(picked.id, (useCount.get(picked.id) ?? 0) + 1);
-    }
-
-    return slots;
-}
-
 function uniqueRecipesById<T extends SchedulableRecipe>(recipes: T[]): T[] {
     const seen = new Set<string>();
     const unique: T[] = [];
@@ -120,6 +81,134 @@ function uniqueRecipesById<T extends SchedulableRecipe>(recipes: T[]): T[] {
     return unique;
 }
 
+function rankByUseCount<T extends SchedulableRecipe>(
+    recipes: T[],
+    useCount: Map<string, number>
+): T[] {
+    return [...recipes].sort(
+        (a, b) => (useCount.get(a.id) ?? 0) - (useCount.get(b.id) ?? 0)
+    );
+}
+
+/**
+ * Prefer a recipe not used earlier today and not used on the previous day
+ * for this slot. Falls back only when the pool is too small.
+ */
+function pickRecipeForSlot<T extends SchedulableRecipe>(
+    pool: T[],
+    usedToday: Set<string>,
+    previousId: string | undefined,
+    useCount: Map<string, number>
+): T | undefined {
+    if (pool.length === 0) {
+        return undefined;
+    }
+
+    if (pool.length === 1) {
+        return pool[0];
+    }
+
+    const uniqueTodayAndNotPrevious = pool.filter(
+        recipe => !usedToday.has(recipe.id) && recipe.id !== previousId
+    );
+    if (uniqueTodayAndNotPrevious.length > 0) {
+        return rankByUseCount(uniqueTodayAndNotPrevious, useCount)[0];
+    }
+
+    const uniqueToday = pool.filter(recipe => !usedToday.has(recipe.id));
+    if (uniqueToday.length > 0) {
+        return rankByUseCount(uniqueToday, useCount)[0];
+    }
+
+    const notPrevious = pool.filter(recipe => recipe.id !== previousId);
+    if (notPrevious.length > 0) {
+        return rankByUseCount(notPrevious, useCount)[0];
+    }
+
+    return rankByUseCount(pool, useCount)[0];
+}
+
+function resolveWeekPool<T extends SchedulableRecipe>(
+    mealCatalog: T[],
+    weekRecipes: T[],
+    otherWeekIds: Set<string>
+): T[] {
+    const weekIds = new Set(weekRecipes.map(recipe => recipe.id));
+    const weekPool = mealCatalog.filter(recipe => weekIds.has(recipe.id));
+    if (weekPool.length > 0) {
+        return weekPool;
+    }
+
+    const uniquePool = mealCatalog.filter(
+        recipe => !otherWeekIds.has(recipe.id)
+    );
+    if (uniquePool.length > 0) {
+        return uniquePool;
+    }
+
+    return mealCatalog;
+}
+
+function buildWeekPoolsForMeals<T extends SchedulableRecipe>(
+    catalog: Record<string, T[]>,
+    mealKeys: string[],
+    weekCount: number,
+    shuffleSeed: number,
+    sharedPoolKeys: string[]
+): Record<string, T[][]> {
+    const pools: Record<string, T[][]> = {};
+    const sharedKeySet = new Set(sharedPoolKeys);
+    const sharedKeys = mealKeys.filter(key => sharedKeySet.has(key));
+    const independentKeys = mealKeys.filter(key => !sharedKeySet.has(key));
+
+    if (sharedKeys.length > 0) {
+        const union = uniqueRecipesById(
+            sharedKeys.flatMap(key => catalog[key] ?? [])
+        );
+        const partitions = partitionRecipesAcrossWeeks(
+            union,
+            weekCount,
+            shuffleSeed,
+            DAYS_PER_WEEK * sharedKeys.length
+        );
+
+        for (const mealKey of sharedKeys) {
+            pools[mealKey] = partitions.map((weekRecipes, weekIndex) => {
+                const otherWeekIds = new Set(
+                    partitions.flatMap((recipes, index) =>
+                        index === weekIndex ? [] : recipes.map(recipe => recipe.id)
+                    )
+                );
+                return resolveWeekPool(
+                    catalog[mealKey] ?? [],
+                    weekRecipes,
+                    otherWeekIds
+                );
+            });
+        }
+    }
+
+    for (const [mealOffset, mealKey] of independentKeys.entries()) {
+        const mealCatalog = catalog[mealKey] ?? [];
+        const partitions = partitionRecipesAcrossWeeks(
+            mealCatalog,
+            weekCount,
+            shuffleSeed + mealOffset * 19 + mealKey.length
+        );
+
+        pools[mealKey] = partitions.map((weekRecipes, weekIndex) => {
+            const otherWeekIds = new Set(
+                partitions.flatMap((recipes, index) =>
+                    index === weekIndex ? [] : recipes.map(recipe => recipe.id)
+                )
+            );
+            return resolveWeekPool(mealCatalog, weekRecipes, otherWeekIds);
+        });
+    }
+
+    return pools;
+}
+
 /**
  * Builds one 7-day recipe row per week for a meal type.
  * Each week uses a disjoint recipe set so menus do not repeat across weeks.
@@ -131,31 +220,31 @@ export function buildWeeklyRecipeSchedule<T extends SchedulableRecipe>(
     weekCount: number,
     shuffleSeed: number
 ): T[][] {
-    if (recipes.length === 0) {
-        return [];
-    }
-
-    const partitions = partitionRecipesAcrossWeeks(
-        recipes,
-        weekCount,
-        shuffleSeed
+    return (
+        buildMultiMealWeeklySchedules(
+            {meal: recipes},
+            ['meal'],
+            weekCount,
+            shuffleSeed
+        ).meal ?? []
     );
-
-    return partitions.map((weekRecipes, weekIndex) => {
-        const pool = weekRecipes.length > 0 ? weekRecipes : recipes;
-        return buildWeekDaySlots(pool, weekIndex, shuffleSeed);
-    });
 }
 
 /**
- * Schedules several meal types from one shared catalog, keeping recipe IDs
- * unique across weeks. Used when breakfast/lunch/dinner share a pool.
+ * Schedules meal types together so:
+ * - weeks use disjoint recipe sets
+ * - the same recipe is not used twice on the same day
+ * - the same recipe is not used on consecutive days of the same meal
+ *
+ * `sharedPoolKeys` (breakfast/lunch/dinner when mixing is on) share one
+ * catalog and one per-week partition.
  */
 export function buildMultiMealWeeklySchedules<T extends SchedulableRecipe>(
     catalog: Record<string, T[]>,
     mealKeys: string[],
     weekCount: number,
-    shuffleSeed: number
+    shuffleSeed: number,
+    sharedPoolKeys: string[] = []
 ): Record<string, T[][]> {
     const schedules: Record<string, T[][]> = Object.fromEntries(
         mealKeys.map(key => [key, []])
@@ -165,53 +254,43 @@ export function buildMultiMealWeeklySchedules<T extends SchedulableRecipe>(
         return schedules;
     }
 
-    const union = uniqueRecipesById(
-        mealKeys.flatMap(key => catalog[key] ?? [])
-    );
-
-    if (union.length === 0) {
-        return schedules;
-    }
-
-    const partitions = partitionRecipesAcrossWeeks(
-        union,
+    const weekPools = buildWeekPoolsForMeals(
+        catalog,
+        mealKeys,
         weekCount,
         shuffleSeed,
-        DAYS_PER_WEEK * mealKeys.length
+        sharedPoolKeys
     );
+    const safeWeekCount = Math.max(1, weekCount);
 
-    for (let weekIndex = 0; weekIndex < partitions.length; weekIndex++) {
-        const weekIds = new Set(partitions[weekIndex].map(recipe => recipe.id));
-        const otherWeekIds = new Set(
-            partitions.flatMap((weekRecipes, index) =>
-                index === weekIndex
-                    ? []
-                    : weekRecipes.map(recipe => recipe.id)
-            )
-        );
+    for (let weekIndex = 0; weekIndex < safeWeekCount; weekIndex++) {
+        const useCount = new Map<string, number>();
 
-        for (const [mealOffset, mealKey] of mealKeys.entries()) {
-            const mealCatalog = catalog[mealKey] ?? [];
-            const weekPool = mealCatalog.filter(recipe =>
-                weekIds.has(recipe.id)
-            );
-            const uniquePool = mealCatalog.filter(
-                recipe => !otherWeekIds.has(recipe.id)
-            );
-            const pool =
-                weekPool.length > 0
-                    ? weekPool
-                    : uniquePool.length > 0
-                      ? uniquePool
-                      : mealCatalog;
+        for (const mealKey of mealKeys) {
+            schedules[mealKey].push([]);
+        }
 
-            schedules[mealKey].push(
-                buildWeekDaySlots(
+        for (let day = 0; day < DAYS_PER_WEEK; day++) {
+            const usedToday = new Set<string>();
+
+            for (const mealKey of mealKeys) {
+                const pool = weekPools[mealKey]?.[weekIndex] ?? [];
+                const previousId = schedules[mealKey][weekIndex][day - 1]?.id;
+                const picked = pickRecipeForSlot(
                     pool,
-                    weekIndex,
-                    shuffleSeed + mealOffset * 19
-                )
-            );
+                    usedToday,
+                    previousId,
+                    useCount
+                );
+
+                if (!picked) {
+                    continue;
+                }
+
+                schedules[mealKey][weekIndex].push(picked);
+                usedToday.add(picked.id);
+                useCount.set(picked.id, (useCount.get(picked.id) ?? 0) + 1);
+            }
         }
     }
 
@@ -241,6 +320,31 @@ export function collectRecipeIdsUsedInOtherWeeks<T extends {day: string}>(
             if (slot?.id) {
                 ids.add(slot.id);
             }
+        }
+    }
+
+    return ids;
+}
+
+export function collectRecipeIdsUsedOnSameDay<T extends {day: string}>(
+    weekPlan: T[],
+    currentDayLabel: string,
+    currentMealKey: string
+): Set<string> {
+    const ids = new Set<string>();
+    const day = weekPlan.find(item => item.day === currentDayLabel);
+    if (!day) {
+        return ids;
+    }
+
+    for (const [key, value] of Object.entries(day)) {
+        if (key === 'day' || key === currentMealKey) {
+            continue;
+        }
+
+        const slot = value as {id?: string} | undefined;
+        if (slot?.id) {
+            ids.add(slot.id);
         }
     }
 
