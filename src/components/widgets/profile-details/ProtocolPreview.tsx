@@ -20,9 +20,7 @@ import {
     MealIngredientPortion,
     MealSlot
 } from '@/lib/interface/meal-interface';
-import {
-    formatScaledIngredientDisplay
-} from '@/lib/services/protocol/protocol-meal-portions.mapper';
+import {formatMealPortionDisplay} from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {AnimatePresence, motion} from 'framer-motion';
 import {
     Beef,
@@ -103,24 +101,7 @@ function toEditableSteps(instructions?: string[]): EditableStep[] {
 }
 
 function getDisplayAmount(portion: MealIngredientPortion) {
-    const {amount, unit} = formatScaledIngredientDisplay(
-        {
-            unit: portion.unit ?? 'GRAM',
-            targetGrams: portion.targetGrams,
-            targetQuantity: portion.targetQuantity ?? portion.targetGrams,
-            isDiscrete: portion.isDiscrete
-        },
-        {
-            quantity: portion.baseQuantity ?? portion.targetQuantity ?? null,
-            grams: portion.baseGrams || portion.targetGrams,
-            unit: portion.unit ?? 'GRAM'
-        }
-    );
-
-    const unitLabel =
-        unit === 'taza' ? 'tz' : unit === 'cdta' ? 'cdita' : unit;
-
-    return {amount, unitLabel};
+    return formatMealPortionDisplay(portion);
 }
 
 function formatPortionIngredientLine(portion: MealIngredientPortion): string {

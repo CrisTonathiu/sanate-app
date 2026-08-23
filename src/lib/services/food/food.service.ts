@@ -9,6 +9,7 @@ import {
     UpdateFoodInput,
     updateFoodSchema
 } from '@/lib/validations/food.schema';
+import {portionQuantityToGrams} from '@/lib/utils/food-portion-limits';
 import {ZodError} from 'zod';
 
 const foodInclude = {
@@ -19,6 +20,24 @@ const foodInclude = {
         }
     }
 } as const;
+
+function cachedMaxPortionGrams(input: {
+    maxPortionQuantity?: number | null;
+    maxPortionUnit?: string | null;
+    maxPortionGrams?: number | null;
+    density?: number | null;
+    gramsPerPiece?: number | null;
+}): number | null {
+    const fromQuantity = portionQuantityToGrams(
+        input.maxPortionQuantity,
+        input.maxPortionUnit,
+        input
+    );
+    if (fromQuantity != null) {
+        return fromQuantity;
+    }
+    return input.maxPortionGrams ?? null;
+}
 
 export async function getAllFoods() {
     try {
@@ -82,7 +101,14 @@ export async function createFood(input: CreateFoodInput) {
                 caloriesPer100g: validatedInput.caloriesPer100g ?? null,
                 density: validatedInput.density ?? null,
                 isDiscrete: validatedInput.isDiscrete ?? false,
-                maxPortionGrams: validatedInput.maxPortionGrams ?? null,
+                gramsPerPiece: validatedInput.isDiscrete
+                    ? (validatedInput.gramsPerPiece ?? null)
+                    : null,
+                minPortionQuantity: validatedInput.minPortionQuantity ?? null,
+                minPortionUnit: validatedInput.minPortionUnit ?? null,
+                maxPortionQuantity: validatedInput.maxPortionQuantity ?? null,
+                maxPortionUnit: validatedInput.maxPortionUnit ?? null,
+                maxPortionGrams: cachedMaxPortionGrams(validatedInput),
                 gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
                 equivalentDisplayText:
                     validatedInput.equivalentDisplayText ?? null,
@@ -188,7 +214,14 @@ export async function updateFood(foodId: FoodIdInput, input: UpdateFoodInput) {
                 caloriesPer100g: validatedInput.caloriesPer100g ?? null,
                 density: validatedInput.density ?? null,
                 isDiscrete: validatedInput.isDiscrete ?? false,
-                maxPortionGrams: validatedInput.maxPortionGrams ?? null,
+                gramsPerPiece: validatedInput.isDiscrete
+                    ? (validatedInput.gramsPerPiece ?? null)
+                    : null,
+                minPortionQuantity: validatedInput.minPortionQuantity ?? null,
+                minPortionUnit: validatedInput.minPortionUnit ?? null,
+                maxPortionQuantity: validatedInput.maxPortionQuantity ?? null,
+                maxPortionUnit: validatedInput.maxPortionUnit ?? null,
+                maxPortionGrams: cachedMaxPortionGrams(validatedInput),
                 gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
                 equivalentDisplayText:
                     validatedInput.equivalentDisplayText ?? null,

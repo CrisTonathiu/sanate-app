@@ -3,7 +3,7 @@
 import {Button} from '@/components/ui/button';
 import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
-import {formatScaledIngredientDisplay} from '@/lib/services/protocol/protocol-meal-portions.mapper';
+import {formatMealPortionDisplay} from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {Coffee, Apple, Sun, Moon, Replace, Pencil} from 'lucide-react';
 import {useState} from 'react';
 import MealEditModal from './MealEditModal';
@@ -51,22 +51,7 @@ export default function MealCell({
         unit?: string;
         isDiscrete?: boolean;
     }) => {
-        const {amount, unit} = formatScaledIngredientDisplay(
-            {
-                unit: portion.unit ?? 'GRAM',
-                targetGrams: portion.targetGrams,
-                targetQuantity: portion.targetQuantity ?? portion.targetGrams,
-                isDiscrete: portion.isDiscrete
-            },
-            {
-                quantity: portion.baseQuantity ?? portion.targetQuantity ?? null,
-                grams: portion.baseGrams || portion.targetGrams,
-                unit: portion.unit ?? 'GRAM'
-            }
-        );
-
-        const unitLabel =
-            unit === 'taza' ? 'tz' : unit === 'cdta' ? 'cdita' : unit;
+        const {amount, unitLabel} = formatMealPortionDisplay(portion);
 
         return {amount, unitLabel};
     };
@@ -177,16 +162,18 @@ export default function MealCell({
                         </span>
                     )}
 
-                    {meal.isRealistic === false &&
-                        meal.warnings &&
-                        meal.warnings.length > 0 && (
+                    {meal.warnings && meal.warnings.length > 0 && (
                             <div className='mt-1 flex flex-col gap-0.5'>
                                 <button
                                     type='button'
                                     onClick={() =>
                                         setShowWarnings(prev => !prev)
                                     }
-                                    className='w-fit text-left text-xs font-medium text-red-500 transition-colors hover:text-red-600'>
+                                    className={`w-fit text-left text-xs font-medium transition-colors ${
+                                        meal.isRealistic === false
+                                            ? 'text-red-500 hover:text-red-600'
+                                            : 'text-amber-600 hover:text-amber-700'
+                                    }`}>
                                     ⚠ {meal.warnings.length}{' '}
                                     {meal.warnings.length === 1
                                         ? 'advertencia'
@@ -197,7 +184,11 @@ export default function MealCell({
                                     meal.warnings.map((w, i) => (
                                         <span
                                             key={i}
-                                            className='text-xs text-red-500'>
+                                            className={`text-xs ${
+                                                meal.isRealistic === false
+                                                    ? 'text-red-500'
+                                                    : 'text-amber-700'
+                                            }`}>
                                             ⚠ {w}
                                         </span>
                                     ))}

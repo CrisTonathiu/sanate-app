@@ -5,7 +5,9 @@ import {useGetRecipes, Recipe} from '@/hooks/use-recipes';
 import {useGetAppSettings} from '@/hooks/use-app-settings';
 import {getAllowedRecipeTypesForSlot} from '@/lib/utils/mix-main-meals';
 import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
+import {collectRecipeProteinFamilies, proteinVarietyRank} from '@/lib/utils/protein-family';
 import {normalizeExtraIngredientNames} from '@/lib/utils/extra-ingredients';
+import {resolveFoodPortionGramsFromCatalog} from '@/lib/utils/food-portion-limits';
 import {
     MealType,
     mealTypeConfig,
@@ -16,8 +18,9 @@ import {
     resolveIngredientNutritionGrams
 } from '@/lib/utils/ingredient-quantity';
 import {
+    buildMacroAdjustmentWarnings,
     computeIngredientScalesForMacros,
-    correctPortionsToTargetCalories,
+    finalizePortionsToMealTargets,
     scaleIngredientByFactor,
     type MacroKcalTarget
 } from '@/lib/utils/recipe-macro-scale';
@@ -72,7 +75,8 @@ function computeNutrition(recipe: Recipe) {
             item.quantity,
             item.unit,
             item.grams,
-            food?.density
+            food?.density,
+            food?.gramsPerPiece
         );
         const ratio = grams / 100;
         protein += (food.proteinPer100g ?? 0) * ratio;
@@ -128,7 +132,8 @@ function recipeToMealSlot(
             carbsPer100g: food?.carbsPer100g ?? 0,
             fatPer100g: food?.fatPer100g ?? 0,
             isDiscrete: food?.isDiscrete ?? false,
-            density: food?.density
+            density: food?.density,
+            gramsPerPiece: food?.gramsPerPiece
         };
     });
 
@@ -149,6 +154,7 @@ function recipeToMealSlot(
             const scale = scales[index] ?? 1;
             const scaled = scaleIngredientByFactor(scalable, scale);
             const food = item.ingredient?.food;
+            const limits = resolveFoodPortionGramsFromCatalog(food);
             const kcal =
                 food?.caloriesPer100g != null
                     ? food.caloriesPer100g
@@ -164,6 +170,8 @@ function recipeToMealSlot(
                 targetGrams: scaled.targetGrams,
                 unit: scaled.unit,
                 isDiscrete: scaled.isDiscrete,
+                minGrams: limits.minGrams,
+                maxGrams: limits.maxGrams,
                 baseCalories: kcal ?? 0,
                 baseProtein: food?.proteinPer100g ?? 0,
                 baseCarbs: food?.carbsPer100g ?? 0,
@@ -172,9 +180,10 @@ function recipeToMealSlot(
         }
     );
 
-    ingredientPortions = correctPortionsToTargetCalories(
+    ingredientPortions = finalizePortionsToMealTargets(
         ingredientPortions,
-        plannedCalories
+        plannedCalories,
+        macroTarget
     );
 
     const portionTotals = ingredientPortions.reduce(
@@ -190,6 +199,11 @@ function recipeToMealSlot(
         {calories: 0, protein: 0, carbs: 0, fat: 0}
     );
 
+    const warnings = buildMacroAdjustmentWarnings(
+        ingredientPortions,
+        macroTarget
+    );
+
     return {
         id: recipe.id,
         recipeName: recipe.title,
@@ -199,6 +213,8 @@ function recipeToMealSlot(
         carbs: round1(portionTotals.carbs),
         fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
+        warnings,
+        isRealistic: true,
         ingredientPortions,
         instructions: [...(recipe.steps ?? [])]
             .sort((a, b) => a.stepNumber - b.stepNumber)
@@ -213,8 +229,10 @@ interface RecipePickerModalProps {
     mealType: MealType;
     targetCalories?: number;
     macroTarget?: MacroKcalTarget;
-    /** Recipe IDs already used in other weeks — hidden when replacing in a multi-week plan. */
+    /** Recipe IDs already used in other weeks (any meal) — hidden when replacing in a multi-week plan. */
     excludedRecipeIds?: string[];
+    /** Protein types already used in other meals of this day (eggs, chicken, fish, …). */
+    excludedProteinFamilies?: string[];
     onClose: () => void;
     onSelect: (meal: MealSlot) => void;
 }
@@ -225,6 +243,7 @@ export default function RecipePickerModal({
     targetCalories,
     macroTarget,
     excludedRecipeIds = [],
+    excludedProteinFamilies = [],
     onClose,
     onSelect
 }: RecipePickerModalProps) {
@@ -238,12 +257,16 @@ export default function RecipePickerModal({
         () => new Set(excludedRecipeIds),
         [excludedRecipeIds]
     );
+    const excludedProteins = useMemo(
+        () => new Set(excludedProteinFamilies),
+        [excludedProteinFamilies]
+    );
 
     const filtered = useMemo(() => {
         const allowed = mixMainMeals
             ? getAllowedRecipeTypesForSlot(mealType, true)
             : (MEAL_TYPE_MAP[mealType] ?? []);
-        return filterRecipesByMacroFoodGroups(
+        const candidates = filterRecipesByMacroFoodGroups(
             allRecipes
                 .filter(r => allowed.includes(r.mealType))
                 .filter(r => !excluded.has(r.id))
@@ -256,7 +279,28 @@ export default function RecipePickerModal({
                 ),
             macroTarget
         );
-    }, [allRecipes, mealType, search, excluded, mixMainMeals, macroTarget]);
+
+        return [...candidates].sort((a, b) => {
+            return (
+                proteinVarietyRank(
+                    collectRecipeProteinFamilies(a),
+                    excludedProteins
+                ) -
+                proteinVarietyRank(
+                    collectRecipeProteinFamilies(b),
+                    excludedProteins
+                )
+            );
+        });
+    }, [
+        allRecipes,
+        mealType,
+        search,
+        excluded,
+        excludedProteins,
+        mixMainMeals,
+        macroTarget
+    ]);
 
     function handleSelect(recipe: Recipe) {
         onSelect(recipeToMealSlot(recipe, targetCalories, macroTarget));
@@ -290,6 +334,13 @@ export default function RecipePickerModal({
                         />
                     </div>
                 </div>
+                {excludedProteinFamilies.length > 0 && (
+                    <p className='text-xs text-muted-foreground'>
+                        Primero aparecen recetas con otra proteína, para no
+                        repetir la de hoy. Las que no llegan al objetivo de
+                        proteína quedan al final.
+                    </p>
+                )}
 
                 <div className='flex-1 overflow-y-auto mt-4 pr-2'>
                     {isPending && (

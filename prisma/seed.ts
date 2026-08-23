@@ -303,7 +303,15 @@ async function main() {
     }
 
     // PROTEÍNAS
-    const proteins = [
+    const proteins: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        isDiscrete?: boolean;
+        gramsPerPiece?: number;
+    }> = [
         {name: 'Bistec de res', protein: 26, carbs: 0, fat: 15, calories: 250},
         {name: 'Camarones', protein: 24, carbs: 0.2, fat: 0.3, calories: 99},
         {
@@ -327,13 +335,23 @@ async function main() {
             fat: 5,
             calories: 120
         },
-        {name: 'Huevo entero', protein: 13, carbs: 1.1, fat: 11, calories: 155},
+        {
+            name: 'Huevo entero',
+            protein: 13,
+            carbs: 1.1,
+            fat: 11,
+            calories: 155,
+            isDiscrete: true,
+            gramsPerPiece: 50
+        },
         {
             name: 'Huevo estrellado',
             protein: 6.3,
             carbs: 0.38,
             fat: 6.8,
-            calories: 90
+            calories: 90,
+            isDiscrete: true,
+            gramsPerPiece: 50
         },
         {name: 'Lata de salmón', protein: 25, carbs: 0, fat: 13, calories: 200},
         {
@@ -380,7 +398,13 @@ async function main() {
             proteinPer100g: protein.protein,
             carbsPer100g: protein.carbs,
             fatPer100g: protein.fat,
-            caloriesPer100g: protein.calories
+            caloriesPer100g: protein.calories,
+            ...(protein.isDiscrete
+                ? {
+                      isDiscrete: true,
+                      gramsPerPiece: protein.gramsPerPiece
+                  }
+                : {})
         };
 
         await prisma.food.create({
@@ -414,7 +438,14 @@ async function main() {
     }
 
     // FRUTAS
-    const fruits = [
+    const fruits: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        density?: number;
+    }> = [
         {name: 'Manzana', protein: 0.3, carbs: 14, fat: 0.2, calories: 52},
         {name: 'Plátano', protein: 1.3, carbs: 23, fat: 0.3, calories: 89},
         {name: 'Naranja', protein: 0.9, carbs: 12, fat: 0.1, calories: 47},
@@ -424,7 +455,15 @@ async function main() {
         {name: 'Papaya', protein: 0.5, carbs: 11, fat: 0.3, calories: 43},
         {name: 'Piña', protein: 0.5, carbs: 13, fat: 0.1, calories: 50},
         {name: 'Sandía', protein: 0.6, carbs: 8, fat: 0.2, calories: 30},
-        {name: 'Uva', protein: 0.6, carbs: 17, fat: 0.2, calories: 69},
+        {
+            name: 'Uva',
+            protein: 0.6,
+            carbs: 17,
+            fat: 0.2,
+            calories: 69,
+            // uva entera: 1 taza ≈ 151 g (USDA/FatSecret ~104 kcal), no 240 g
+            density: 0.629
+        },
         {name: 'Durazno', protein: 0.9, carbs: 10, fat: 0.3, calories: 39},
         {name: 'Toronja', protein: 0.8, carbs: 8, fat: 0.1, calories: 42},
         {name: 'Mandarina', protein: 0.8, carbs: 13, fat: 0.3, calories: 53},
@@ -440,7 +479,8 @@ async function main() {
             proteinPer100g: fruit.protein,
             carbsPer100g: fruit.carbs,
             fatPer100g: fruit.fat,
-            caloriesPer100g: fruit.calories
+            caloriesPer100g: fruit.calories,
+            ...(fruit.density != null ? {density: fruit.density} : {})
         };
         await prisma.food.create({
             data: fruitFoodData
@@ -609,6 +649,13 @@ async function main() {
         fat: number;
         calories: number;
         density?: number;
+        isDiscrete?: boolean;
+        gramsPerPiece?: number;
+        minPortionQuantity?: number;
+        minPortionUnit?: 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
+        maxPortionQuantity?: number;
+        maxPortionUnit?: 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
+        maxPortionGrams?: number;
     }> = [
         {
             name: 'Aceite de oliva',
@@ -627,7 +674,20 @@ async function main() {
             density: 0.92
         },
         {name: 'Ghee', protein: 0, carbs: 0, fat: 100, calories: 900, density: 0.91},
-        {name: 'Aguacate', protein: 2, carbs: 9, fat: 15, calories: 160}
+        {
+            name: 'Aguacate',
+            protein: 2,
+            carbs: 9,
+            fat: 15,
+            calories: 160,
+            isDiscrete: true,
+            gramsPerPiece: 200,
+            minPortionQuantity: 0.5,
+            minPortionUnit: 'PIECE' as const,
+            maxPortionQuantity: 0.5,
+            maxPortionUnit: 'PIECE' as const,
+            maxPortionGrams: 100
+        }
     ];
 
     for (const fat of fats) {
@@ -638,7 +698,23 @@ async function main() {
             carbsPer100g: fat.carbs,
             fatPer100g: fat.fat,
             caloriesPer100g: fat.calories,
-            ...(fat.density != null ? {density: fat.density} : {})
+            ...(fat.density != null ? {density: fat.density} : {}),
+            ...(fat.isDiscrete
+                ? {isDiscrete: true, gramsPerPiece: fat.gramsPerPiece}
+                : {}),
+            ...(fat.maxPortionQuantity != null
+                ? {
+                      ...(fat.minPortionQuantity != null
+                          ? {
+                                minPortionQuantity: fat.minPortionQuantity,
+                                minPortionUnit: fat.minPortionUnit
+                            }
+                          : {}),
+                      maxPortionQuantity: fat.maxPortionQuantity,
+                      maxPortionUnit: fat.maxPortionUnit,
+                      maxPortionGrams: fat.maxPortionGrams
+                  }
+                : {})
         };
         await prisma.food.create({
             data: fatFoodData
@@ -690,7 +766,14 @@ async function main() {
     }
 
     // SEMILLAS
-    const seeds = [
+    const seeds: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        density?: number;
+    }> = [
         {
             name: 'Semillas de chía',
             protein: 17,
@@ -703,7 +786,9 @@ async function main() {
             protein: 18,
             carbs: 29,
             fat: 42,
-            calories: 534
+            calories: 534,
+            // 1 cda ≈ 8.4 g (FatSecret ~45 kcal), no 15 g de agua
+            density: 0.562
         },
         {
             name: 'Semillas de calabaza',
@@ -726,10 +811,26 @@ async function main() {
             fat: 50,
             calories: 573
         },
-        {name: 'Hemp', protein: 31, carbs: 9, fat: 49, calories: 553},
+        {
+            name: 'Hemp',
+            protein: 31,
+            carbs: 9,
+            fat: 49,
+            calories: 553,
+            // hemp descascarado: 1 cda ≈ 10 g (USDA/FatSecret ~55 kcal)
+            density: 0.667
+        },
         {name: 'Aceituna verde', protein: 1, carbs: 4, fat: 15, calories: 145},
         {name: 'Aceituna negra', protein: 1, carbs: 6, fat: 15, calories: 115},
-        {name: 'Coco', protein: 3.3, carbs: 15, fat: 33, calories: 354}
+        {
+            name: 'Coco',
+            protein: 3.3,
+            carbs: 15,
+            fat: 33,
+            calories: 354,
+            // coco rallado: 1 taza ≈ 80 g (FatSecret ~283 kcal), no 240 g de agua
+            density: 0.333
+        }
     ];
 
     for (const seed of seeds) {
@@ -739,7 +840,8 @@ async function main() {
             proteinPer100g: seed.protein,
             carbsPer100g: seed.carbs,
             fatPer100g: seed.fat,
-            caloriesPer100g: seed.calories
+            caloriesPer100g: seed.calories,
+            ...(seed.density != null ? {density: seed.density} : {})
         };
         await prisma.food.create({
             data: seedFoodData

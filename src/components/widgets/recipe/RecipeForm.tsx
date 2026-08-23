@@ -52,7 +52,8 @@ import {NutritionData, RecipeFormData, Step} from '@/lib/types/recipe-type';
 import {
     parseIngredientQuantity,
     resolveIngredientNutritionGrams,
-    resolveReferenceGramsPerUnit
+    resolveReferenceGramsPerUnit,
+    snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
 import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
@@ -181,11 +182,16 @@ export function RecipeForm(props: RecipeFormProps) {
                 const uiUnit = normalizeUiUnit(ing.unit);
                 const dbUnit = toDbUnit(uiUnit);
                 const parsedQuantity = parseIngredientQuantity(ing.quantity);
+                const quantity =
+                    parsedQuantity != null && parsedQuantity > 0
+                        ? snapQuantityForUnit(parsedQuantity, dbUnit)
+                        : parsedQuantity;
                 const gramsUsed = resolveIngredientNutritionGrams(
-                    parsedQuantity,
+                    quantity,
                     dbUnit,
                     ing.gramsPerUnit,
-                    ing.foodDensity
+                    ing.foodDensity,
+                    ing.gramsPerPiece
                 );
                 const factor = gramsUsed / 100;
                 return {
@@ -231,9 +237,11 @@ export function RecipeForm(props: RecipeFormProps) {
                             matchedFood?.name ??
                             item.name?.trim() ??
                             normalizedFoodId,
-                        quantity:
+                        quantity: snapQuantityForUnit(
                             item.quantity ??
-                            (uiUnit === 'g' ? (item.grams ?? 100) : 1),
+                                (uiUnit === 'g' ? (item.grams ?? 100) : 1),
+                            dbUnit
+                        ),
                         unit: uiUnit,
                         gramsPerUnit:
                             uiUnit === 'g'
@@ -241,9 +249,11 @@ export function RecipeForm(props: RecipeFormProps) {
                                 : resolveReferenceGramsPerUnit(
                                       dbUnit,
                                       item.grams,
-                                      matchedFood?.density
+                                      matchedFood?.density,
+                                      matchedFood?.gramsPerPiece
                                   ),
                         foodDensity: matchedFood?.density ?? null,
+                        gramsPerPiece: matchedFood?.gramsPerPiece ?? null,
                         caloriesPer100g: matchedFood?.caloriesPer100g ?? 0,
                         carbohydratesPer100g: matchedFood?.carbsPer100g ?? 0,
                         proteinPer100g: matchedFood?.proteinPer100g ?? 0,
@@ -457,7 +467,8 @@ export function RecipeForm(props: RecipeFormProps) {
                         updated.gramsPerUnit = resolveReferenceGramsPerUnit(
                             toDbUnit(uiUnit),
                             undefined,
-                            updated.foodDensity
+                            updated.foodDensity,
+                            updated.gramsPerPiece
                         );
                     }
                 }
@@ -473,17 +484,39 @@ export function RecipeForm(props: RecipeFormProps) {
                         updated.foodId = food.id;
                         updated.name = food.name;
                         updated.foodDensity = food.density ?? null;
+                        updated.gramsPerPiece = food.gramsPerPiece ?? null;
                         updated.caloriesPer100g = food.caloriesPer100g ?? 0;
                         updated.carbohydratesPer100g = food.carbsPer100g ?? 0;
                         updated.proteinPer100g = food.proteinPer100g ?? 0;
                         updated.fatPer100g = food.fatPer100g ?? 0;
-                        const uiUnit = normalizeUiUnit(updated.unit);
-                        if (uiUnit !== 'g') {
-                            updated.gramsPerUnit = resolveReferenceGramsPerUnit(
-                                toDbUnit(uiUnit),
-                                undefined,
-                                food.density
+                        if (food.isDiscrete) {
+                            updated.unit = 'piece';
+                            const currentQty = parseIngredientQuantity(
+                                updated.quantity
                             );
+                            const keepQuantity =
+                                currentQty != null &&
+                                currentQty > 0 &&
+                                (normalizeUiUnit(ing.unit) === 'piece' ||
+                                    currentQty < 10);
+                            updated.quantity = keepQuantity ? currentQty : 1;
+                            updated.gramsPerUnit = resolveReferenceGramsPerUnit(
+                                'PIECE',
+                                undefined,
+                                food.density,
+                                food.gramsPerPiece
+                            );
+                        } else {
+                            const uiUnit = normalizeUiUnit(updated.unit);
+                            if (uiUnit !== 'g') {
+                                updated.gramsPerUnit =
+                                    resolveReferenceGramsPerUnit(
+                                        toDbUnit(uiUnit),
+                                        undefined,
+                                        food.density,
+                                        food.gramsPerPiece
+                                    );
+                            }
                         }
                     } else {
                         updated.foodId = undefined;
@@ -502,28 +535,47 @@ export function RecipeForm(props: RecipeFormProps) {
         const trimmedName = foodName.trim();
         const food = allFoods.find(f => f.name === trimmedName);
         setIngredients(prev =>
-            prev.map(ing =>
-                ing.id === id
-                    ? {
-                          ...ing,
-                          foodId: food?.id,
-                          name: food?.name ?? trimmedName,
-                          foodDensity: food?.density ?? null,
-                          caloriesPer100g: food?.caloriesPer100g ?? 0,
-                          carbohydratesPer100g: food?.carbsPer100g ?? 0,
-                          proteinPer100g: food?.proteinPer100g ?? 0,
-                          fatPer100g: food?.fatPer100g ?? 0,
-                          gramsPerUnit:
-                              food && normalizeUiUnit(ing.unit) !== 'g'
-                                  ? resolveReferenceGramsPerUnit(
-                                        toDbUnit(normalizeUiUnit(ing.unit)),
-                                        undefined,
-                                        food.density
-                                    )
-                                  : ing.gramsPerUnit
-                      }
-                    : ing
-            )
+            prev.map(ing => {
+                if (ing.id !== id) return ing;
+
+                const nextUnit = food?.isDiscrete
+                    ? 'piece'
+                    : ing.unit;
+                const currentQty = parseIngredientQuantity(ing.quantity);
+                const keepQuantity =
+                    currentQty != null &&
+                    currentQty > 0 &&
+                    (normalizeUiUnit(ing.unit) === 'piece' || currentQty < 10);
+                const nextQuantity =
+                    food?.isDiscrete
+                        ? keepQuantity
+                            ? currentQty
+                            : 1
+                        : ing.quantity;
+
+                return {
+                    ...ing,
+                    foodId: food?.id,
+                    name: food?.name ?? trimmedName,
+                    foodDensity: food?.density ?? null,
+                    gramsPerPiece: food?.gramsPerPiece ?? null,
+                    caloriesPer100g: food?.caloriesPer100g ?? 0,
+                    carbohydratesPer100g: food?.carbsPer100g ?? 0,
+                    proteinPer100g: food?.proteinPer100g ?? 0,
+                    fatPer100g: food?.fatPer100g ?? 0,
+                    unit: nextUnit,
+                    quantity: nextQuantity,
+                    gramsPerUnit:
+                        food && normalizeUiUnit(nextUnit) !== 'g'
+                            ? resolveReferenceGramsPerUnit(
+                                  toDbUnit(normalizeUiUnit(nextUnit)),
+                                  undefined,
+                                  food.density,
+                                  food.gramsPerPiece
+                              )
+                            : ing.gramsPerUnit
+                };
+            })
         );
     };
 
@@ -589,24 +641,27 @@ export function RecipeForm(props: RecipeFormProps) {
             .map(ing => {
                 const uiUnit = normalizeUiUnit(ing.unit);
                 const parsedQuantity = parseIngredientQuantity(ing.quantity);
-                const quantity =
+                const rawQuantity =
                     parsedQuantity != null && parsedQuantity > 0
                         ? parsedQuantity
                         : uiUnit === 'g'
                           ? 100
                           : 1;
+                const dbUnit = toDbUnit(uiUnit);
+                const quantity = snapQuantityForUnit(rawQuantity, dbUnit);
 
                 return {
                     foodId: normalizeFoodId(ing.foodId) as string,
                     quantity,
-                    unit: toDbUnit(uiUnit),
+                    unit: dbUnit,
                     grams:
                         uiUnit === 'g'
                             ? quantity
                             : resolveReferenceGramsPerUnit(
-                                  toDbUnit(uiUnit),
+                                  dbUnit,
                                   ing.gramsPerUnit,
-                                  ing.foodDensity
+                                  ing.foodDensity,
+                                  ing.gramsPerPiece
                               )
                 };
             });

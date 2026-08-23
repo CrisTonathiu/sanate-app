@@ -108,9 +108,7 @@ function formatIngredientAmount(
     }
 
     return {
-            amount: formatIngredientQuantity(quantity ?? 1, u, {
-                allowFractions: true
-            }),
+            amount: formatIngredientQuantity(quantity ?? 1, u),
         unit: INGREDIENT_UNIT_LABEL[u] ?? u.toLowerCase()
     };
 }

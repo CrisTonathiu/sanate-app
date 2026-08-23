@@ -454,7 +454,12 @@ model Food {
   density Float? // g/ml; convierte unidades de volumen (ml, taza, cda, cdta). null = agua (1 g/ml)
 
   isDiscrete Boolean @default(false)
-  maxPortionGrams Float? // límite realista
+  gramsPerPiece Float? // peso de 1 pieza de supermercado; obligatorio en app si isDiscrete
+  minPortionQuantity Float?
+  minPortionUnit IngredientUnit?
+  maxPortionQuantity Float?
+  maxPortionUnit IngredientUnit?
+  maxPortionGrams Float? // cache en gramos del tope máximo (cantidad × unidad)
 
   // 1 equivalencia SMAE: gramos de referencia + texto para el PDF ("1 pza", "1 lata")
   gramsPerEquivalent Float?

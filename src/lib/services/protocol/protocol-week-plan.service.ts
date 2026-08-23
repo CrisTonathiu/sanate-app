@@ -134,8 +134,9 @@ export const protocolMealWithPortionsSelect = {
                                     proteinPer100g: true,
                                     carbsPer100g: true,
                                     fatPer100g: true,
-                                    density: true,
-                                    isDiscrete: true
+                    density: true,
+                    isDiscrete: true,
+                    gramsPerPiece: true
                                 }
                             }
                         }
