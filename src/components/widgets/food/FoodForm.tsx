@@ -14,10 +14,32 @@ import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select';
 import {FoodGroup, useGetFoodGroups} from '@/hooks/use-foods';
 import {AnimatePresence, motion} from 'framer-motion';
 import {Loader2, Save, Trash2} from 'lucide-react';
 import {FormEvent, useEffect, useMemo, useState} from 'react';
+import {
+    formatIngredientQuantityInput,
+    parseIngredientQuantity
+} from '@/lib/utils/ingredient-quantity';
+
+type FoodPortionUnit = 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
+
+const PORTION_UNITS: Array<{value: FoodPortionUnit; label: string}> = [
+    {value: 'GRAM', label: 'g'},
+    {value: 'PIECE', label: 'pz'},
+    {value: 'CUP', label: 'tz'},
+    {value: 'TBSP', label: 'cda'},
+    {value: 'TSP', label: 'cdita'},
+    {value: 'ML', label: 'ml'}
+];
 
 export type FoodFormData = {
     name: string;
@@ -28,6 +50,11 @@ export type FoodFormData = {
     fatPer100g?: number | null;
     density?: number | null;
     isDiscrete?: boolean;
+    gramsPerPiece?: number | null;
+    minPortionQuantity?: number | null;
+    minPortionUnit?: FoodPortionUnit | null;
+    maxPortionQuantity?: number | null;
+    maxPortionUnit?: FoodPortionUnit | null;
     maxPortionGrams?: number | null;
     gramsPerEquivalent?: number | null;
     equivalentDisplayText?: string | null;
@@ -55,6 +82,114 @@ function formatNumberField(value?: number | null) {
     return String(value);
 }
 
+function formatGramsFromKcal(value: number) {
+    return String(Number(value.toFixed(4)));
+}
+
+function formatKcalPerPieceDisplay(value: number) {
+    const nearestInt = Math.round(value);
+    if (Math.abs(value - nearestInt) < 0.15) {
+        return String(nearestInt);
+    }
+
+    const nearestTenth = Math.round(value * 10) / 10;
+    return Number.isInteger(nearestTenth)
+        ? String(nearestTenth)
+        : String(nearestTenth);
+}
+
+function formatPortionQuantityField(
+    quantity?: number | null,
+    unit?: string | null
+) {
+    if (quantity == null) return '';
+    return formatIngredientQuantityInput(quantity, unit ?? 'GRAM', {
+        allowFractions: unit === 'PIECE' || unit === 'CUP' || unit === 'TSP'
+    });
+}
+
+function parsePortionLimit(
+    quantity: string,
+    unit: FoodPortionUnit
+): {quantity: number | null; unit: FoodPortionUnit | null} {
+    const parsed = parseIngredientQuantity(quantity);
+    if (parsed == null || parsed <= 0) {
+        return {quantity: null, unit: null};
+    }
+    return {quantity: parsed, unit};
+}
+
+function PortionLimitField({
+    label,
+    hint,
+    quantity,
+    unit,
+    onQuantityChange,
+    onUnitChange
+}: {
+    label: string;
+    hint: string;
+    quantity: string;
+    unit: FoodPortionUnit;
+    onQuantityChange: (value: string) => void;
+    onUnitChange: (value: FoodPortionUnit) => void;
+}) {
+    return (
+        <div>
+            <Label className='text-xs text-muted-foreground mb-1.5 block'>
+                {label}
+            </Label>
+            <div className='flex gap-2'>
+                <Input
+                    type='text'
+                    inputMode='text'
+                    value={quantity}
+                    onChange={e => onQuantityChange(e.target.value)}
+                    onBlur={e => {
+                        const parsed = parseIngredientQuantity(e.target.value);
+                        if (parsed != null && parsed > 0) {
+                            onQuantityChange(
+                                formatIngredientQuantityInput(parsed, unit, {
+                                    allowFractions: true
+                                })
+                            );
+                        }
+                    }}
+                    placeholder='1/2 o 180'
+                    className='h-10 bg-background/50'
+                />
+                <Select
+                    value={unit}
+                    onValueChange={value =>
+                        onUnitChange(value as FoodPortionUnit)
+                    }>
+                    <SelectTrigger className='h-10 w-24 bg-background/50'>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {PORTION_UNITS.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <p className='text-xs text-muted-foreground mt-1.5'>{hint}</p>
+        </div>
+    );
+}
+
+function gramsFromKcalPerPiece(kcalPerPiece: number, kcalPer100g: number) {
+    if (kcalPerPiece <= 0 || kcalPer100g <= 0) return null;
+    return (kcalPerPiece / kcalPer100g) * 100;
+}
+
+function kcalFromGramsPerPiece(grams: number, kcalPer100g: number) {
+    if (grams <= 0 || kcalPer100g <= 0) return null;
+    return (kcalPer100g / 100) * grams;
+}
+
 export function FoodForm({
     mode = 'create',
     initialData,
@@ -78,8 +213,13 @@ export function FoodForm({
     const [carbsPer100g, setCarbsPer100g] = useState('');
     const [fatPer100g, setFatPer100g] = useState('');
     const [density, setDensity] = useState('');
-    const [maxPortionGrams, setMaxPortionGrams] = useState('');
+    const [minPortionQuantity, setMinPortionQuantity] = useState('');
+    const [minPortionUnit, setMinPortionUnit] = useState<FoodPortionUnit>('GRAM');
+    const [maxPortionQuantity, setMaxPortionQuantity] = useState('');
+    const [maxPortionUnit, setMaxPortionUnit] = useState<FoodPortionUnit>('GRAM');
     const [isDiscrete, setIsDiscrete] = useState(false);
+    const [kcalPerPiece, setKcalPerPiece] = useState('');
+    const [gramsPerPiece, setGramsPerPiece] = useState('');
     const [gramsPerEquivalent, setGramsPerEquivalent] = useState('');
     const [equivalentDisplayText, setEquivalentDisplayText] = useState('');
     const [isFreePortion, setIsFreePortion] = useState(false);
@@ -94,8 +234,48 @@ export function FoodForm({
         setCarbsPer100g(formatNumberField(initialData.carbsPer100g));
         setFatPer100g(formatNumberField(initialData.fatPer100g));
         setDensity(formatNumberField(initialData.density));
-        setMaxPortionGrams(formatNumberField(initialData.maxPortionGrams));
+        const defaultUnit: FoodPortionUnit = initialData.isDiscrete
+            ? 'PIECE'
+            : 'GRAM';
+        setMinPortionQuantity(
+            formatPortionQuantityField(
+                initialData.minPortionQuantity,
+                initialData.minPortionUnit ?? defaultUnit
+            )
+        );
+        setMinPortionUnit(initialData.minPortionUnit ?? defaultUnit);
+        setMaxPortionQuantity(
+            formatPortionQuantityField(
+                initialData.maxPortionQuantity ??
+                    (initialData.maxPortionGrams != null &&
+                    initialData.maxPortionUnit == null
+                        ? initialData.maxPortionGrams
+                        : null),
+                initialData.maxPortionUnit ??
+                    (initialData.maxPortionGrams != null ? 'GRAM' : defaultUnit)
+            )
+        );
+        setMaxPortionUnit(
+            initialData.maxPortionUnit ??
+                (initialData.maxPortionGrams != null ? 'GRAM' : defaultUnit)
+        );
         setIsDiscrete(initialData.isDiscrete ?? false);
+        setGramsPerPiece(formatNumberField(initialData.gramsPerPiece));
+        const kcalPer100g = initialData.caloriesPer100g;
+        const grams = initialData.gramsPerPiece;
+        if (
+            kcalPer100g != null &&
+            kcalPer100g > 0 &&
+            grams != null &&
+            grams > 0
+        ) {
+            const derivedKcal = kcalFromGramsPerPiece(grams, kcalPer100g);
+            setKcalPerPiece(
+                derivedKcal != null ? formatKcalPerPieceDisplay(derivedKcal) : ''
+            );
+        } else {
+            setKcalPerPiece('');
+        }
         setGramsPerEquivalent(formatNumberField(initialData.gramsPerEquivalent));
         setEquivalentDisplayText(initialData.equivalentDisplayText ?? '');
         setIsFreePortion(initialData.isFreePortion ?? false);
@@ -136,6 +316,40 @@ export function FoodForm({
         setShowGroupSuggestions(false);
     };
 
+    const applyKcalPerPiece = (value: string) => {
+        setKcalPerPiece(value);
+        const kcalPiece = parseOptionalNumber(value);
+        const kcalPer100g = parseOptionalNumber(caloriesPer100g);
+        if (
+            kcalPiece != null &&
+            kcalPiece > 0 &&
+            kcalPer100g != null &&
+            kcalPer100g > 0
+        ) {
+            const grams = gramsFromKcalPerPiece(kcalPiece, kcalPer100g);
+            if (grams != null) {
+                setGramsPerPiece(formatGramsFromKcal(grams));
+            }
+        }
+    };
+
+    const applyCaloriesPer100g = (value: string) => {
+        setCaloriesPer100g(value);
+        const kcalPer100g = parseOptionalNumber(value);
+        const kcalPiece = parseOptionalNumber(kcalPerPiece);
+        if (
+            kcalPer100g != null &&
+            kcalPer100g > 0 &&
+            kcalPiece != null &&
+            kcalPiece > 0
+        ) {
+            const grams = gramsFromKcalPerPiece(kcalPiece, kcalPer100g);
+            if (grams != null) {
+                setGramsPerPiece(formatGramsFromKcal(grams));
+            }
+        }
+    };
+
     const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();
         setError(null);
@@ -150,6 +364,35 @@ export function FoodForm({
             return;
         }
 
+        const parsedCaloriesPer100g = parseOptionalNumber(caloriesPer100g);
+        const parsedKcalPerPiece = parseOptionalNumber(kcalPerPiece);
+        let parsedGramsPerPiece: number | null | undefined = null;
+
+        if (
+            isDiscrete &&
+            parsedKcalPerPiece != null &&
+            parsedKcalPerPiece > 0 &&
+            parsedCaloriesPer100g != null &&
+            parsedCaloriesPer100g > 0
+        ) {
+            parsedGramsPerPiece = gramsFromKcalPerPiece(
+                parsedKcalPerPiece,
+                parsedCaloriesPer100g
+            );
+        }
+
+        if (isDiscrete && (parsedGramsPerPiece == null || parsedGramsPerPiece <= 0)) {
+            setError(
+                parsedCaloriesPer100g == null || parsedCaloriesPer100g <= 0
+                    ? 'Indica las kcal / 100 g para calcular el peso de 1 pieza'
+                    : 'Indica las kcal de 1 pieza (tajada, aguacate, huevo, etc.)'
+            );
+            return;
+        }
+
+        const minLimit = parsePortionLimit(minPortionQuantity, minPortionUnit);
+        const maxLimit = parsePortionLimit(maxPortionQuantity, maxPortionUnit);
+
         setIsSaving(true);
         try {
             await onSave({
@@ -160,8 +403,12 @@ export function FoodForm({
                 carbsPer100g: parseOptionalNumber(carbsPer100g),
                 fatPer100g: parseOptionalNumber(fatPer100g),
                 density: parseOptionalNumber(density),
-                maxPortionGrams: parseOptionalNumber(maxPortionGrams),
+                minPortionQuantity: minLimit.quantity,
+                minPortionUnit: minLimit.unit,
+                maxPortionQuantity: maxLimit.quantity,
+                maxPortionUnit: maxLimit.unit,
                 isDiscrete,
+                gramsPerPiece: isDiscrete ? parsedGramsPerPiece : null,
                 gramsPerEquivalent: parseOptionalNumber(gramsPerEquivalent),
                 equivalentDisplayText: equivalentDisplayText.trim() || null,
                 isFreePortion
@@ -297,7 +544,7 @@ export function FoodForm({
                                 inputMode='decimal'
                                 value={caloriesPer100g}
                                 onChange={e =>
-                                    setCaloriesPer100g(e.target.value)
+                                    applyCaloriesPer100g(e.target.value)
                                 }
                                 placeholder='541'
                                 className='h-10 bg-background/50'
@@ -369,19 +616,22 @@ export function FoodForm({
                                 0.046 (11 g / taza). Vacío = agua (1 g/ml).
                             </p>
                         </div>
-                        <div>
-                            <Label className='text-xs text-muted-foreground mb-1.5 block'>
-                                Porción máxima (g)
-                            </Label>
-                            <Input
-                                type='text'
-                                inputMode='decimal'
-                                value={maxPortionGrams}
-                                onChange={e =>
-                                    setMaxPortionGrams(e.target.value)
-                                }
-                                placeholder='200'
-                                className='h-10 bg-background/50'
+                        <div className='sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                            <PortionLimitField
+                                label='Porción mínima'
+                                hint='Opcional. Ej: 100 g de salmón, 1 pz huevo.'
+                                quantity={minPortionQuantity}
+                                unit={minPortionUnit}
+                                onQuantityChange={setMinPortionQuantity}
+                                onUnitChange={setMinPortionUnit}
+                            />
+                            <PortionLimitField
+                                label='Porción máxima'
+                                hint='Opcional. Ej: 1/2 pz aguacate, 1 cda aceite, 180 g.'
+                                quantity={maxPortionQuantity}
+                                unit={maxPortionUnit}
+                                onQuantityChange={setMaxPortionQuantity}
+                                onUnitChange={setMaxPortionUnit}
                             />
                         </div>
                         <div className='sm:col-span-2 flex items-center gap-2'>
@@ -389,13 +639,50 @@ export function FoodForm({
                                 id='isDiscrete'
                                 type='checkbox'
                                 checked={isDiscrete}
-                                onChange={e => setIsDiscrete(e.target.checked)}
+                                onChange={e => {
+                                    const checked = e.target.checked;
+                                    setIsDiscrete(checked);
+                                    if (checked) {
+                                        if (!minPortionQuantity) {
+                                            setMinPortionUnit('PIECE');
+                                        }
+                                        if (!maxPortionQuantity) {
+                                            setMaxPortionUnit('PIECE');
+                                        }
+                                    }
+                                }}
                                 className='h-4 w-4 rounded border-border'
                             />
                             <Label htmlFor='isDiscrete' className='text-sm'>
                                 Porción discreta (piezas, unidades)
                             </Label>
                         </div>
+                        {isDiscrete ? (
+                            <div className='sm:col-span-2'>
+                                <Label className='text-xs text-muted-foreground mb-1.5 block'>
+                                    Calorías de 1 pieza (kcal)
+                                </Label>
+                                <Input
+                                    type='text'
+                                    inputMode='decimal'
+                                    value={kcalPerPiece}
+                                    onChange={e =>
+                                        applyKcalPerPiece(e.target.value)
+                                    }
+                                    placeholder='322'
+                                    required
+                                    className='h-10 bg-background/50'
+                                />
+                                <p className='text-xs text-muted-foreground mt-1.5'>
+                                    Solo el número de FatSecret para 1 tajada,
+                                    1 aguacate, 1 huevo, etc. Los gramos se
+                                    calculan con las kcal / 100 g.
+                                    {gramsPerPiece
+                                        ? ` Peso usado: ${gramsPerPiece} g.`
+                                        : ''}
+                                </p>
+                            </div>
+                        ) : null}
                     </CardContent>
                 </Card>
 

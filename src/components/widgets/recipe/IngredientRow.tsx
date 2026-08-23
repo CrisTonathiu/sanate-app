@@ -53,7 +53,10 @@ export function IngredientRow({
     const displayedQuantity =
         quantityInput ??
         (typeof ingredient.quantity === 'number'
-            ? formatIngredientQuantityInput(ingredient.quantity, ingredient.unit)
+            ? formatIngredientQuantityInput(
+                  ingredient.quantity,
+                  ingredient.unit
+              )
             : '');
 
     return (
@@ -128,11 +131,22 @@ export function IngredientRow({
                                 quantityInput ?? displayedQuantity
                             );
                             if (parsed != null && parsed > 0) {
-                                onUpdate('quantity', parsed);
+                                const label = formatIngredientQuantityInput(
+                                    parsed,
+                                    ingredient.unit
+                                );
+                                const snapped =
+                                    parseIngredientQuantity(label) ?? parsed;
+                                onUpdate('quantity', snapped);
                             }
                             setQuantityInput(null);
                         }}
-                        placeholder='100 o 1/3'
+                        placeholder={
+                            ingredient.unit === 'piece' ||
+                            ingredient.unit === 'tbsp'
+                                ? '1, 2 o 3'
+                                : '1/3 o 100'
+                        }
                         className='h-10 bg-background/50 border-border'
                     />
                 </div>

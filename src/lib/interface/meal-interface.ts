@@ -6,8 +6,10 @@ export interface MealIngredientPortion {
     baseGrams: number;
     targetGrams: number;
     unit?: string;
-    /** From Food.isDiscrete. Manual piece edits may still be fractional. */
+    /** From Food.isDiscrete. Pieces can be kitchen fractions (½ aguacate). */
     isDiscrete?: boolean;
+    minGrams?: number | null;
+    maxGrams?: number | null;
     baseCalories?: number;
     baseProtein?: number;
     baseCarbs?: number;

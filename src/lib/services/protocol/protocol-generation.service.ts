@@ -4,20 +4,30 @@ import {MealType} from '@prisma/client';
 import {prisma} from '@/lib/prisma';
 import {GenerateProtocolPlanInput} from '@/lib/validations/protocol-generation.schema';
 import {DayMeals, MealSlot} from '@/lib/interface/meal-interface';
-import {buildWeeklyRecipeSchedule} from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {
+    buildMultiMealWeeklySchedules,
+    type MealSlotTargets
+} from '@/lib/services/protocol/protocol-week-recipe-schedule';
 import {getAppSettings} from '@/lib/services/settings/app-settings.service';
-import {applyMixableMainMealsCatalog} from '@/lib/utils/mix-main-meals';
+import {
+    applyMixableMainMealsCatalog,
+    MIXABLE_MAIN_MEAL_KEYS
+} from '@/lib/utils/mix-main-meals';
 import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
+import {collectRecipeProteinFamilies} from '@/lib/utils/protein-family';
+import {resolveFoodPortionGramsFromCatalog} from '@/lib/utils/food-portion-limits';
 import {formatDayLabelWithWeek} from '@/lib/utils/protocol-week-plan';
 import {normalizeExtraIngredientNames} from '@/lib/utils/extra-ingredients';
 import {
     resolveIngredientNutritionGrams,
-    scaleIngredientQuantity
+    normalizeIngredientUnit
 } from '@/lib/utils/ingredient-quantity';
 import {
+    buildMacroAdjustmentWarnings,
     computeIngredientScalesForMacros,
-    correctPortionsToTargetCalories,
-    scaleIngredientByFactor
+    finalizePortionsToMealTargets,
+    scaleIngredientByFactor,
+    type MacroKcalTarget
 } from '@/lib/utils/recipe-macro-scale';
 
 // --------------------
@@ -55,10 +65,13 @@ type RecipeSummary = {
         carbsPer100g: number;
         fatPer100g: number;
         isDiscrete: boolean;
-        maxPortionGrams: number | null;
+        minGrams: number | null;
+        maxGrams: number | null;
         density: number | null;
+        gramsPerPiece: number | null;
         foodGroupName: string | null;
     }>;
+    proteinFamilies?: string[];
 };
 
 type MacroMealTarget = NonNullable<
@@ -212,35 +225,22 @@ function isRecipeAllowed(
 // Realism validation
 // --------------------
 function evaluateMealRealism(
-    ingredients: RecipeSummary['ingredients'],
-    scales: number[]
+    portions: Array<{
+        ingredientName: string;
+        unit?: string | null;
+        targetQuantity?: number | null;
+    }>
 ): {isRealistic: boolean; warnings: string[]} {
     const warnings: string[] = [];
-    for (const [index, item] of ingredients.entries()) {
-        const scale = scales[index] ?? 1;
-        const scaledGrams = item.grams * scale;
-
-        // maxPortionGrams (si existe)
-        if (item.maxPortionGrams && scaledGrams > item.maxPortionGrams) {
-            warnings.push(
-                `${item.name} excede porción recomendada (${Math.round(scaledGrams)}g)`
-            );
+    for (const portion of portions) {
+        if (normalizeIngredientUnit(portion.unit) !== 'PIECE') {
+            continue;
         }
-
-        // unidades discretas
-        if (item.unit === 'PIECE') {
-            const scaledQty = scaleIngredientQuantity(
-                item.quantity,
-                scale,
-                'PIECE',
-                {isDiscrete: item.isDiscrete}
+        const qty = portion.targetQuantity ?? 0;
+        if (qty > 4) {
+            warnings.push(
+                `${portion.ingredientName}: ${Math.round(qty)} piezas puede ser excesivo`
             );
-
-            if (scaledQty > 4) {
-                warnings.push(
-                    `${item.name}: ${Math.round(scaledQty)} piezas puede ser excesivo`
-                );
-            }
         }
     }
 
@@ -267,6 +267,7 @@ function computeRecipeNutrition(recipe: {
                 carbsPer100g: number | null;
                 fatPer100g: number | null;
                 density?: number | null;
+                gramsPerPiece?: number | null;
             } | null;
         };
     }>;
@@ -286,7 +287,8 @@ function computeRecipeNutrition(recipe: {
             item.quantity,
             item.unit,
             item.grams,
-            food?.density
+            food?.density,
+            food?.gramsPerPiece
         );
         const ratio = gramsForNutrition / 100;
 
@@ -358,84 +360,19 @@ function getMacroMealTarget(
     );
 }
 
-function getIngredientMacroKcal(
-    ingredient: RecipeSummary['ingredients'][number],
-    scaledGrams: number
-) {
-    const ratio = scaledGrams / 100;
+function toMacroKcalTarget(
+    macroTarget?: MacroMealTarget
+): MacroKcalTarget | undefined {
+    if (!macroTarget) {
+        return undefined;
+    }
 
     return {
-        proteinKcal: (ingredient.proteinPer100g ?? 0) * ratio * 4,
-        carbsKcal: (ingredient.carbsPer100g ?? 0) * ratio * 4,
-        fatKcal: (ingredient.fatPer100g ?? 0) * ratio * 9
+        totalKcal: macroTarget.totalKcal,
+        proteinKcal: macroTarget.proteinKcal,
+        carbsKcal: macroTarget.carbsKcal,
+        fatKcal: macroTarget.fatKcal
     };
-}
-
-function getMacroTargetWarnings(
-    ingredientName: string,
-    ingredientMacroKcal: {
-        proteinKcal: number;
-        carbsKcal: number;
-        fatKcal: number;
-    },
-    macroTarget?: MacroMealTarget
-) {
-    const warnings: string[] = [];
-
-    if (!macroTarget) {
-        return warnings;
-    }
-
-    const checks = [
-        {
-            label: 'proteina',
-            ingredientKcal: ingredientMacroKcal.proteinKcal,
-            targetKcal: macroTarget.proteinKcal
-        },
-        {
-            label: 'carbs',
-            ingredientKcal: ingredientMacroKcal.carbsKcal,
-            targetKcal: macroTarget.carbsKcal
-        },
-        {
-            label: 'grasa',
-            ingredientKcal: ingredientMacroKcal.fatKcal,
-            targetKcal: macroTarget.fatKcal
-        }
-    ];
-
-    const ingredientTotalKcal =
-        ingredientMacroKcal.proteinKcal +
-        ingredientMacroKcal.carbsKcal +
-        ingredientMacroKcal.fatKcal;
-
-    for (const check of checks) {
-        if (check.ingredientKcal <= 0) {
-            continue;
-        }
-
-        if (check.targetKcal === 0) {
-            // Only flag when this macro is the dominant energy in the ingredient.
-            // Never remove ingredients — a 0 target must not empty the recipe list.
-            const isDominant =
-                ingredientTotalKcal > 0 &&
-                check.ingredientKcal / ingredientTotalKcal >= 0.45;
-            if (isDominant) {
-                warnings.push(
-                    `${ingredientName} aporta ${round1(check.ingredientKcal)} kcal de ${check.label} y el objetivo para esa comida es 0 kcal.`
-                );
-            }
-            continue;
-        }
-
-        if (check.ingredientKcal > check.targetKcal) {
-            warnings.push(
-                `${ingredientName} aporta ${round1(check.ingredientKcal)} kcal de ${check.label}, por encima del objetivo de ${round1(check.targetKcal)} kcal. Revisa si debes retirarlo o cambiarlo.`
-            );
-        }
-    }
-
-    return warnings;
 }
 
 function computePortionNutrition(portion: {
@@ -466,34 +403,21 @@ function buildMeal(
             : targetCalories
     );
 
+    const kcalTarget = toMacroKcalTarget(macroTarget);
+
     const scales = computeIngredientScalesForMacros(
         recipe.ingredients,
         recipe.calories,
-        plannedCalories,
-        null
+        plannedCalories
     );
     const avgScale =
         scales.length > 0
             ? scales.reduce((sum, scale) => sum + scale, 0) / scales.length
             : 1;
 
-    const realism = evaluateMealRealism(recipe.ingredients, scales);
-    const warnings = [...realism.warnings];
-
     let ingredientPortions = recipe.ingredients.map((item, index) => {
         const scale = scales[index] ?? 1;
         const scaled = scaleIngredientByFactor(item, scale);
-        const ingredientMacroKcal = getIngredientMacroKcal(
-            item,
-            scaled.targetGrams
-        );
-        warnings.push(
-            ...getMacroTargetWarnings(
-                item.name,
-                ingredientMacroKcal,
-                macroTarget
-            )
-        );
 
         return {
             ingredientId: item.id,
@@ -504,6 +428,8 @@ function buildMeal(
             targetGrams: scaled.targetGrams,
             unit: scaled.unit,
             isDiscrete: scaled.isDiscrete,
+            minGrams: item.minGrams,
+            maxGrams: item.maxGrams,
             baseCalories: item.caloriesPer100g,
             baseProtein: item.proteinPer100g,
             baseCarbs: item.carbsPer100g,
@@ -511,10 +437,17 @@ function buildMeal(
         };
     });
 
-    ingredientPortions = correctPortionsToTargetCalories(
+    ingredientPortions = finalizePortionsToMealTargets(
         ingredientPortions,
-        plannedCalories
+        plannedCalories,
+        kcalTarget
     );
+
+    const realism = evaluateMealRealism(ingredientPortions);
+    const warnings = [
+        ...realism.warnings,
+        ...buildMacroAdjustmentWarnings(ingredientPortions, kcalTarget)
+    ];
 
     const portionTotals = ingredientPortions.reduce(
         (sum, portion) => {
@@ -541,7 +474,7 @@ function buildMeal(
         carbs: round1(portionTotals.carbs),
         fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
-        isRealistic: realism.isRealistic && warnings.length === 0,
+        isRealistic: realism.isRealistic,
         warnings,
         ingredientPortions,
         instructions: recipe.instructions,
@@ -686,8 +619,14 @@ export async function generateProtocolPlanForPatient(
                                     carbsPer100g: true,
                                     fatPer100g: true,
                                     isDiscrete: true,
+                                    isFreePortion: true,
                                     maxPortionGrams: true,
+                                    minPortionQuantity: true,
+                                    minPortionUnit: true,
+                                    maxPortionQuantity: true,
+                                    maxPortionUnit: true,
                                     density: true,
+                                    gramsPerPiece: true,
                                     group: {
                                         select: {
                                             name: true
@@ -738,6 +677,9 @@ export async function generateProtocolPlanForPatient(
                         unit?: RecipeIngredientUnit | null;
                         ingredient: {name: string};
                     };
+                    const limits = resolveFoodPortionGramsFromCatalog(
+                        item.ingredient.food
+                    );
 
                     return {
                         id: recipeIngredient.id,
@@ -754,19 +696,26 @@ export async function generateProtocolPlanForPatient(
                         carbsPer100g: item.ingredient.food?.carbsPer100g ?? 0,
                         fatPer100g: item.ingredient.food?.fatPer100g ?? 0,
                         isDiscrete: item.ingredient.food?.isDiscrete ?? false,
-                        maxPortionGrams:
-                            item.ingredient.food?.maxPortionGrams ?? null,
+                        minGrams: limits.minGrams,
+                        maxGrams: limits.maxGrams,
                         density: item.ingredient.food?.density ?? null,
+                        gramsPerPiece:
+                            item.ingredient.food?.gramsPerPiece ?? null,
                         foodGroupName: item.ingredient.food?.group?.name ?? null
                     };
                 })
             };
         })
+        .map(recipe => ({
+            ...recipe,
+            proteinFamilies: collectRecipeProteinFamilies(recipe)
+        }))
         .filter(recipe => recipe.calories > 0 || recipe.mealType === 'DRINKS');
 
+    const mixMainMeals = (await getAppSettings()).mixMainMeals;
     const mixedCatalog = applyMixableMainMealsCatalog(
         buildMealCatalog(allowedRecipes),
-        (await getAppSettings()).mixMainMeals
+        mixMainMeals
     );
 
     const catalog: Record<string, RecipeSummary[]> = {};
@@ -808,19 +757,35 @@ export async function generateProtocolPlanForPatient(
         .split('')
         .reduce((sum, char) => sum + char.charCodeAt(0), 0);
 
-    const weeklySchedulesByMeal = Object.fromEntries(
-        activeMealOrder.map(mealKey => {
-            const key = mealKey.toLowerCase();
-            return [
-                key,
-                buildWeeklyRecipeSchedule(
-                    catalog[key as keyof typeof catalog],
-                    weekCount,
-                    shuffleSeed + key.length
-                )
-            ];
-        })
-    ) as Record<string, RecipeSummary[][]>;
+    const activeMealKeys = activeMealOrder.map(meal => meal.toLowerCase());
+    const sharedPoolKeys = mixMainMeals
+        ? MIXABLE_MAIN_MEAL_KEYS.filter(key => activeMealKeys.includes(key))
+        : [];
+
+    const mealTargets: Record<string, MealSlotTargets> = {};
+    for (const mealKey of activeMealOrder) {
+        const key = mealKey.toLowerCase();
+        const macroMealTarget = getMacroMealTarget(
+            input.macroMealDistribution,
+            mealKey
+        );
+        mealTargets[key] = {
+            calories:
+                macroMealTarget?.totalKcal ?? dailyCalories * split[mealKey],
+            proteinGrams: macroMealTarget
+                ? macroMealTarget.proteinKcal / 4
+                : undefined
+        };
+    }
+
+    const weeklySchedulesByMeal = buildMultiMealWeeklySchedules(
+        catalog,
+        activeMealKeys,
+        weekCount,
+        shuffleSeed,
+        sharedPoolKeys,
+        mealTargets
+    );
 
     const weekPlan: DayMeals[] = [];
 

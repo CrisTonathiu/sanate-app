@@ -64,15 +64,18 @@ const A3_PAGE_HEIGHT_PT = 1190.55;
 const RECOMMENDATION_LINE_HEIGHT_PT = BODY_FONT_SIZE * LINE_HEIGHT;
 const RECOMMENDATION_TITLE_HEIGHT_PT =
     RECOMMENDATION_LINE_HEIGHT_PT + 4;
-/** Helvetica average glyph width ≈ 0.5em; pad slightly so wraps are not cut. */
+/**
+ * Helvetica average glyph width ≈ 0.5em. Use a slightly wider estimate so
+ * line counts are conservative and content never overflows onto a blank page.
+ */
 const RECOMMENDATION_CHARS_PER_LINE = Math.floor(
-    (A3_PAGE_WIDTH_PT - CONTENT_HORIZONTAL_PT * 2) / (BODY_FONT_SIZE * 0.52)
+    (A3_PAGE_WIDTH_PT - CONTENT_HORIZONTAL_PT * 2) / (BODY_FONT_SIZE * 0.58)
 );
 const RECOMMENDATION_PAGE_CONTENT_HEIGHT_PT =
     A3_PAGE_HEIGHT_PT - PLAN_CONTENT_TOP_PT - CONTENT_BOTTOM_PT;
 /** Leave a small safety margin so estimated wraps do not clip the letterhead footer. */
 const RECOMMENDATION_USABLE_HEIGHT_PT =
-    RECOMMENDATION_PAGE_CONTENT_HEIGHT_PT - RECOMMENDATION_LINE_HEIGHT_PT;
+    RECOMMENDATION_PAGE_CONTENT_HEIGHT_PT - RECOMMENDATION_LINE_HEIGHT_PT * 2;
 
 const styles = StyleSheet.create({
     page: {
@@ -436,18 +439,32 @@ function getValidAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
     );
 }
 
+function normalizeRecommendationText(text: string): string {
+    return text
+        .replace(/\r\n/g, '\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function isBlankLine(line: string): boolean {
+    return line.trim().length === 0;
+}
+
 /**
  * Wrap plain text into visual lines using an estimated character budget.
- * Keeps paragraph breaks from the source text.
+ * Keeps a single paragraph break; consecutive empty lines are collapsed.
  */
 function wrapTextToLines(text: string, charsPerLine: number): string[] {
-    const paragraphs = text.replace(/\r\n/g, '\n').split('\n');
+    const paragraphs = normalizeRecommendationText(text).split('\n');
     const lines: string[] = [];
 
     for (const paragraph of paragraphs) {
         const trimmed = paragraph.trim();
         if (!trimmed) {
-            lines.push('');
+            if (lines.length > 0 && !isBlankLine(lines[lines.length - 1])) {
+                lines.push('');
+            }
             continue;
         }
 
@@ -484,7 +501,11 @@ function wrapTextToLines(text: string, charsPerLine: number): string[] {
         }
     }
 
-    return lines.length > 0 ? lines : [''];
+    while (lines.length > 0 && isBlankLine(lines[lines.length - 1])) {
+        lines.pop();
+    }
+
+    return lines;
 }
 
 function estimateAffiliateBlockHeight(linkCount: number, includeTitle: boolean) {
@@ -547,6 +568,16 @@ function paginateRecommendationContent(
         let isContinuation = false;
 
         while (lineIndex < bodyLines.length) {
+            while (
+                lineIndex < bodyLines.length &&
+                isBlankLine(bodyLines[lineIndex])
+            ) {
+                lineIndex += 1;
+            }
+            if (lineIndex >= bodyLines.length) {
+                break;
+            }
+
             const titleHeight = RECOMMENDATION_TITLE_HEIGHT_PT;
             const gapBefore = usedHeight > 0 ? SECTION_GAP_PT : 0;
 
@@ -559,11 +590,29 @@ function paginateRecommendationContent(
                 usedHeight -
                 gapBefore -
                 titleHeight;
+            if (availableForBody < RECOMMENDATION_LINE_HEIGHT_PT) {
+                pushPage();
+                continue;
+            }
+
             const maxLines = Math.max(
                 1,
                 Math.floor(availableForBody / RECOMMENDATION_LINE_HEIGHT_PT)
             );
             const chunkLines = bodyLines.slice(lineIndex, lineIndex + maxLines);
+            while (
+                chunkLines.length > 0 &&
+                isBlankLine(chunkLines[chunkLines.length - 1])
+            ) {
+                chunkLines.pop();
+            }
+
+            const content = chunkLines.join('\n').trim();
+            if (!content) {
+                lineIndex += maxLines;
+                continue;
+            }
+
             const chunkHeight =
                 gapBefore +
                 titleHeight +
@@ -571,7 +620,7 @@ function paginateRecommendationContent(
 
             currentSections.push({
                 title: section.title,
-                content: chunkLines.join('\n'),
+                content,
                 isContinuation
             });
             usedHeight += chunkHeight;
@@ -632,7 +681,11 @@ function paginateRecommendationContent(
     }
 
     pushPage();
-    return pages;
+    return pages.filter(
+        page =>
+            page.affiliateLinks.length > 0 ||
+            page.sections.some(section => section.content.trim().length > 0)
+    );
 }
 
 type PlanRecommendationsPageProps = {
@@ -645,28 +698,39 @@ function PlanRecommendationsPage({
     page
 }: PlanRecommendationsPageProps) {
     return (
-        <Page size='A3' style={styles.page}>
+        <Page size='A3' style={styles.page} wrap={false}>
             <View fixed style={styles.backgroundLayer}>
                 <Image src={letterheadSrc} style={styles.backgroundImage} />
             </View>
 
-            <View style={styles.content}>
-                {page.sections.map((section, index) => (
-                    <View
-                        key={`${section.title ?? 'cont'}-${index}`}
-                        style={styles.section}>
-                        {section.title ? (
-                            <Text style={styles.sectionTitle}>
-                                {section.title}
-                                {section.isContinuation ? ' (cont.)' : ''}
-                            </Text>
-                        ) : null}
-                        <Text style={styles.bodyText}>{section.content}</Text>
-                    </View>
-                ))}
+            <View style={styles.content} wrap={false}>
+                {page.sections.map((section, index) => {
+                    const isLastSection =
+                        index === page.sections.length - 1 &&
+                        page.affiliateLinks.length === 0;
+
+                    return (
+                        <View
+                            key={`${section.title ?? 'cont'}-${index}`}
+                            wrap={false}
+                            style={isLastSection ? undefined : styles.section}>
+                            {section.title ? (
+                                <Text style={styles.sectionTitle}>
+                                    {section.title}
+                                    {section.isContinuation ? ' (cont.)' : ''}
+                                </Text>
+                            ) : null}
+                            {section.content.trim() ? (
+                                <Text style={styles.bodyText}>
+                                    {section.content}
+                                </Text>
+                            ) : null}
+                        </View>
+                    );
+                })}
 
                 {page.affiliateLinks.length > 0 ? (
-                    <View style={styles.section}>
+                    <View wrap={false}>
                         {page.showAffiliateTitle ? (
                             <Text style={styles.sectionTitle}>
                                 Link de productos recomendados

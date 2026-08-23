@@ -5,7 +5,7 @@ import {
     CreateRecipeIngredientInput,
     createRecipeIngredientSchema
 } from '@/lib/validations/ingredient.schema';
-import {resolveReferenceGramsPerUnit} from '@/lib/utils/ingredient-quantity';
+import {resolveReferenceGramsPerUnit, snapQuantityForUnit} from '@/lib/utils/ingredient-quantity';
 import {ZodError} from 'zod';
 
 export async function addIngredientToRecipe(
@@ -37,27 +37,32 @@ export async function addIngredientToRecipe(
             };
         }
 
+        const unit = validatedInput.unit ?? 'GRAM';
+        const rawQuantity =
+            validatedInput.quantity && validatedInput.quantity > 0
+                ? validatedInput.quantity
+                : unit === 'GRAM'
+                  ? validatedInput.grams && validatedInput.grams > 0
+                      ? validatedInput.grams
+                      : 100
+                  : 1;
+        const quantity = snapQuantityForUnit(rawQuantity, unit);
+
         const recipeIngredientData = {
             recipeId: validatedInput.recipeId,
             ingredientId: validatedInput.ingredientId,
-            quantity:
-                validatedInput.quantity && validatedInput.quantity > 0
-                    ? validatedInput.quantity
-                    : validatedInput.unit === 'GRAM'
-                      ? validatedInput.grams && validatedInput.grams > 0
-                          ? validatedInput.grams
-                          : 100
-                      : 1,
-            unit: validatedInput.unit ?? 'GRAM',
+            quantity,
+            unit,
             grams:
-                validatedInput.unit === 'GRAM'
+                unit === 'GRAM'
                     ? validatedInput.grams && validatedInput.grams > 0
                         ? validatedInput.grams
                         : 100
                     : resolveReferenceGramsPerUnit(
-                          validatedInput.unit ?? 'GRAM',
+                          unit,
                           validatedInput.grams,
-                          ingredient.food?.density
+                          ingredient.food?.density,
+                          ingredient.food?.gramsPerPiece
                       )
         } as unknown as Parameters<
             typeof prisma.recipeIngredient.create

@@ -20,8 +20,14 @@ export interface RecipeIngredient {
             carbsPer100g?: number | null;
             fatPer100g?: number | null;
             isDiscrete?: boolean;
+            isFreePortion?: boolean;
             maxPortionGrams?: number | null;
+            minPortionQuantity?: number | null;
+            minPortionUnit?: string | null;
+            maxPortionQuantity?: number | null;
+            maxPortionUnit?: string | null;
             density?: number | null;
+            gramsPerPiece?: number | null;
             group?: {
                 id: string;
                 name: string;

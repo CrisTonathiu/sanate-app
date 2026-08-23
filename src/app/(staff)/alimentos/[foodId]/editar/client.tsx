@@ -23,6 +23,11 @@ interface FoodApiResponse {
         fatPer100g: number | null;
         density: number | null;
         isDiscrete: boolean;
+        gramsPerPiece: number | null;
+        minPortionQuantity: number | null;
+        minPortionUnit: string | null;
+        maxPortionQuantity: number | null;
+        maxPortionUnit: string | null;
         maxPortionGrams: number | null;
         gramsPerEquivalent: number | null;
         equivalentDisplayText: string | null;
@@ -64,6 +69,11 @@ export default function ClientPage({foodId}: {foodId: string}) {
                     fatPer100g: body.data.fatPer100g,
                     density: body.data.density,
                     isDiscrete: body.data.isDiscrete,
+                    gramsPerPiece: body.data.gramsPerPiece,
+                    minPortionQuantity: body.data.minPortionQuantity,
+                    minPortionUnit: body.data.minPortionUnit as FoodFormData['minPortionUnit'],
+                    maxPortionQuantity: body.data.maxPortionQuantity,
+                    maxPortionUnit: body.data.maxPortionUnit as FoodFormData['maxPortionUnit'],
                     maxPortionGrams: body.data.maxPortionGrams,
                     gramsPerEquivalent: body.data.gramsPerEquivalent,
                     equivalentDisplayText: body.data.equivalentDisplayText,

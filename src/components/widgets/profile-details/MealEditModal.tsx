@@ -2,10 +2,13 @@
 
 import {useEffect, useMemo, useState} from 'react';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
+import {formatMealPortionDisplay} from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {
     formatIngredientQuantityInput,
+    gramsPerIngredientUnit,
     parseIngredientQuantity,
-    resolveIngredientNutritionGrams
+    resolveIngredientNutritionGrams,
+    snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
 import {
     Dialog,
@@ -66,6 +69,93 @@ function round1(value: number) {
     return Number(value.toFixed(1));
 }
 
+function catalogGramsPerPiece(food?: Food | null) {
+    if (food?.gramsPerPiece != null && food.gramsPerPiece > 0) {
+        return Math.round(food.gramsPerPiece);
+    }
+    return null;
+}
+
+function findFoodByName(foods: Food[], name?: string) {
+    const query = name?.trim().toLowerCase();
+    if (!query) return undefined;
+    return foods.find(food => food.name.toLowerCase() === query);
+}
+
+function roundNutritionGrams(value: number) {
+    return Math.round(value * 10) / 10;
+}
+
+function isVolumeLikeUnit(unit?: string) {
+    const normalized = unit?.toUpperCase();
+    return (
+        normalized === 'CUP' ||
+        normalized === 'TBSP' ||
+        normalized === 'TSP' ||
+        normalized === 'ML' ||
+        normalized === 'OZ'
+    );
+}
+
+function portionWithCatalogVolumeGrams<
+    T extends {
+        unit?: string;
+        _quantity?: string;
+        targetQuantity?: number;
+    }
+>(portion: T, food: Food): T {
+    if (!isVolumeLikeUnit(portion.unit)) {
+        return portion;
+    }
+
+    const parsed = parseIngredientQuantity(portion._quantity);
+    const qty =
+        parsed != null && parsed > 0
+            ? parsed
+            : portion.targetQuantity && portion.targetQuantity > 0
+              ? portion.targetQuantity
+              : 1;
+    const gramsPerUnit = gramsPerIngredientUnit(portion.unit, food.density);
+    const targetGrams = roundNutritionGrams(gramsPerUnit * qty);
+
+    return {
+        ...portion,
+        baseQuantity: 1,
+        targetQuantity: qty,
+        baseGrams: gramsPerUnit,
+        targetGrams,
+        _grams: String(targetGrams),
+        _sourceTargetQuantity: qty,
+        _sourceTargetGrams: targetGrams
+    };
+}
+
+function existingPieceCount(portion: {
+    unit?: string;
+    _quantity?: string;
+    targetQuantity?: number;
+}) {
+    if (!isDiscreteUnit(portion.unit)) {
+        return 1;
+    }
+
+    const parsed = parseIngredientQuantity(portion._quantity);
+    if (parsed != null && parsed > 0) {
+        return snapQuantityForUnit(parsed, 'PIECE', {allowFractions: true});
+    }
+
+    if (
+        typeof portion.targetQuantity === 'number' &&
+        portion.targetQuantity > 0
+    ) {
+        return snapQuantityForUnit(portion.targetQuantity, 'PIECE', {
+            allowFractions: true
+        });
+    }
+
+    return 1;
+}
+
 function foodCaloriesPer100g(food: Food) {
     if (food.caloriesPer100g != null) {
         return food.caloriesPer100g;
@@ -124,7 +214,11 @@ function isDiscreteUnit(unit?: string) {
     return unit?.toUpperCase() === 'PIECE';
 }
 
-function resolveTargetGrams(portion: EditablePortion) {
+function isWholeCountUnit(unit?: string) {
+    return unit?.toUpperCase() === 'TBSP';
+}
+
+function resolveTargetGrams(portion: EditablePortion, foods: Food[]) {
     if (unitLabel(portion.unit) === 'g') {
         return Math.round(Math.max(0, Number(portion._grams) || 0));
     }
@@ -132,6 +226,7 @@ function resolveTargetGrams(portion: EditablePortion) {
     const targetQuantity = resolveTargetQuantity(portion);
     const sourceQuantity = portion._sourceTargetQuantity;
     const sourceGrams = portion._sourceTargetGrams;
+    const matchedFood = findFoodByName(foods, portion.ingredientName);
 
     // Keep generated/saved grams when the quantity is unchanged so the edit
     // summary matches the meal card.
@@ -142,7 +237,7 @@ function resolveTargetGrams(portion: EditablePortion) {
         sourceGrams > 0 &&
         Math.abs(targetQuantity - sourceQuantity) < 0.001
     ) {
-        return Math.round(sourceGrams);
+        return roundNutritionGrams(sourceGrams);
     }
 
     if (
@@ -151,7 +246,9 @@ function resolveTargetGrams(portion: EditablePortion) {
         typeof sourceGrams === 'number' &&
         sourceGrams > 0
     ) {
-        return Math.round((sourceGrams / sourceQuantity) * targetQuantity);
+        return roundNutritionGrams(
+            (sourceGrams / sourceQuantity) * targetQuantity
+        );
     }
 
     if (
@@ -160,16 +257,18 @@ function resolveTargetGrams(portion: EditablePortion) {
         typeof portion.baseGrams === 'number' &&
         portion.baseGrams > 0
     ) {
-        return Math.round(
+        return roundNutritionGrams(
             (portion.baseGrams / portion.baseQuantity) * targetQuantity
         );
     }
 
-    return Math.round(
+    return roundNutritionGrams(
         resolveIngredientNutritionGrams(
             targetQuantity,
             portion.unit,
-            portion.baseGrams || 100
+            portion.baseGrams,
+            matchedFood?.density,
+            matchedFood?.gramsPerPiece
         )
     );
 }
@@ -180,7 +279,15 @@ function resolveTargetQuantity(portion: EditablePortion) {
         return 0;
     }
 
-    return Math.round(parsed * 1000) / 1000;
+    const qty = Math.round(parsed * 1000) / 1000;
+    if (isDiscreteUnit(portion.unit)) {
+        return snapQuantityForUnit(qty, portion.unit, {allowFractions: true});
+    }
+    if (isWholeCountUnit(portion.unit)) {
+        return snapQuantityForUnit(qty, portion.unit);
+    }
+
+    return qty;
 }
 
 function createEmptyPortion(): EditablePortion {
@@ -253,20 +360,17 @@ export default function MealEditModal({
         setPortionsDirty(false);
         setPortions(
             (meal.ingredientPortions ?? []).map(p => {
-                const sourceQuantity = p.targetQuantity ?? p.targetGrams;
-                const quantityLabel = formatIngredientQuantityInput(
-                    sourceQuantity,
-                    p.unit,
-                    {isDiscrete: p.isDiscrete, allowFractions: true}
-                );
+                const {amount: quantityLabel} = formatMealPortionDisplay(p);
                 const parsedQuantity =
-                    parseIngredientQuantity(quantityLabel) ?? sourceQuantity;
+                    parseIngredientQuantity(quantityLabel) ??
+                    p.targetQuantity ??
+                    p.targetGrams;
 
                 return {
                     ...p,
                     _key: p.ingredientId ?? crypto.randomUUID(),
-                    // Anchor to the displayed quantity so totals stay equal to
-                    // the meal card until the user edits an amount.
+                    // Same snapped amount as the meal card, so tz/cda don't
+                    // jump (e.g. 3 3/4 on the card vs 3 7/8 in the editor).
                     _sourceTargetGrams: p.targetGrams,
                     _sourceTargetQuantity: parsedQuantity,
                     _grams: String(Math.round(p.targetGrams)),
@@ -320,15 +424,21 @@ export default function MealEditModal({
                 if (i !== idx) return p;
 
                 if (value === 'PIECE') {
+                    const matchedFood = allFoods.find(
+                        food =>
+                            food.name.toLowerCase() ===
+                            p.ingredientName.trim().toLowerCase()
+                    );
                     const gramsPerPiece = Math.max(
                         1,
-                        Math.round(
-                            unitLabel(p.unit) === 'g'
-                                ? Number(p._grams) || p.targetGrams || 100
-                                : p.baseQuantity && p.baseQuantity > 0
-                                  ? p.baseGrams / p.baseQuantity
-                                  : p.targetGrams || 100
-                        )
+                        catalogGramsPerPiece(matchedFood) ??
+                            Math.round(
+                                unitLabel(p.unit) === 'g'
+                                    ? Number(p._grams) || p.targetGrams || 100
+                                    : p.baseQuantity && p.baseQuantity > 0
+                                      ? p.baseGrams / p.baseQuantity
+                                      : p.targetGrams || 100
+                            )
                     );
 
                     return {
@@ -368,8 +478,9 @@ export default function MealEditModal({
                     };
                 }
 
-                // Volume / count-like units: reset to 1 unit. Leaving the old
-                // gram quantity (often 100) made "1 taza" save as "100 tz".
+                // Volume / weight-count units: 1 measure, grams from density
+                // (or 15 ml × 1 g/ml for cda). Copying the old 100 g made
+                // "1 cda" equal 100 g.
                 if (
                     value === 'CUP' ||
                     value === 'TBSP' ||
@@ -377,15 +488,13 @@ export default function MealEditModal({
                     value === 'ML' ||
                     value === 'OZ'
                 ) {
-                    const gramsPerUnit = Math.max(
-                        1,
-                        Math.round(
-                            unitLabel(p.unit) === 'g'
-                                ? Number(p._grams) || p.targetGrams || 100
-                                : p.baseQuantity && p.baseQuantity > 0
-                                  ? p.baseGrams / p.baseQuantity
-                                  : p.targetGrams || 100
-                        )
+                    const matchedFood = findFoodByName(
+                        allFoods,
+                        p.ingredientName
+                    );
+                    const gramsPerUnit = gramsPerIngredientUnit(
+                        value,
+                        matchedFood?.density
                     );
 
                     return {
@@ -437,9 +546,16 @@ export default function MealEditModal({
                 if (food.isDiscrete) {
                     const gramsPerPiece = Math.max(
                         1,
-                        Math.round(
-                            Number(p._grams) || p.targetGrams || 100
-                        )
+                        catalogGramsPerPiece(food) ?? 100
+                    );
+                    const pieceCount = existingPieceCount(p);
+                    const targetGrams = Math.max(
+                        1,
+                        Math.round(gramsPerPiece * pieceCount)
+                    );
+                    const quantityLabel = formatIngredientQuantityInput(
+                        pieceCount,
+                        'PIECE'
                     );
 
                     return {
@@ -450,23 +566,26 @@ export default function MealEditModal({
                         isDiscrete: true,
                         unit: 'PIECE',
                         baseQuantity: 1,
-                        targetQuantity: 1,
+                        targetQuantity: pieceCount,
                         baseGrams: gramsPerPiece,
-                        targetGrams: gramsPerPiece,
-                        _quantity: '1',
-                        _grams: String(gramsPerPiece),
-                        _sourceTargetQuantity: 1,
-                        _sourceTargetGrams: gramsPerPiece
+                        targetGrams,
+                        _quantity: quantityLabel,
+                        _grams: String(targetGrams),
+                        _sourceTargetQuantity: pieceCount,
+                        _sourceTargetGrams: targetGrams
                     };
                 }
 
-                return {
-                    ...p,
-                    ingredientName: food.name,
-                    _isNew: false,
-                    isDiscrete: food.isDiscrete ?? false,
-                    ...nutrition
-                };
+                return portionWithCatalogVolumeGrams(
+                    {
+                        ...p,
+                        ingredientName: food.name,
+                        _isNew: false,
+                        isDiscrete: food.isDiscrete ?? false,
+                        ...nutrition
+                    },
+                    food
+                );
             })
         );
     };
@@ -487,9 +606,16 @@ export default function MealEditModal({
                     if (matchedFood.isDiscrete) {
                         const gramsPerPiece = Math.max(
                             1,
-                            Math.round(
-                                Number(p._grams) || p.targetGrams || 100
-                            )
+                            catalogGramsPerPiece(matchedFood) ?? 100
+                        );
+                        const pieceCount = existingPieceCount(p);
+                        const targetGrams = Math.max(
+                            1,
+                            Math.round(gramsPerPiece * pieceCount)
+                        );
+                        const quantityLabel = formatIngredientQuantityInput(
+                            pieceCount,
+                            'PIECE'
                         );
 
                         return {
@@ -500,23 +626,26 @@ export default function MealEditModal({
                             isDiscrete: true,
                             unit: 'PIECE',
                             baseQuantity: 1,
-                            targetQuantity: 1,
+                            targetQuantity: pieceCount,
                             baseGrams: gramsPerPiece,
-                            targetGrams: gramsPerPiece,
-                            _quantity: '1',
-                            _grams: String(gramsPerPiece),
-                            _sourceTargetQuantity: 1,
-                            _sourceTargetGrams: gramsPerPiece
+                            targetGrams,
+                            _quantity: quantityLabel,
+                            _grams: String(targetGrams),
+                            _sourceTargetQuantity: pieceCount,
+                            _sourceTargetGrams: targetGrams
                         };
                     }
 
-                    return {
-                        ...p,
-                        ingredientName: matchedFood.name,
-                        _isNew: false,
-                        isDiscrete: matchedFood.isDiscrete ?? false,
-                        ...nutrition
-                    };
+                    return portionWithCatalogVolumeGrams(
+                        {
+                            ...p,
+                            ingredientName: matchedFood.name,
+                            _isNew: false,
+                            isDiscrete: matchedFood.isDiscrete ?? false,
+                            ...nutrition
+                        },
+                        matchedFood
+                    );
                 }
 
                 return {
@@ -542,10 +671,10 @@ export default function MealEditModal({
                 .filter(portion => portion.ingredientName.trim())
                 .map(portion => ({
                     ...portion,
-                    targetGrams: resolveTargetGrams(portion),
+                    targetGrams: resolveTargetGrams(portion, allFoods),
                     targetQuantity: resolveTargetQuantity(portion)
                 })),
-        [portions]
+        [portions, allFoods]
     );
 
     const previewTotals = useMemo(
@@ -620,7 +749,8 @@ export default function MealEditModal({
                 ingredientPortions: updatedPortions,
                 extraIngredients: extras
                     .map(extra => extra.name.trim())
-                    .filter(Boolean)
+                    .filter(Boolean),
+                warnings: portionsDirty ? [] : meal.warnings
             },
             {applyToAllDays}
         );
@@ -862,7 +992,11 @@ export default function MealEditModal({
                                             </Label>
                                             <Input
                                                 type='text'
-                                                inputMode='decimal'
+                                                inputMode={
+                                                    discrete
+                                                        ? 'text'
+                                                        : 'decimal'
+                                                }
                                                 value={
                                                     discrete || !isGrams
                                                         ? portion._quantity
@@ -903,16 +1037,19 @@ export default function MealEditModal({
                                                                     isDiscrete:
                                                                         quantityIsDiscrete,
                                                                     allowFractions:
-                                                                        true
+                                                                        discrete
                                                                 }
                                                             )
                                                         );
                                                     }
                                                 }}
                                                 placeholder={
-                                                    quantityIsDiscrete
-                                                        ? '1 o 1/2'
-                                                        : '1/3 o 0.33'
+                                                    discrete
+                                                        ? '1/2 o 1'
+                                                        : portion.unit ===
+                                                            'TBSP'
+                                                          ? '1, 2 o 3'
+                                                          : '1/3 o 0.33'
                                                 }
                                                 className='h-9 bg-background'
                                             />

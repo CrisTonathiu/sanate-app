@@ -177,8 +177,7 @@ function addPortionToBucket(bucket: AggregatedBucket, portion: PortionRow) {
 function formatAggregatedQuantity(bucket: AggregatedBucket): string {
     if (bucket.isDiscrete && bucket.pieceTotal > 0) {
         const amount = formatIngredientQuantity(bucket.pieceTotal, 'PIECE', {
-            isDiscrete: true,
-            allowFractions: true
+            isDiscrete: true
         });
         return `${amount} ${INGREDIENT_UNIT_LABEL.PIECE}`;
     }
@@ -200,9 +199,7 @@ function formatAggregatedQuantity(bucket: AggregatedBucket): string {
     }
 
     if (bucket.pieceTotal > 0) {
-        const amount = formatIngredientQuantity(bucket.pieceTotal, 'PIECE', {
-            allowFractions: true
-        });
+        const amount = formatIngredientQuantity(bucket.pieceTotal, 'PIECE');
         return `${amount} ${INGREDIENT_UNIT_LABEL.PIECE}`;
     }
 

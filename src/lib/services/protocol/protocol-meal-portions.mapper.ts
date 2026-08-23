@@ -110,6 +110,7 @@ export function mapDbIngredientsToMealPortions(
                 carbsPer100g?: number | null;
                 fatPer100g?: number | null;
                 density?: number | null;
+                gramsPerPiece?: number | null;
             } | null;
         };
     }>
@@ -160,6 +161,7 @@ export function mapRecipeRowsToMealPortions(
                 fatPer100g: number | null;
                 isDiscrete?: boolean | null;
                 density?: number | null;
+                gramsPerPiece?: number | null;
             } | null;
         };
     }>
@@ -173,7 +175,8 @@ export function mapRecipeRowsToMealPortions(
             quantity,
             unit,
             grams,
-            food?.density
+            food?.density,
+            food?.gramsPerPiece
         );
 
         return {
@@ -263,6 +266,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
                     carbsPer100g: number | null;
                     fatPer100g: number | null;
                     density?: number | null;
+                    gramsPerPiece?: number | null;
+                    isDiscrete?: boolean | null;
                 } | null;
             };
         }>;
@@ -346,12 +351,9 @@ type RecipeIngredientBase = {
     grams: number;
     unit: string | null;
     density?: number | null;
+    gramsPerPiece?: number | null;
 };
 
-/**
- * Patient-facing amount for a scaled protocol portion. Uses the base recipe's
- * unit/quantity/grams to convert targetGrams into the correct count (pz, cda, …).
- */
 export function formatScaledIngredientDisplay(
     scaled: {
         unit: IngredientUnit | string;
@@ -364,15 +366,9 @@ export function formatScaledIngredientDisplay(
     const unit = normalizeIngredientUnit(scaled.unit ?? recipeBase.unit);
     const unitLabel =
         INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
-    // Automatic scaling stores whole pieces. A stored fraction means someone
-    // typed it by hand (1/2 tortilla) and must be kept for display and math.
-    const hasFractionalQuantity =
-        Number.isFinite(scaled.targetQuantity) &&
-        Math.abs(scaled.targetQuantity - Math.round(scaled.targetQuantity)) >
-            0.001;
     const quantityOptions = {
         isDiscrete: scaled.isDiscrete,
-        allowFractions: hasFractionalQuantity
+        allowFractions: unit === 'PIECE'
     };
 
     if (unit === 'GRAM') {
@@ -411,7 +407,8 @@ export function formatScaledIngredientDisplay(
         baseQty,
         recipeBase.unit,
         recipeBase.grams,
-        recipeBase.density
+        recipeBase.density,
+        recipeBase.gramsPerPiece
     );
     const gramsPerUnit = baseNutritionGrams / baseQty;
     let displayQuantity =
@@ -435,6 +432,35 @@ export function formatScaledIngredientDisplay(
     };
 }
 
+/** Same amount the meal card shows — use this in the edit modal too. */
+export function formatMealPortionDisplay(portion: {
+    targetQuantity?: number;
+    targetGrams: number;
+    baseQuantity?: number;
+    baseGrams?: number;
+    unit?: string;
+    isDiscrete?: boolean;
+}): {amount: string; unitLabel: string} {
+    const {amount, unit} = formatScaledIngredientDisplay(
+        {
+            unit: portion.unit ?? 'GRAM',
+            targetGrams: portion.targetGrams,
+            targetQuantity: portion.targetQuantity ?? portion.targetGrams,
+            isDiscrete: portion.isDiscrete
+        },
+        {
+            quantity: portion.baseQuantity ?? portion.targetQuantity ?? null,
+            grams: portion.baseGrams || portion.targetGrams,
+            unit: portion.unit ?? 'GRAM'
+        }
+    );
+
+    const unitLabel =
+        unit === 'taza' ? 'tz' : unit === 'cdta' ? 'cdita' : unit;
+
+    return {amount, unitLabel};
+}
+
 export function mapStoredPortionsToSliderIngredients(
     portions: StoredProtocolMealPortions,
     recipeIngredients?: Array<
@@ -444,6 +470,7 @@ export function mapStoredPortionsToSliderIngredients(
                 food?: {
                     density?: number | null;
                     isDiscrete?: boolean | null;
+                    gramsPerPiece?: number | null;
                 } | null;
             };
         }
@@ -461,7 +488,8 @@ export function mapStoredPortionsToSliderIngredients(
                   quantity: recipeRow.quantity,
                   grams: recipeRow.grams,
                   unit: recipeRow.unit,
-                  density: recipeRow.ingredient.food?.density
+                  density: recipeRow.ingredient.food?.density,
+                  gramsPerPiece: recipeRow.ingredient.food?.gramsPerPiece
               }
             : {
                   quantity: row.baseQuantity,
