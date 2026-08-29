@@ -28,6 +28,7 @@ export type FoodFormData = {
     fatPer100g?: number | null;
     density?: number | null;
     isDiscrete?: boolean;
+    gramsPerPiece?: number | null;
     maxPortionGrams?: number | null;
     gramsPerEquivalent?: number | null;
     equivalentDisplayText?: string | null;
@@ -80,6 +81,7 @@ export function FoodForm({
     const [density, setDensity] = useState('');
     const [maxPortionGrams, setMaxPortionGrams] = useState('');
     const [isDiscrete, setIsDiscrete] = useState(false);
+    const [gramsPerPiece, setGramsPerPiece] = useState('');
     const [gramsPerEquivalent, setGramsPerEquivalent] = useState('');
     const [equivalentDisplayText, setEquivalentDisplayText] = useState('');
     const [isFreePortion, setIsFreePortion] = useState(false);
@@ -96,6 +98,7 @@ export function FoodForm({
         setDensity(formatNumberField(initialData.density));
         setMaxPortionGrams(formatNumberField(initialData.maxPortionGrams));
         setIsDiscrete(initialData.isDiscrete ?? false);
+        setGramsPerPiece(formatNumberField(initialData.gramsPerPiece));
         setGramsPerEquivalent(formatNumberField(initialData.gramsPerEquivalent));
         setEquivalentDisplayText(initialData.equivalentDisplayText ?? '');
         setIsFreePortion(initialData.isFreePortion ?? false);
@@ -150,6 +153,14 @@ export function FoodForm({
             return;
         }
 
+        const parsedGramsPerPiece = parseOptionalNumber(gramsPerPiece);
+        if (isDiscrete && (parsedGramsPerPiece == null || parsedGramsPerPiece <= 0)) {
+            setError(
+                'Indica los gramos de 1 pieza si el alimento se cuenta en piezas'
+            );
+            return;
+        }
+
         setIsSaving(true);
         try {
             await onSave({
@@ -162,6 +173,7 @@ export function FoodForm({
                 density: parseOptionalNumber(density),
                 maxPortionGrams: parseOptionalNumber(maxPortionGrams),
                 isDiscrete,
+                gramsPerPiece: isDiscrete ? parsedGramsPerPiece : null,
                 gramsPerEquivalent: parseOptionalNumber(gramsPerEquivalent),
                 equivalentDisplayText: equivalentDisplayText.trim() || null,
                 isFreePortion
@@ -396,6 +408,29 @@ export function FoodForm({
                                 Porción discreta (piezas, unidades)
                             </Label>
                         </div>
+                        {isDiscrete ? (
+                            <div className='sm:col-span-2'>
+                                <Label className='text-xs text-muted-foreground mb-1.5 block'>
+                                    Gramos por 1 pieza
+                                </Label>
+                                <Input
+                                    type='text'
+                                    inputMode='decimal'
+                                    value={gramsPerPiece}
+                                    onChange={e =>
+                                        setGramsPerPiece(e.target.value)
+                                    }
+                                    placeholder='200'
+                                    required
+                                    className='h-10 bg-background/50'
+                                />
+                                <p className='text-xs text-muted-foreground mt-1.5'>
+                                    Peso de una pieza de supermercado. Ej:
+                                    aguacate ≈ 200 g. Las calorías se calculan
+                                    con kcal/100 g.
+                                </p>
+                            </div>
+                        ) : null}
                     </CardContent>
                 </Card>
 

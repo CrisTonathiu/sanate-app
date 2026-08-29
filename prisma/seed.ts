@@ -609,6 +609,8 @@ async function main() {
         fat: number;
         calories: number;
         density?: number;
+        isDiscrete?: boolean;
+        gramsPerPiece?: number;
     }> = [
         {
             name: 'Aceite de oliva',
@@ -627,7 +629,15 @@ async function main() {
             density: 0.92
         },
         {name: 'Ghee', protein: 0, carbs: 0, fat: 100, calories: 900, density: 0.91},
-        {name: 'Aguacate', protein: 2, carbs: 9, fat: 15, calories: 160}
+        {
+            name: 'Aguacate',
+            protein: 2,
+            carbs: 9,
+            fat: 15,
+            calories: 160,
+            isDiscrete: true,
+            gramsPerPiece: 200
+        }
     ];
 
     for (const fat of fats) {
@@ -638,7 +648,10 @@ async function main() {
             carbsPer100g: fat.carbs,
             fatPer100g: fat.fat,
             caloriesPer100g: fat.calories,
-            ...(fat.density != null ? {density: fat.density} : {})
+            ...(fat.density != null ? {density: fat.density} : {}),
+            ...(fat.isDiscrete
+                ? {isDiscrete: true, gramsPerPiece: fat.gramsPerPiece}
+                : {})
         };
         await prisma.food.create({
             data: fatFoodData

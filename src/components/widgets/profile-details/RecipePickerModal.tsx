@@ -72,7 +72,8 @@ function computeNutrition(recipe: Recipe) {
             item.quantity,
             item.unit,
             item.grams,
-            food?.density
+            food?.density,
+            food?.gramsPerPiece
         );
         const ratio = grams / 100;
         protein += (food.proteinPer100g ?? 0) * ratio;
@@ -128,7 +129,8 @@ function recipeToMealSlot(
             carbsPer100g: food?.carbsPer100g ?? 0,
             fatPer100g: food?.fatPer100g ?? 0,
             isDiscrete: food?.isDiscrete ?? false,
-            density: food?.density
+            density: food?.density,
+            gramsPerPiece: food?.gramsPerPiece
         };
     });
 

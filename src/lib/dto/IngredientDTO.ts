@@ -6,6 +6,8 @@ export interface IngredientDTO {
     unit?: string;
     /** Gram weight per unit when unit is not grams (e.g. per tbsp, per piece). */
     gramsPerUnit?: number;
+    /** Grocery grams of 1 pieza from the food catalog. */
+    gramsPerPiece?: number | null;
     /** Food density in g/ml; drives volume-unit conversions when set. */
     foodDensity?: number | null;
     caloriesPer100g: number;

@@ -447,7 +447,8 @@ export function isVolumeIngredientUnit(unit?: string | null): boolean {
  */
 export function gramsPerIngredientUnit(
     unit?: string | null,
-    density?: number | null
+    density?: number | null,
+    gramsPerPiece?: number | null
 ): number {
     const volumeMl = volumeMlPerIngredientUnit(unit);
     if (volumeMl != null) {
@@ -462,7 +463,9 @@ export function gramsPerIngredientUnit(
         case 'OZ':
             return 28.3495;
         case 'PIECE':
-            return 100;
+            return typeof gramsPerPiece === 'number' && gramsPerPiece > 0
+                ? gramsPerPiece
+                : 100;
         default:
             return 1;
     }
@@ -471,11 +474,13 @@ export function gramsPerIngredientUnit(
 /**
  * Resolves grams per unit for nutrition math.
  * When food.density is set, volume units prefer density over stored recipe grams.
+ * For PIECE, catalog gramsPerPiece is the grocery size of 1 pieza.
  */
 export function resolveReferenceGramsPerUnit(
     unit?: string | null,
     grams?: number | null,
-    density?: number | null
+    density?: number | null,
+    gramsPerPiece?: number | null
 ): number {
     const normalizedUnit = normalizeIngredientUnit(unit);
 
@@ -487,11 +492,19 @@ export function resolveReferenceGramsPerUnit(
         return gramsPerIngredientUnit(normalizedUnit, density);
     }
 
+    if (
+        normalizedUnit === 'PIECE' &&
+        typeof gramsPerPiece === 'number' &&
+        gramsPerPiece > 0
+    ) {
+        return gramsPerPiece;
+    }
+
     if (typeof grams === 'number' && grams > 0) {
         return grams;
     }
 
-    return gramsPerIngredientUnit(normalizedUnit);
+    return gramsPerIngredientUnit(normalizedUnit, density, gramsPerPiece);
 }
 
 /**
@@ -502,7 +515,8 @@ export function resolveIngredientNutritionGrams(
     quantity: number | null | undefined,
     unit: string | null | undefined,
     grams: number | null | undefined,
-    density?: number | null
+    density?: number | null,
+    gramsPerPiece?: number | null
 ): number {
     const normalizedUnit = normalizeIngredientUnit(unit);
     const fallbackQuantity =
@@ -523,7 +537,8 @@ export function resolveIngredientNutritionGrams(
     const referenceGramsPerUnit = resolveReferenceGramsPerUnit(
         normalizedUnit,
         grams,
-        density
+        density,
+        gramsPerPiece
     );
 
     return referenceGramsPerUnit * qty;

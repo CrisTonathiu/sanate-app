@@ -163,7 +163,8 @@ export async function createRecipe(input: CreateRecipeInput) {
                         : resolveReferenceGramsPerUnit(
                               baseUnit,
                               item.grams,
-                              food.density
+                              food.density,
+                              food.gramsPerPiece
                           );
 
                 const recipeIngredientData = {
@@ -285,7 +286,8 @@ export async function updateRecipe(
                             : resolveReferenceGramsPerUnit(
                                   baseUnit,
                                   item.grams,
-                                  food.density
+                                  food.density,
+                                  food.gramsPerPiece
                               );
 
                     const recipeIngredientData = {

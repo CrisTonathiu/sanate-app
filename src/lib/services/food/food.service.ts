@@ -82,6 +82,9 @@ export async function createFood(input: CreateFoodInput) {
                 caloriesPer100g: validatedInput.caloriesPer100g ?? null,
                 density: validatedInput.density ?? null,
                 isDiscrete: validatedInput.isDiscrete ?? false,
+                gramsPerPiece: validatedInput.isDiscrete
+                    ? (validatedInput.gramsPerPiece ?? null)
+                    : null,
                 maxPortionGrams: validatedInput.maxPortionGrams ?? null,
                 gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
                 equivalentDisplayText:
@@ -188,6 +191,9 @@ export async function updateFood(foodId: FoodIdInput, input: UpdateFoodInput) {
                 caloriesPer100g: validatedInput.caloriesPer100g ?? null,
                 density: validatedInput.density ?? null,
                 isDiscrete: validatedInput.isDiscrete ?? false,
+                gramsPerPiece: validatedInput.isDiscrete
+                    ? (validatedInput.gramsPerPiece ?? null)
+                    : null,
                 maxPortionGrams: validatedInput.maxPortionGrams ?? null,
                 gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
                 equivalentDisplayText:

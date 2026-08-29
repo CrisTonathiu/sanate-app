@@ -31,6 +31,7 @@ export type ScalableIngredient = {
     fatPer100g?: number | null;
     isDiscrete?: boolean | null;
     density?: number | null;
+    gramsPerPiece?: number | null;
 };
 
 function round4(value: number) {
@@ -76,7 +77,8 @@ export function scaleIngredientByFactor(
         item.quantity,
         unit,
         item.grams,
-        item.density
+        item.density,
+        item.gramsPerPiece
     );
     const isDiscrete = item.isDiscrete ?? false;
     const targetQuantity = scaleIngredientQuantity(

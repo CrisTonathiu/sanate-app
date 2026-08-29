@@ -66,6 +66,13 @@ function round1(value: number) {
     return Number(value.toFixed(1));
 }
 
+function catalogGramsPerPiece(food?: Food | null) {
+    if (food?.gramsPerPiece != null && food.gramsPerPiece > 0) {
+        return Math.round(food.gramsPerPiece);
+    }
+    return null;
+}
+
 function foodCaloriesPer100g(food: Food) {
     if (food.caloriesPer100g != null) {
         return food.caloriesPer100g;
@@ -320,15 +327,21 @@ export default function MealEditModal({
                 if (i !== idx) return p;
 
                 if (value === 'PIECE') {
+                    const matchedFood = allFoods.find(
+                        food =>
+                            food.name.toLowerCase() ===
+                            p.ingredientName.trim().toLowerCase()
+                    );
                     const gramsPerPiece = Math.max(
                         1,
-                        Math.round(
-                            unitLabel(p.unit) === 'g'
-                                ? Number(p._grams) || p.targetGrams || 100
-                                : p.baseQuantity && p.baseQuantity > 0
-                                  ? p.baseGrams / p.baseQuantity
-                                  : p.targetGrams || 100
-                        )
+                        catalogGramsPerPiece(matchedFood) ??
+                            Math.round(
+                                unitLabel(p.unit) === 'g'
+                                    ? Number(p._grams) || p.targetGrams || 100
+                                    : p.baseQuantity && p.baseQuantity > 0
+                                      ? p.baseGrams / p.baseQuantity
+                                      : p.targetGrams || 100
+                            )
                     );
 
                     return {
@@ -437,9 +450,7 @@ export default function MealEditModal({
                 if (food.isDiscrete) {
                     const gramsPerPiece = Math.max(
                         1,
-                        Math.round(
-                            Number(p._grams) || p.targetGrams || 100
-                        )
+                        catalogGramsPerPiece(food) ?? 100
                     );
 
                     return {
@@ -487,9 +498,7 @@ export default function MealEditModal({
                     if (matchedFood.isDiscrete) {
                         const gramsPerPiece = Math.max(
                             1,
-                            Math.round(
-                                Number(p._grams) || p.targetGrams || 100
-                            )
+                            catalogGramsPerPiece(matchedFood) ?? 100
                         );
 
                         return {

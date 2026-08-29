@@ -19,6 +19,7 @@ export interface Food {
     fatPer100g?: number | null;
     density?: number | null;
     isDiscrete?: boolean;
+    gramsPerPiece?: number | null;
     maxPortionGrams?: number | null;
     gramsPerEquivalent?: number | null;
     equivalentDisplayText?: string | null;

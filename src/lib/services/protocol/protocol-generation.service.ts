@@ -60,6 +60,7 @@ type RecipeSummary = {
         isDiscrete: boolean;
         maxPortionGrams: number | null;
         density: number | null;
+        gramsPerPiece: number | null;
         foodGroupName: string | null;
     }>;
 };
@@ -270,6 +271,7 @@ function computeRecipeNutrition(recipe: {
                 carbsPer100g: number | null;
                 fatPer100g: number | null;
                 density?: number | null;
+                gramsPerPiece?: number | null;
             } | null;
         };
     }>;
@@ -289,7 +291,8 @@ function computeRecipeNutrition(recipe: {
             item.quantity,
             item.unit,
             item.grams,
-            food?.density
+            food?.density,
+            food?.gramsPerPiece
         );
         const ratio = gramsForNutrition / 100;
 
@@ -691,6 +694,7 @@ export async function generateProtocolPlanForPatient(
                                     isDiscrete: true,
                                     maxPortionGrams: true,
                                     density: true,
+                                    gramsPerPiece: true,
                                     group: {
                                         select: {
                                             name: true
@@ -760,6 +764,8 @@ export async function generateProtocolPlanForPatient(
                         maxPortionGrams:
                             item.ingredient.food?.maxPortionGrams ?? null,
                         density: item.ingredient.food?.density ?? null,
+                        gramsPerPiece:
+                            item.ingredient.food?.gramsPerPiece ?? null,
                         foodGroupName: item.ingredient.food?.group?.name ?? null
                     };
                 })

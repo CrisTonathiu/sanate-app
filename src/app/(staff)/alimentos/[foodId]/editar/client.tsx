@@ -23,6 +23,7 @@ interface FoodApiResponse {
         fatPer100g: number | null;
         density: number | null;
         isDiscrete: boolean;
+        gramsPerPiece: number | null;
         maxPortionGrams: number | null;
         gramsPerEquivalent: number | null;
         equivalentDisplayText: string | null;
@@ -64,6 +65,7 @@ export default function ClientPage({foodId}: {foodId: string}) {
                     fatPer100g: body.data.fatPer100g,
                     density: body.data.density,
                     isDiscrete: body.data.isDiscrete,
+                    gramsPerPiece: body.data.gramsPerPiece,
                     maxPortionGrams: body.data.maxPortionGrams,
                     gramsPerEquivalent: body.data.gramsPerEquivalent,
                     equivalentDisplayText: body.data.equivalentDisplayText,

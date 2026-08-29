@@ -57,7 +57,8 @@ export async function addIngredientToRecipe(
                     : resolveReferenceGramsPerUnit(
                           validatedInput.unit ?? 'GRAM',
                           validatedInput.grams,
-                          ingredient.food?.density
+                          ingredient.food?.density,
+                          ingredient.food?.gramsPerPiece
                       )
         } as unknown as Parameters<
             typeof prisma.recipeIngredient.create

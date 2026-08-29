@@ -110,6 +110,7 @@ export function mapDbIngredientsToMealPortions(
                 carbsPer100g?: number | null;
                 fatPer100g?: number | null;
                 density?: number | null;
+                gramsPerPiece?: number | null;
             } | null;
         };
     }>
@@ -160,6 +161,7 @@ export function mapRecipeRowsToMealPortions(
                 fatPer100g: number | null;
                 isDiscrete?: boolean | null;
                 density?: number | null;
+                gramsPerPiece?: number | null;
             } | null;
         };
     }>
@@ -173,7 +175,8 @@ export function mapRecipeRowsToMealPortions(
             quantity,
             unit,
             grams,
-            food?.density
+            food?.density,
+            food?.gramsPerPiece
         );
 
         return {
@@ -263,6 +266,8 @@ export function buildMealSlotFromProtocolMeal(meal: {
                     carbsPer100g: number | null;
                     fatPer100g: number | null;
                     density?: number | null;
+                    gramsPerPiece?: number | null;
+                    isDiscrete?: boolean | null;
                 } | null;
             };
         }>;
@@ -346,6 +351,7 @@ type RecipeIngredientBase = {
     grams: number;
     unit: string | null;
     density?: number | null;
+    gramsPerPiece?: number | null;
 };
 
 /**
@@ -411,7 +417,8 @@ export function formatScaledIngredientDisplay(
         baseQty,
         recipeBase.unit,
         recipeBase.grams,
-        recipeBase.density
+        recipeBase.density,
+        recipeBase.gramsPerPiece
     );
     const gramsPerUnit = baseNutritionGrams / baseQty;
     let displayQuantity =
@@ -444,6 +451,7 @@ export function mapStoredPortionsToSliderIngredients(
                 food?: {
                     density?: number | null;
                     isDiscrete?: boolean | null;
+                    gramsPerPiece?: number | null;
                 } | null;
             };
         }
@@ -461,7 +469,8 @@ export function mapStoredPortionsToSliderIngredients(
                   quantity: recipeRow.quantity,
                   grams: recipeRow.grams,
                   unit: recipeRow.unit,
-                  density: recipeRow.ingredient.food?.density
+                  density: recipeRow.ingredient.food?.density,
+                  gramsPerPiece: recipeRow.ingredient.food?.gramsPerPiece
               }
             : {
                   quantity: row.baseQuantity,

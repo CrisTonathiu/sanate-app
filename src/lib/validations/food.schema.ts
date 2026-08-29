@@ -17,6 +17,15 @@ export const createFoodSchema = z.object({
         .optional()
         .transform(value => (value === undefined ? undefined : value)),
     isDiscrete: z.boolean().optional(),
+    gramsPerPiece: z
+        .union([
+            z.number().positive(
+                'Los gramos por pieza deben ser mayores a 0'
+            ),
+            z.null()
+        ])
+        .optional()
+        .transform(value => (value === undefined ? undefined : value)),
     maxPortionGrams: z
         .union([z.number().positive(), z.null()])
         .optional()
@@ -34,6 +43,19 @@ export const createFoodSchema = z.object({
             return value;
         }),
     isFreePortion: z.boolean().optional()
+}).superRefine((data, ctx) => {
+    if (!data.isDiscrete) {
+        return;
+    }
+
+    if (data.gramsPerPiece == null || data.gramsPerPiece <= 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['gramsPerPiece'],
+            message:
+                'Los gramos por pieza son obligatorios si el alimento se cuenta en piezas'
+        });
+    }
 });
 
 export type CreateFoodInput = z.infer<typeof createFoodSchema>;
