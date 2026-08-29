@@ -56,9 +56,20 @@ function formatNumberField(value?: number | null) {
     return String(value);
 }
 
-function formatDerivedNumber(value: number) {
-    const rounded = Math.round(value * 10) / 10;
-    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+function formatGramsFromKcal(value: number) {
+    return String(Number(value.toFixed(4)));
+}
+
+function formatKcalPerPieceDisplay(value: number) {
+    const nearestInt = Math.round(value);
+    if (Math.abs(value - nearestInt) < 0.15) {
+        return String(nearestInt);
+    }
+
+    const nearestTenth = Math.round(value * 10) / 10;
+    return Number.isInteger(nearestTenth)
+        ? String(nearestTenth)
+        : String(nearestTenth);
 }
 
 function gramsFromKcalPerPiece(kcalPerPiece: number, kcalPer100g: number) {
@@ -125,7 +136,7 @@ export function FoodForm({
         ) {
             const derivedKcal = kcalFromGramsPerPiece(grams, kcalPer100g);
             setKcalPerPiece(
-                derivedKcal != null ? formatDerivedNumber(derivedKcal) : ''
+                derivedKcal != null ? formatKcalPerPieceDisplay(derivedKcal) : ''
             );
         } else {
             setKcalPerPiece('');
@@ -182,7 +193,7 @@ export function FoodForm({
         ) {
             const grams = gramsFromKcalPerPiece(kcalPiece, kcalPer100g);
             if (grams != null) {
-                setGramsPerPiece(formatDerivedNumber(grams));
+                setGramsPerPiece(formatGramsFromKcal(grams));
             }
         }
     };
@@ -199,7 +210,7 @@ export function FoodForm({
         ) {
             const grams = gramsFromKcalPerPiece(kcalPiece, kcalPer100g);
             if (grams != null) {
-                setGramsPerPiece(formatDerivedNumber(grams));
+                setGramsPerPiece(formatGramsFromKcal(grams));
             }
         }
     };
@@ -220,11 +231,10 @@ export function FoodForm({
 
         const parsedCaloriesPer100g = parseOptionalNumber(caloriesPer100g);
         const parsedKcalPerPiece = parseOptionalNumber(kcalPerPiece);
-        let parsedGramsPerPiece = parseOptionalNumber(gramsPerPiece);
+        let parsedGramsPerPiece: number | null | undefined = null;
 
         if (
             isDiscrete &&
-            (parsedGramsPerPiece == null || parsedGramsPerPiece <= 0) &&
             parsedKcalPerPiece != null &&
             parsedKcalPerPiece > 0 &&
             parsedCaloriesPer100g != null &&
