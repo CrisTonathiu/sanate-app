@@ -85,7 +85,7 @@ export function scaleIngredientByFactor(
         item.quantity,
         scale,
         unit,
-        {isDiscrete}
+        {isDiscrete, allowFractions: true}
     );
     const targetGrams = usesUnitBasedGramScaling(unit)
         ? targetGramsForPieceQuantity(

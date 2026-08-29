@@ -237,7 +237,7 @@ function evaluateMealRealism(
                 item.quantity,
                 scale,
                 'PIECE',
-                {isDiscrete: item.isDiscrete}
+                {isDiscrete: item.isDiscrete, allowFractions: true}
             );
 
             if (scaledQty > 4) {

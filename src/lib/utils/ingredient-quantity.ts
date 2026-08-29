@@ -399,6 +399,7 @@ export function targetGramsForPieceQuantity(
 
 /**
  * Returns a user-friendly quantity string for ingredient inputs on blur.
+ * Piece fields keep kitchen fractions (1/4, 1/3, 1/2) instead of rounding to 1.
  */
 export function formatIngredientQuantityInput(
     input: string | number | null | undefined,
@@ -410,7 +411,10 @@ export function formatIngredientQuantityInput(
         return typeof input === 'string' ? input : '';
     }
 
-    return formatIngredientQuantity(parsed, unit, options);
+    return formatIngredientQuantity(parsed, unit, {
+        ...options,
+        allowFractions: options?.allowFractions ?? true
+    });
 }
 
 /** Metric cooking cup size used for volume conversions. */

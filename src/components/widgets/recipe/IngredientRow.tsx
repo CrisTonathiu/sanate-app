@@ -53,7 +53,11 @@ export function IngredientRow({
     const displayedQuantity =
         quantityInput ??
         (typeof ingredient.quantity === 'number'
-            ? formatIngredientQuantityInput(ingredient.quantity, ingredient.unit)
+            ? formatIngredientQuantityInput(
+                  ingredient.quantity,
+                  ingredient.unit,
+                  {allowFractions: true}
+              )
             : '');
 
     return (
@@ -132,7 +136,7 @@ export function IngredientRow({
                             }
                             setQuantityInput(null);
                         }}
-                        placeholder='100 o 1/3'
+                        placeholder='1/3 o 100'
                         className='h-10 bg-background/50 border-border'
                     />
                 </div>

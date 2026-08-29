@@ -370,15 +370,9 @@ export function formatScaledIngredientDisplay(
     const unit = normalizeIngredientUnit(scaled.unit ?? recipeBase.unit);
     const unitLabel =
         INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
-    // Automatic scaling stores whole pieces. A stored fraction means someone
-    // typed it by hand (1/2 tortilla) and must be kept for display and math.
-    const hasFractionalQuantity =
-        Number.isFinite(scaled.targetQuantity) &&
-        Math.abs(scaled.targetQuantity - Math.round(scaled.targetQuantity)) >
-            0.001;
     const quantityOptions = {
         isDiscrete: scaled.isDiscrete,
-        allowFractions: hasFractionalQuantity
+        allowFractions: true
     };
 
     if (unit === 'GRAM') {

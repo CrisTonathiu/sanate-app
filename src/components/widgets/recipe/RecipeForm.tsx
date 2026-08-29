@@ -484,12 +484,15 @@ export function RecipeForm(props: RecipeFormProps) {
                         updated.fatPer100g = food.fatPer100g ?? 0;
                         if (food.isDiscrete) {
                             updated.unit = 'piece';
-                            updated.quantity =
-                                typeof updated.quantity === 'number' &&
-                                updated.quantity > 0 &&
-                                normalizeUiUnit(ing.unit) === 'piece'
-                                    ? updated.quantity
-                                    : 1;
+                            const currentQty = parseIngredientQuantity(
+                                updated.quantity
+                            );
+                            const keepQuantity =
+                                currentQty != null &&
+                                currentQty > 0 &&
+                                (normalizeUiUnit(ing.unit) === 'piece' ||
+                                    currentQty < 10);
+                            updated.quantity = keepQuantity ? currentQty : 1;
                             updated.gramsPerUnit = resolveReferenceGramsPerUnit(
                                 'PIECE',
                                 undefined,
@@ -531,9 +534,16 @@ export function RecipeForm(props: RecipeFormProps) {
                 const nextUnit = food?.isDiscrete
                     ? 'piece'
                     : ing.unit;
+                const currentQty = parseIngredientQuantity(ing.quantity);
+                const keepQuantity =
+                    currentQty != null &&
+                    currentQty > 0 &&
+                    (normalizeUiUnit(ing.unit) === 'piece' || currentQty < 10);
                 const nextQuantity =
-                    food?.isDiscrete && normalizeUiUnit(ing.unit) !== 'piece'
-                        ? 1
+                    food?.isDiscrete
+                        ? keepQuantity
+                            ? currentQty
+                            : 1
                         : ing.quantity;
 
                 return {

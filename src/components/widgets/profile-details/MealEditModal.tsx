@@ -73,6 +73,30 @@ function catalogGramsPerPiece(food?: Food | null) {
     return null;
 }
 
+function existingPieceCount(portion: {
+    unit?: string;
+    _quantity?: string;
+    targetQuantity?: number;
+}) {
+    if (!isDiscreteUnit(portion.unit)) {
+        return 1;
+    }
+
+    const parsed = parseIngredientQuantity(portion._quantity);
+    if (parsed != null && parsed > 0) {
+        return parsed;
+    }
+
+    if (
+        typeof portion.targetQuantity === 'number' &&
+        portion.targetQuantity > 0
+    ) {
+        return portion.targetQuantity;
+    }
+
+    return 1;
+}
+
 function foodCaloriesPer100g(food: Food) {
     if (food.caloriesPer100g != null) {
         return food.caloriesPer100g;
@@ -452,6 +476,16 @@ export default function MealEditModal({
                         1,
                         catalogGramsPerPiece(food) ?? 100
                     );
+                    const pieceCount = existingPieceCount(p);
+                    const targetGrams = Math.max(
+                        1,
+                        Math.round(gramsPerPiece * pieceCount)
+                    );
+                    const quantityLabel = formatIngredientQuantityInput(
+                        pieceCount,
+                        'PIECE',
+                        {allowFractions: true}
+                    );
 
                     return {
                         ...p,
@@ -461,13 +495,13 @@ export default function MealEditModal({
                         isDiscrete: true,
                         unit: 'PIECE',
                         baseQuantity: 1,
-                        targetQuantity: 1,
+                        targetQuantity: pieceCount,
                         baseGrams: gramsPerPiece,
-                        targetGrams: gramsPerPiece,
-                        _quantity: '1',
-                        _grams: String(gramsPerPiece),
-                        _sourceTargetQuantity: 1,
-                        _sourceTargetGrams: gramsPerPiece
+                        targetGrams,
+                        _quantity: quantityLabel,
+                        _grams: String(targetGrams),
+                        _sourceTargetQuantity: pieceCount,
+                        _sourceTargetGrams: targetGrams
                     };
                 }
 
@@ -500,6 +534,16 @@ export default function MealEditModal({
                             1,
                             catalogGramsPerPiece(matchedFood) ?? 100
                         );
+                        const pieceCount = existingPieceCount(p);
+                        const targetGrams = Math.max(
+                            1,
+                            Math.round(gramsPerPiece * pieceCount)
+                        );
+                        const quantityLabel = formatIngredientQuantityInput(
+                            pieceCount,
+                            'PIECE',
+                            {allowFractions: true}
+                        );
 
                         return {
                             ...p,
@@ -509,13 +553,13 @@ export default function MealEditModal({
                             isDiscrete: true,
                             unit: 'PIECE',
                             baseQuantity: 1,
-                            targetQuantity: 1,
+                            targetQuantity: pieceCount,
                             baseGrams: gramsPerPiece,
-                            targetGrams: gramsPerPiece,
-                            _quantity: '1',
-                            _grams: String(gramsPerPiece),
-                            _sourceTargetQuantity: 1,
-                            _sourceTargetGrams: gramsPerPiece
+                            targetGrams,
+                            _quantity: quantityLabel,
+                            _grams: String(targetGrams),
+                            _sourceTargetQuantity: pieceCount,
+                            _sourceTargetGrams: targetGrams
                         };
                     }
 
@@ -920,7 +964,7 @@ export default function MealEditModal({
                                                 }}
                                                 placeholder={
                                                     quantityIsDiscrete
-                                                        ? '1 o 1/2'
+                                                        ? '1, 1/3 o 1/2'
                                                         : '1/3 o 0.33'
                                                 }
                                                 className='h-9 bg-background'
