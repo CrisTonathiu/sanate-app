@@ -56,6 +56,21 @@ function formatNumberField(value?: number | null) {
     return String(value);
 }
 
+function formatDerivedNumber(value: number) {
+    const rounded = Math.round(value * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function gramsFromKcalPerPiece(kcalPerPiece: number, kcalPer100g: number) {
+    if (kcalPerPiece <= 0 || kcalPer100g <= 0) return null;
+    return (kcalPerPiece / kcalPer100g) * 100;
+}
+
+function kcalFromGramsPerPiece(grams: number, kcalPer100g: number) {
+    if (grams <= 0 || kcalPer100g <= 0) return null;
+    return (kcalPer100g / 100) * grams;
+}
+
 export function FoodForm({
     mode = 'create',
     initialData,
@@ -81,6 +96,7 @@ export function FoodForm({
     const [density, setDensity] = useState('');
     const [maxPortionGrams, setMaxPortionGrams] = useState('');
     const [isDiscrete, setIsDiscrete] = useState(false);
+    const [kcalPerPiece, setKcalPerPiece] = useState('');
     const [gramsPerPiece, setGramsPerPiece] = useState('');
     const [gramsPerEquivalent, setGramsPerEquivalent] = useState('');
     const [equivalentDisplayText, setEquivalentDisplayText] = useState('');
@@ -99,6 +115,21 @@ export function FoodForm({
         setMaxPortionGrams(formatNumberField(initialData.maxPortionGrams));
         setIsDiscrete(initialData.isDiscrete ?? false);
         setGramsPerPiece(formatNumberField(initialData.gramsPerPiece));
+        const kcalPer100g = initialData.caloriesPer100g;
+        const grams = initialData.gramsPerPiece;
+        if (
+            kcalPer100g != null &&
+            kcalPer100g > 0 &&
+            grams != null &&
+            grams > 0
+        ) {
+            const derivedKcal = kcalFromGramsPerPiece(grams, kcalPer100g);
+            setKcalPerPiece(
+                derivedKcal != null ? formatDerivedNumber(derivedKcal) : ''
+            );
+        } else {
+            setKcalPerPiece('');
+        }
         setGramsPerEquivalent(formatNumberField(initialData.gramsPerEquivalent));
         setEquivalentDisplayText(initialData.equivalentDisplayText ?? '');
         setIsFreePortion(initialData.isFreePortion ?? false);
@@ -139,6 +170,40 @@ export function FoodForm({
         setShowGroupSuggestions(false);
     };
 
+    const applyKcalPerPiece = (value: string) => {
+        setKcalPerPiece(value);
+        const kcalPiece = parseOptionalNumber(value);
+        const kcalPer100g = parseOptionalNumber(caloriesPer100g);
+        if (
+            kcalPiece != null &&
+            kcalPiece > 0 &&
+            kcalPer100g != null &&
+            kcalPer100g > 0
+        ) {
+            const grams = gramsFromKcalPerPiece(kcalPiece, kcalPer100g);
+            if (grams != null) {
+                setGramsPerPiece(formatDerivedNumber(grams));
+            }
+        }
+    };
+
+    const applyCaloriesPer100g = (value: string) => {
+        setCaloriesPer100g(value);
+        const kcalPer100g = parseOptionalNumber(value);
+        const kcalPiece = parseOptionalNumber(kcalPerPiece);
+        if (
+            kcalPer100g != null &&
+            kcalPer100g > 0 &&
+            kcalPiece != null &&
+            kcalPiece > 0
+        ) {
+            const grams = gramsFromKcalPerPiece(kcalPiece, kcalPer100g);
+            if (grams != null) {
+                setGramsPerPiece(formatDerivedNumber(grams));
+            }
+        }
+    };
+
     const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();
         setError(null);
@@ -153,10 +218,29 @@ export function FoodForm({
             return;
         }
 
-        const parsedGramsPerPiece = parseOptionalNumber(gramsPerPiece);
+        const parsedCaloriesPer100g = parseOptionalNumber(caloriesPer100g);
+        const parsedKcalPerPiece = parseOptionalNumber(kcalPerPiece);
+        let parsedGramsPerPiece = parseOptionalNumber(gramsPerPiece);
+
+        if (
+            isDiscrete &&
+            (parsedGramsPerPiece == null || parsedGramsPerPiece <= 0) &&
+            parsedKcalPerPiece != null &&
+            parsedKcalPerPiece > 0 &&
+            parsedCaloriesPer100g != null &&
+            parsedCaloriesPer100g > 0
+        ) {
+            parsedGramsPerPiece = gramsFromKcalPerPiece(
+                parsedKcalPerPiece,
+                parsedCaloriesPer100g
+            );
+        }
+
         if (isDiscrete && (parsedGramsPerPiece == null || parsedGramsPerPiece <= 0)) {
             setError(
-                'Indica los gramos de 1 pieza si el alimento se cuenta en piezas'
+                parsedCaloriesPer100g == null || parsedCaloriesPer100g <= 0
+                    ? 'Indica las kcal / 100 g para calcular el peso de 1 pieza'
+                    : 'Indica las kcal de 1 pieza (tajada, aguacate, huevo, etc.)'
             );
             return;
         }
@@ -309,7 +393,7 @@ export function FoodForm({
                                 inputMode='decimal'
                                 value={caloriesPer100g}
                                 onChange={e =>
-                                    setCaloriesPer100g(e.target.value)
+                                    applyCaloriesPer100g(e.target.value)
                                 }
                                 placeholder='541'
                                 className='h-10 bg-background/50'
@@ -411,23 +495,26 @@ export function FoodForm({
                         {isDiscrete ? (
                             <div className='sm:col-span-2'>
                                 <Label className='text-xs text-muted-foreground mb-1.5 block'>
-                                    Gramos por 1 pieza
+                                    Calorías de 1 pieza (kcal)
                                 </Label>
                                 <Input
                                     type='text'
                                     inputMode='decimal'
-                                    value={gramsPerPiece}
+                                    value={kcalPerPiece}
                                     onChange={e =>
-                                        setGramsPerPiece(e.target.value)
+                                        applyKcalPerPiece(e.target.value)
                                     }
-                                    placeholder='200'
+                                    placeholder='322'
                                     required
                                     className='h-10 bg-background/50'
                                 />
                                 <p className='text-xs text-muted-foreground mt-1.5'>
-                                    Peso de una pieza de supermercado. Ej:
-                                    aguacate ≈ 200 g. Las calorías se calculan
-                                    con kcal/100 g.
+                                    Solo el número de FatSecret para 1 tajada,
+                                    1 aguacate, 1 huevo, etc. Los gramos se
+                                    calculan con las kcal / 100 g.
+                                    {gramsPerPiece
+                                        ? ` Peso usado: ${gramsPerPiece} g.`
+                                        : ''}
                                 </p>
                             </div>
                         ) : null}
