@@ -4,6 +4,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
 import {
     formatIngredientQuantityInput,
+    gramsPerIngredientUnit,
     parseIngredientQuantity,
     resolveIngredientNutritionGrams
 } from '@/lib/utils/ingredient-quantity';
@@ -71,6 +72,60 @@ function catalogGramsPerPiece(food?: Food | null) {
         return Math.round(food.gramsPerPiece);
     }
     return null;
+}
+
+function findFoodByName(foods: Food[], name?: string) {
+    const query = name?.trim().toLowerCase();
+    if (!query) return undefined;
+    return foods.find(food => food.name.toLowerCase() === query);
+}
+
+function roundNutritionGrams(value: number) {
+    return Math.round(value * 10) / 10;
+}
+
+function isVolumeLikeUnit(unit?: string) {
+    const normalized = unit?.toUpperCase();
+    return (
+        normalized === 'CUP' ||
+        normalized === 'TBSP' ||
+        normalized === 'TSP' ||
+        normalized === 'ML' ||
+        normalized === 'OZ'
+    );
+}
+
+function portionWithCatalogVolumeGrams<
+    T extends {
+        unit?: string;
+        _quantity?: string;
+        targetQuantity?: number;
+    }
+>(portion: T, food: Food): T {
+    if (!isVolumeLikeUnit(portion.unit)) {
+        return portion;
+    }
+
+    const parsed = parseIngredientQuantity(portion._quantity);
+    const qty =
+        parsed != null && parsed > 0
+            ? parsed
+            : portion.targetQuantity && portion.targetQuantity > 0
+              ? portion.targetQuantity
+              : 1;
+    const gramsPerUnit = gramsPerIngredientUnit(portion.unit, food.density);
+    const targetGrams = roundNutritionGrams(gramsPerUnit * qty);
+
+    return {
+        ...portion,
+        baseQuantity: 1,
+        targetQuantity: qty,
+        baseGrams: gramsPerUnit,
+        targetGrams,
+        _grams: String(targetGrams),
+        _sourceTargetQuantity: qty,
+        _sourceTargetGrams: targetGrams
+    };
 }
 
 function existingPieceCount(portion: {
@@ -155,7 +210,7 @@ function isDiscreteUnit(unit?: string) {
     return unit?.toUpperCase() === 'PIECE';
 }
 
-function resolveTargetGrams(portion: EditablePortion) {
+function resolveTargetGrams(portion: EditablePortion, foods: Food[]) {
     if (unitLabel(portion.unit) === 'g') {
         return Math.round(Math.max(0, Number(portion._grams) || 0));
     }
@@ -163,6 +218,7 @@ function resolveTargetGrams(portion: EditablePortion) {
     const targetQuantity = resolveTargetQuantity(portion);
     const sourceQuantity = portion._sourceTargetQuantity;
     const sourceGrams = portion._sourceTargetGrams;
+    const matchedFood = findFoodByName(foods, portion.ingredientName);
 
     // Keep generated/saved grams when the quantity is unchanged so the edit
     // summary matches the meal card.
@@ -173,7 +229,7 @@ function resolveTargetGrams(portion: EditablePortion) {
         sourceGrams > 0 &&
         Math.abs(targetQuantity - sourceQuantity) < 0.001
     ) {
-        return Math.round(sourceGrams);
+        return roundNutritionGrams(sourceGrams);
     }
 
     if (
@@ -182,7 +238,9 @@ function resolveTargetGrams(portion: EditablePortion) {
         typeof sourceGrams === 'number' &&
         sourceGrams > 0
     ) {
-        return Math.round((sourceGrams / sourceQuantity) * targetQuantity);
+        return roundNutritionGrams(
+            (sourceGrams / sourceQuantity) * targetQuantity
+        );
     }
 
     if (
@@ -191,16 +249,18 @@ function resolveTargetGrams(portion: EditablePortion) {
         typeof portion.baseGrams === 'number' &&
         portion.baseGrams > 0
     ) {
-        return Math.round(
+        return roundNutritionGrams(
             (portion.baseGrams / portion.baseQuantity) * targetQuantity
         );
     }
 
-    return Math.round(
+    return roundNutritionGrams(
         resolveIngredientNutritionGrams(
             targetQuantity,
             portion.unit,
-            portion.baseGrams || 100
+            portion.baseGrams,
+            matchedFood?.density,
+            matchedFood?.gramsPerPiece
         )
     );
 }
@@ -405,8 +465,9 @@ export default function MealEditModal({
                     };
                 }
 
-                // Volume / count-like units: reset to 1 unit. Leaving the old
-                // gram quantity (often 100) made "1 taza" save as "100 tz".
+                // Volume / weight-count units: 1 measure, grams from density
+                // (or 15 ml × 1 g/ml for cda). Copying the old 100 g made
+                // "1 cda" equal 100 g.
                 if (
                     value === 'CUP' ||
                     value === 'TBSP' ||
@@ -414,15 +475,13 @@ export default function MealEditModal({
                     value === 'ML' ||
                     value === 'OZ'
                 ) {
-                    const gramsPerUnit = Math.max(
-                        1,
-                        Math.round(
-                            unitLabel(p.unit) === 'g'
-                                ? Number(p._grams) || p.targetGrams || 100
-                                : p.baseQuantity && p.baseQuantity > 0
-                                  ? p.baseGrams / p.baseQuantity
-                                  : p.targetGrams || 100
-                        )
+                    const matchedFood = findFoodByName(
+                        allFoods,
+                        p.ingredientName
+                    );
+                    const gramsPerUnit = gramsPerIngredientUnit(
+                        value,
+                        matchedFood?.density
                     );
 
                     return {
@@ -505,13 +564,16 @@ export default function MealEditModal({
                     };
                 }
 
-                return {
-                    ...p,
-                    ingredientName: food.name,
-                    _isNew: false,
-                    isDiscrete: food.isDiscrete ?? false,
-                    ...nutrition
-                };
+                return portionWithCatalogVolumeGrams(
+                    {
+                        ...p,
+                        ingredientName: food.name,
+                        _isNew: false,
+                        isDiscrete: food.isDiscrete ?? false,
+                        ...nutrition
+                    },
+                    food
+                );
             })
         );
     };
@@ -563,13 +625,16 @@ export default function MealEditModal({
                         };
                     }
 
-                    return {
-                        ...p,
-                        ingredientName: matchedFood.name,
-                        _isNew: false,
-                        isDiscrete: matchedFood.isDiscrete ?? false,
-                        ...nutrition
-                    };
+                    return portionWithCatalogVolumeGrams(
+                        {
+                            ...p,
+                            ingredientName: matchedFood.name,
+                            _isNew: false,
+                            isDiscrete: matchedFood.isDiscrete ?? false,
+                            ...nutrition
+                        },
+                        matchedFood
+                    );
                 }
 
                 return {
@@ -595,10 +660,10 @@ export default function MealEditModal({
                 .filter(portion => portion.ingredientName.trim())
                 .map(portion => ({
                     ...portion,
-                    targetGrams: resolveTargetGrams(portion),
+                    targetGrams: resolveTargetGrams(portion, allFoods),
                     targetQuantity: resolveTargetQuantity(portion)
                 })),
-        [portions]
+        [portions, allFoods]
     );
 
     const previewTotals = useMemo(

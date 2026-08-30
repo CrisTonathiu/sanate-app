@@ -477,7 +477,8 @@ export function gramsPerIngredientUnit(
 
 /**
  * Resolves grams per unit for nutrition math.
- * When food.density is set, volume units prefer density over stored recipe grams.
+ * Volume units (taza, cda, cdita, ml) always use density × ml.
+ * Missing density is water (1 g/ml), so 1 cda = 15 g, not leftover recipe grams.
  * For PIECE, catalog gramsPerPiece is the grocery size of 1 pieza.
  */
 export function resolveReferenceGramsPerUnit(
@@ -488,11 +489,7 @@ export function resolveReferenceGramsPerUnit(
 ): number {
     const normalizedUnit = normalizeIngredientUnit(unit);
 
-    if (
-        isVolumeIngredientUnit(normalizedUnit) &&
-        typeof density === 'number' &&
-        density > 0
-    ) {
+    if (isVolumeIngredientUnit(normalizedUnit)) {
         return gramsPerIngredientUnit(normalizedUnit, density);
     }
 
@@ -513,7 +510,7 @@ export function resolveReferenceGramsPerUnit(
 
 /**
  * Converts recipe ingredient quantity/unit/grams into effective gram weight
- * for nutrition math. Non-gram units treat `grams` as the weight of 1 unit.
+ * for nutrition math. Volume units use density × ml; PIECE uses gramsPerPiece.
  */
 export function resolveIngredientNutritionGrams(
     quantity: number | null | undefined,

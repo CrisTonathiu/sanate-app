@@ -703,7 +703,14 @@ async function main() {
     }
 
     // SEMILLAS
-    const seeds = [
+    const seeds: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        density?: number;
+    }> = [
         {
             name: 'Semillas de chía',
             protein: 17,
@@ -716,7 +723,9 @@ async function main() {
             protein: 18,
             carbs: 29,
             fat: 42,
-            calories: 534
+            calories: 534,
+            // 1 cda ≈ 8.4 g (FatSecret ~45 kcal), no 15 g de agua
+            density: 0.562
         },
         {
             name: 'Semillas de calabaza',
@@ -752,7 +761,8 @@ async function main() {
             proteinPer100g: seed.protein,
             carbsPer100g: seed.carbs,
             fatPer100g: seed.fat,
-            caloriesPer100g: seed.calories
+            caloriesPer100g: seed.calories,
+            ...(seed.density != null ? {density: seed.density} : {})
         };
         await prisma.food.create({
             data: seedFoodData
