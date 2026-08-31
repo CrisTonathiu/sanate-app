@@ -142,7 +142,10 @@ export function IngredientRow({
                             setQuantityInput(null);
                         }}
                         placeholder={
-                            ingredient.unit === 'piece' ? '1, 2 o 3' : '1/3 o 100'
+                            ingredient.unit === 'piece' ||
+                            ingredient.unit === 'tbsp'
+                                ? '1, 2 o 3'
+                                : '1/3 o 100'
                         }
                         className='h-10 bg-background/50 border-border'
                     />

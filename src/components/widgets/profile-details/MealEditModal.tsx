@@ -211,6 +211,11 @@ function isDiscreteUnit(unit?: string) {
     return unit?.toUpperCase() === 'PIECE';
 }
 
+function isWholeCountUnit(unit?: string) {
+    const normalized = unit?.toUpperCase();
+    return normalized === 'PIECE' || normalized === 'TBSP';
+}
+
 function resolveTargetGrams(portion: EditablePortion, foods: Food[]) {
     if (unitLabel(portion.unit) === 'g') {
         return Math.round(Math.max(0, Number(portion._grams) || 0));
@@ -273,7 +278,7 @@ function resolveTargetQuantity(portion: EditablePortion) {
     }
 
     const qty = Math.round(parsed * 1000) / 1000;
-    if (isDiscreteUnit(portion.unit)) {
+    if (isWholeCountUnit(portion.unit)) {
         return snapQuantityForUnit(qty, portion.unit);
     }
 
@@ -359,7 +364,7 @@ export default function MealEditModal({
                 const parsedQuantity =
                     parseIngredientQuantity(quantityLabel) ?? sourceQuantity;
                 const sourceGrams =
-                    isDiscreteUnit(p.unit) &&
+                    isWholeCountUnit(p.unit) &&
                     typeof sourceQuantity === 'number' &&
                     sourceQuantity > 0 &&
                     parsedQuantity !== sourceQuantity
@@ -1039,7 +1044,8 @@ export default function MealEditModal({
                                                     }
                                                 }}
                                                 placeholder={
-                                                    quantityIsDiscrete
+                                                    quantityIsDiscrete ||
+                                                    portion.unit === 'TBSP'
                                                         ? '1, 2 o 3'
                                                         : '1/3 o 0.33'
                                                 }

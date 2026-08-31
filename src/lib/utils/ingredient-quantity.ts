@@ -2,7 +2,7 @@ export type IngredientQuantityOptions = {
     /** Food marked as discrete (eggs, bread slices). */
     isDiscrete?: boolean;
     /**
-     * Ignored for pieza (pz): piece counts are always whole numbers.
+     * Ignored for pieza (pz) and cda: those counts are always whole numbers.
      */
     allowFractions?: boolean;
 };
@@ -107,8 +107,9 @@ function snapToCookingFraction(quantity: number): number {
     return snapToNearestFraction(quantity, COOKING_CUP_FRACTIONS);
 }
 
-function usesWholePiecesOnly(unit?: string | null): boolean {
-    return normalizeIngredientUnit(unit) === 'PIECE';
+function usesWholeCountUnit(unit?: string | null): boolean {
+    const normalized = normalizeIngredientUnit(unit);
+    return normalized === 'PIECE' || normalized === 'TBSP';
 }
 
 function snapToWholeQuantity(quantity: number): number {
@@ -148,7 +149,7 @@ export function snapFriendlyQuantityForUnit(
         return 0;
     }
 
-    if (usesWholePiecesOnly(unit)) {
+    if (usesWholeCountUnit(unit)) {
         return snapToWholeQuantity(quantity);
     }
 
@@ -156,7 +157,6 @@ export function snapFriendlyQuantityForUnit(
 
     switch (normalized) {
         case 'CUP':
-        case 'TBSP':
         case 'TSP':
         case 'OZ':
             return snapToQuarterStep(quantity);
@@ -180,7 +180,7 @@ export function snapQuantityForUnit(
         return 0;
     }
 
-    if (usesWholePiecesOnly(unit)) {
+    if (usesWholeCountUnit(unit)) {
         return snapToWholeQuantity(quantity);
     }
 
@@ -188,7 +188,6 @@ export function snapQuantityForUnit(
 
     switch (normalized) {
         case 'CUP':
-        case 'TBSP':
         case 'TSP':
         case 'OZ':
             return snapToCookingFraction(quantity);
@@ -336,7 +335,8 @@ export function roundPieceQuantity(quantity: number): number {
 
 /**
  * Scales a quantity while snapping to kitchen measures.
- * Piece (pz) counts always round to the nearest whole number (2 1/4 → 2).
+ * Piece (pz) and tablespoon (cda) counts always round to the nearest whole
+ * number (2 1/4 pz → 2, 2 7/8 cda → 3).
  */
 export function scaleIngredientQuantity(
     quantity: number,
@@ -365,7 +365,7 @@ export function targetGramsForPieceQuantity(
 
 /**
  * Returns a user-friendly quantity string for ingredient inputs on blur.
- * Piece (pz) fields round to a whole count (2 1/4 → 2).
+ * Piece (pz) and cda fields round to a whole count (2 7/8 cda → 3).
  */
 export function formatIngredientQuantityInput(
     input: string | number | null | undefined,
