@@ -16,8 +16,9 @@ import {
     resolveIngredientNutritionGrams
 } from '@/lib/utils/ingredient-quantity';
 import {
+    buildMacroAdjustmentWarnings,
     computeIngredientScalesForMacros,
-    correctPortionsToTargetCalories,
+    finalizePortionsToMealTargets,
     scaleIngredientByFactor,
     type MacroKcalTarget
 } from '@/lib/utils/recipe-macro-scale';
@@ -174,9 +175,10 @@ function recipeToMealSlot(
         }
     );
 
-    ingredientPortions = correctPortionsToTargetCalories(
+    ingredientPortions = finalizePortionsToMealTargets(
         ingredientPortions,
-        plannedCalories
+        plannedCalories,
+        macroTarget
     );
 
     const portionTotals = ingredientPortions.reduce(
@@ -192,6 +194,11 @@ function recipeToMealSlot(
         {calories: 0, protein: 0, carbs: 0, fat: 0}
     );
 
+    const warnings = buildMacroAdjustmentWarnings(
+        ingredientPortions,
+        macroTarget
+    );
+
     return {
         id: recipe.id,
         recipeName: recipe.title,
@@ -201,6 +208,8 @@ function recipeToMealSlot(
         carbs: round1(portionTotals.carbs),
         fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
+        warnings,
+        isRealistic: true,
         ingredientPortions,
         instructions: [...(recipe.steps ?? [])]
             .sort((a, b) => a.stepNumber - b.stepNumber)

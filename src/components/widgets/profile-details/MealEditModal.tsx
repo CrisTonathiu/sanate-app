@@ -756,7 +756,8 @@ export default function MealEditModal({
                 ingredientPortions: updatedPortions,
                 extraIngredients: extras
                     .map(extra => extra.name.trim())
-                    .filter(Boolean)
+                    .filter(Boolean),
+                warnings: portionsDirty ? [] : meal.warnings
             },
             {applyToAllDays}
         );

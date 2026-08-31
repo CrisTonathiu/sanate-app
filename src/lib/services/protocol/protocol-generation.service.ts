@@ -18,9 +18,11 @@ import {
     scaleIngredientQuantity
 } from '@/lib/utils/ingredient-quantity';
 import {
+    buildMacroAdjustmentWarnings,
     computeIngredientScalesForMacros,
-    correctPortionsToTargetCalories,
-    scaleIngredientByFactor
+    finalizePortionsToMealTargets,
+    scaleIngredientByFactor,
+    type MacroKcalTarget
 } from '@/lib/utils/recipe-macro-scale';
 
 // --------------------
@@ -364,84 +366,19 @@ function getMacroMealTarget(
     );
 }
 
-function getIngredientMacroKcal(
-    ingredient: RecipeSummary['ingredients'][number],
-    scaledGrams: number
-) {
-    const ratio = scaledGrams / 100;
+function toMacroKcalTarget(
+    macroTarget?: MacroMealTarget
+): MacroKcalTarget | undefined {
+    if (!macroTarget) {
+        return undefined;
+    }
 
     return {
-        proteinKcal: (ingredient.proteinPer100g ?? 0) * ratio * 4,
-        carbsKcal: (ingredient.carbsPer100g ?? 0) * ratio * 4,
-        fatKcal: (ingredient.fatPer100g ?? 0) * ratio * 9
+        totalKcal: macroTarget.totalKcal,
+        proteinKcal: macroTarget.proteinKcal,
+        carbsKcal: macroTarget.carbsKcal,
+        fatKcal: macroTarget.fatKcal
     };
-}
-
-function getMacroTargetWarnings(
-    ingredientName: string,
-    ingredientMacroKcal: {
-        proteinKcal: number;
-        carbsKcal: number;
-        fatKcal: number;
-    },
-    macroTarget?: MacroMealTarget
-) {
-    const warnings: string[] = [];
-
-    if (!macroTarget) {
-        return warnings;
-    }
-
-    const checks = [
-        {
-            label: 'proteina',
-            ingredientKcal: ingredientMacroKcal.proteinKcal,
-            targetKcal: macroTarget.proteinKcal
-        },
-        {
-            label: 'carbs',
-            ingredientKcal: ingredientMacroKcal.carbsKcal,
-            targetKcal: macroTarget.carbsKcal
-        },
-        {
-            label: 'grasa',
-            ingredientKcal: ingredientMacroKcal.fatKcal,
-            targetKcal: macroTarget.fatKcal
-        }
-    ];
-
-    const ingredientTotalKcal =
-        ingredientMacroKcal.proteinKcal +
-        ingredientMacroKcal.carbsKcal +
-        ingredientMacroKcal.fatKcal;
-
-    for (const check of checks) {
-        if (check.ingredientKcal <= 0) {
-            continue;
-        }
-
-        if (check.targetKcal === 0) {
-            // Only flag when this macro is the dominant energy in the ingredient.
-            // Never remove ingredients — a 0 target must not empty the recipe list.
-            const isDominant =
-                ingredientTotalKcal > 0 &&
-                check.ingredientKcal / ingredientTotalKcal >= 0.45;
-            if (isDominant) {
-                warnings.push(
-                    `${ingredientName} aporta ${round1(check.ingredientKcal)} kcal de ${check.label} y el objetivo para esa comida es 0 kcal.`
-                );
-            }
-            continue;
-        }
-
-        if (check.ingredientKcal > check.targetKcal) {
-            warnings.push(
-                `${ingredientName} aporta ${round1(check.ingredientKcal)} kcal de ${check.label}, por encima del objetivo de ${round1(check.targetKcal)} kcal. Revisa si debes retirarlo o cambiarlo.`
-            );
-        }
-    }
-
-    return warnings;
 }
 
 function computePortionNutrition(portion: {
@@ -472,11 +409,12 @@ function buildMeal(
             : targetCalories
     );
 
+    const kcalTarget = toMacroKcalTarget(macroTarget);
+
     const scales = computeIngredientScalesForMacros(
         recipe.ingredients,
         recipe.calories,
-        plannedCalories,
-        null
+        plannedCalories
     );
     const avgScale =
         scales.length > 0
@@ -489,17 +427,6 @@ function buildMeal(
     let ingredientPortions = recipe.ingredients.map((item, index) => {
         const scale = scales[index] ?? 1;
         const scaled = scaleIngredientByFactor(item, scale);
-        const ingredientMacroKcal = getIngredientMacroKcal(
-            item,
-            scaled.targetGrams
-        );
-        warnings.push(
-            ...getMacroTargetWarnings(
-                item.name,
-                ingredientMacroKcal,
-                macroTarget
-            )
-        );
 
         return {
             ingredientId: item.id,
@@ -517,9 +444,14 @@ function buildMeal(
         };
     });
 
-    ingredientPortions = correctPortionsToTargetCalories(
+    ingredientPortions = finalizePortionsToMealTargets(
         ingredientPortions,
-        plannedCalories
+        plannedCalories,
+        kcalTarget
+    );
+
+    warnings.push(
+        ...buildMacroAdjustmentWarnings(ingredientPortions, kcalTarget)
     );
 
     const portionTotals = ingredientPortions.reduce(
@@ -547,7 +479,7 @@ function buildMeal(
         carbs: round1(portionTotals.carbs),
         fat: round1(portionTotals.fat),
         portionMultiplier: round2(avgScale),
-        isRealistic: realism.isRealistic && warnings.length === 0,
+        isRealistic: realism.isRealistic,
         warnings,
         ingredientPortions,
         instructions: recipe.instructions,
