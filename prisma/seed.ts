@@ -414,7 +414,14 @@ async function main() {
     }
 
     // FRUTAS
-    const fruits = [
+    const fruits: Array<{
+        name: string;
+        protein: number;
+        carbs: number;
+        fat: number;
+        calories: number;
+        density?: number;
+    }> = [
         {name: 'Manzana', protein: 0.3, carbs: 14, fat: 0.2, calories: 52},
         {name: 'Plátano', protein: 1.3, carbs: 23, fat: 0.3, calories: 89},
         {name: 'Naranja', protein: 0.9, carbs: 12, fat: 0.1, calories: 47},
@@ -424,7 +431,15 @@ async function main() {
         {name: 'Papaya', protein: 0.5, carbs: 11, fat: 0.3, calories: 43},
         {name: 'Piña', protein: 0.5, carbs: 13, fat: 0.1, calories: 50},
         {name: 'Sandía', protein: 0.6, carbs: 8, fat: 0.2, calories: 30},
-        {name: 'Uva', protein: 0.6, carbs: 17, fat: 0.2, calories: 69},
+        {
+            name: 'Uva',
+            protein: 0.6,
+            carbs: 17,
+            fat: 0.2,
+            calories: 69,
+            // uva entera: 1 taza ≈ 151 g (USDA/FatSecret ~104 kcal), no 240 g
+            density: 0.629
+        },
         {name: 'Durazno', protein: 0.9, carbs: 10, fat: 0.3, calories: 39},
         {name: 'Toronja', protein: 0.8, carbs: 8, fat: 0.1, calories: 42},
         {name: 'Mandarina', protein: 0.8, carbs: 13, fat: 0.3, calories: 53},
@@ -440,7 +455,8 @@ async function main() {
             proteinPer100g: fruit.protein,
             carbsPer100g: fruit.carbs,
             fatPer100g: fruit.fat,
-            caloriesPer100g: fruit.calories
+            caloriesPer100g: fruit.calories,
+            ...(fruit.density != null ? {density: fruit.density} : {})
         };
         await prisma.food.create({
             data: fruitFoodData
@@ -748,10 +764,26 @@ async function main() {
             fat: 50,
             calories: 573
         },
-        {name: 'Hemp', protein: 31, carbs: 9, fat: 49, calories: 553},
+        {
+            name: 'Hemp',
+            protein: 31,
+            carbs: 9,
+            fat: 49,
+            calories: 553,
+            // hemp descascarado: 1 cda ≈ 10 g (USDA/FatSecret ~55 kcal)
+            density: 0.667
+        },
         {name: 'Aceituna verde', protein: 1, carbs: 4, fat: 15, calories: 145},
         {name: 'Aceituna negra', protein: 1, carbs: 6, fat: 15, calories: 115},
-        {name: 'Coco', protein: 3.3, carbs: 15, fat: 33, calories: 354}
+        {
+            name: 'Coco',
+            protein: 3.3,
+            carbs: 15,
+            fat: 33,
+            calories: 354,
+            // coco rallado: 1 taza ≈ 80 g (FatSecret ~283 kcal), no 240 g de agua
+            density: 0.333
+        }
     ];
 
     for (const seed of seeds) {

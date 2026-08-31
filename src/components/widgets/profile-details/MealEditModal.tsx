@@ -6,7 +6,8 @@ import {
     formatIngredientQuantityInput,
     gramsPerIngredientUnit,
     parseIngredientQuantity,
-    resolveIngredientNutritionGrams
+    resolveIngredientNutritionGrams,
+    snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
 import {
     Dialog,
@@ -139,14 +140,14 @@ function existingPieceCount(portion: {
 
     const parsed = parseIngredientQuantity(portion._quantity);
     if (parsed != null && parsed > 0) {
-        return parsed;
+        return snapQuantityForUnit(parsed, 'PIECE');
     }
 
     if (
         typeof portion.targetQuantity === 'number' &&
         portion.targetQuantity > 0
     ) {
-        return portion.targetQuantity;
+        return snapQuantityForUnit(portion.targetQuantity, 'PIECE');
     }
 
     return 1;
@@ -271,7 +272,12 @@ function resolveTargetQuantity(portion: EditablePortion) {
         return 0;
     }
 
-    return Math.round(parsed * 1000) / 1000;
+    const qty = Math.round(parsed * 1000) / 1000;
+    if (isDiscreteUnit(portion.unit)) {
+        return snapQuantityForUnit(qty, portion.unit);
+    }
+
+    return qty;
 }
 
 function createEmptyPortion(): EditablePortion {
@@ -348,19 +354,28 @@ export default function MealEditModal({
                 const quantityLabel = formatIngredientQuantityInput(
                     sourceQuantity,
                     p.unit,
-                    {isDiscrete: p.isDiscrete, allowFractions: true}
+                    {isDiscrete: p.isDiscrete}
                 );
                 const parsedQuantity =
                     parseIngredientQuantity(quantityLabel) ?? sourceQuantity;
+                const sourceGrams =
+                    isDiscreteUnit(p.unit) &&
+                    typeof sourceQuantity === 'number' &&
+                    sourceQuantity > 0 &&
+                    parsedQuantity !== sourceQuantity
+                        ? Math.round(
+                              (p.targetGrams / sourceQuantity) * parsedQuantity
+                          )
+                        : p.targetGrams;
 
                 return {
                     ...p,
                     _key: p.ingredientId ?? crypto.randomUUID(),
                     // Anchor to the displayed quantity so totals stay equal to
                     // the meal card until the user edits an amount.
-                    _sourceTargetGrams: p.targetGrams,
+                    _sourceTargetGrams: sourceGrams,
                     _sourceTargetQuantity: parsedQuantity,
-                    _grams: String(Math.round(p.targetGrams)),
+                    _grams: String(Math.round(sourceGrams)),
                     _quantity: quantityLabel
                 };
             })
@@ -542,8 +557,7 @@ export default function MealEditModal({
                     );
                     const quantityLabel = formatIngredientQuantityInput(
                         pieceCount,
-                        'PIECE',
-                        {allowFractions: true}
+                        'PIECE'
                     );
 
                     return {
@@ -603,8 +617,7 @@ export default function MealEditModal({
                         );
                         const quantityLabel = formatIngredientQuantityInput(
                             pieceCount,
-                            'PIECE',
-                            {allowFractions: true}
+                            'PIECE'
                         );
 
                         return {
@@ -1019,9 +1032,7 @@ export default function MealEditModal({
                                                                 portion.unit,
                                                                 {
                                                                     isDiscrete:
-                                                                        quantityIsDiscrete,
-                                                                    allowFractions:
-                                                                        true
+                                                                        quantityIsDiscrete
                                                                 }
                                                             )
                                                         );
@@ -1029,7 +1040,7 @@ export default function MealEditModal({
                                                 }}
                                                 placeholder={
                                                     quantityIsDiscrete
-                                                        ? '1, 1/3 o 1/2'
+                                                        ? '1, 2 o 3'
                                                         : '1/3 o 0.33'
                                                 }
                                                 className='h-9 bg-background'

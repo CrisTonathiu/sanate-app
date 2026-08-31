@@ -371,8 +371,7 @@ export function formatScaledIngredientDisplay(
     const unitLabel =
         INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
     const quantityOptions = {
-        isDiscrete: scaled.isDiscrete,
-        allowFractions: true
+        isDiscrete: scaled.isDiscrete
     };
 
     if (unit === 'GRAM') {

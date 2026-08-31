@@ -7,7 +7,7 @@ import {
     recipeIdSchema
 } from '../../validations/recipe.schema';
 import {prisma} from '../../prisma';
-import {resolveReferenceGramsPerUnit} from '@/lib/utils/ingredient-quantity';
+import {resolveReferenceGramsPerUnit, snapQuantityForUnit} from '@/lib/utils/ingredient-quantity';
 import {ZodError} from 'zod';
 
 export async function getAllRecipes() {
@@ -147,7 +147,7 @@ export async function createRecipe(input: CreateRecipeInput) {
                 });
 
                 const baseUnit = item.unit ?? 'GRAM';
-                const baseQuantity =
+                const rawQuantity =
                     item.quantity && item.quantity > 0
                         ? item.quantity
                         : baseUnit === 'GRAM'
@@ -155,6 +155,7 @@ export async function createRecipe(input: CreateRecipeInput) {
                               ? item.grams
                               : 100
                           : 1;
+                const baseQuantity = snapQuantityForUnit(rawQuantity, baseUnit);
                 const baseGrams =
                     baseUnit === 'GRAM'
                         ? item.grams && item.grams > 0
@@ -270,7 +271,7 @@ export async function updateRecipe(
                     });
 
                     const baseUnit = item.unit ?? 'GRAM';
-                    const baseQuantity =
+                    const rawQuantity =
                         item.quantity && item.quantity > 0
                             ? item.quantity
                             : baseUnit === 'GRAM'
@@ -278,6 +279,10 @@ export async function updateRecipe(
                                   ? item.grams
                                   : 100
                               : 1;
+                    const baseQuantity = snapQuantityForUnit(
+                        rawQuantity,
+                        baseUnit
+                    );
                     const baseGrams =
                         baseUnit === 'GRAM'
                             ? item.grams && item.grams > 0

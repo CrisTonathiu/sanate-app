@@ -6,7 +6,7 @@ export interface MealIngredientPortion {
     baseGrams: number;
     targetGrams: number;
     unit?: string;
-    /** From Food.isDiscrete. Manual piece edits may still be fractional. */
+    /** From Food.isDiscrete. Piece counts are always whole numbers. */
     isDiscrete?: boolean;
     baseCalories?: number;
     baseProtein?: number;

@@ -52,7 +52,8 @@ import {NutritionData, RecipeFormData, Step} from '@/lib/types/recipe-type';
 import {
     parseIngredientQuantity,
     resolveIngredientNutritionGrams,
-    resolveReferenceGramsPerUnit
+    resolveReferenceGramsPerUnit,
+    snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
 import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
@@ -181,8 +182,12 @@ export function RecipeForm(props: RecipeFormProps) {
                 const uiUnit = normalizeUiUnit(ing.unit);
                 const dbUnit = toDbUnit(uiUnit);
                 const parsedQuantity = parseIngredientQuantity(ing.quantity);
+                const quantity =
+                    parsedQuantity != null && parsedQuantity > 0
+                        ? snapQuantityForUnit(parsedQuantity, dbUnit)
+                        : parsedQuantity;
                 const gramsUsed = resolveIngredientNutritionGrams(
-                    parsedQuantity,
+                    quantity,
                     dbUnit,
                     ing.gramsPerUnit,
                     ing.foodDensity,
@@ -232,9 +237,11 @@ export function RecipeForm(props: RecipeFormProps) {
                             matchedFood?.name ??
                             item.name?.trim() ??
                             normalizedFoodId,
-                        quantity:
+                        quantity: snapQuantityForUnit(
                             item.quantity ??
-                            (uiUnit === 'g' ? (item.grams ?? 100) : 1),
+                                (uiUnit === 'g' ? (item.grams ?? 100) : 1),
+                            dbUnit
+                        ),
                         unit: uiUnit,
                         gramsPerUnit:
                             uiUnit === 'g'
@@ -634,22 +641,24 @@ export function RecipeForm(props: RecipeFormProps) {
             .map(ing => {
                 const uiUnit = normalizeUiUnit(ing.unit);
                 const parsedQuantity = parseIngredientQuantity(ing.quantity);
-                const quantity =
+                const rawQuantity =
                     parsedQuantity != null && parsedQuantity > 0
                         ? parsedQuantity
                         : uiUnit === 'g'
                           ? 100
                           : 1;
+                const dbUnit = toDbUnit(uiUnit);
+                const quantity = snapQuantityForUnit(rawQuantity, dbUnit);
 
                 return {
                     foodId: normalizeFoodId(ing.foodId) as string,
                     quantity,
-                    unit: toDbUnit(uiUnit),
+                    unit: dbUnit,
                     grams:
                         uiUnit === 'g'
                             ? quantity
                             : resolveReferenceGramsPerUnit(
-                                  toDbUnit(uiUnit),
+                                  dbUnit,
                                   ing.gramsPerUnit,
                                   ing.foodDensity,
                                   ing.gramsPerPiece

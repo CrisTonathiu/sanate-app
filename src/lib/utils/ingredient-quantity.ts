@@ -2,9 +2,7 @@ export type IngredientQuantityOptions = {
     /** Food marked as discrete (eggs, bread slices). */
     isDiscrete?: boolean;
     /**
-     * Keep fractional pieces (1/2, 1 1/4). Used by manual editing and display
-     * so a staff-entered fraction is not rounded to a whole piece. Automatic
-     * recipe generation always rounds pieces to the nearest whole number.
+     * Ignored for pieza (pz): piece counts are always whole numbers.
      */
     allowFractions?: boolean;
 };
@@ -29,15 +27,6 @@ const COOKING_CUP_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
     {num: 3, den: 4},
     {num: 5, den: 6},
     {num: 7, den: 8}
-];
-
-/** Fractional piece counts allowed in recipes and protocol scaling. */
-const PIECE_FRACTIONS: ReadonlyArray<{num: number; den: number}> = [
-    {num: 1, den: 4},
-    {num: 1, den: 3},
-    {num: 1, den: 2},
-    {num: 2, den: 3},
-    {num: 3, den: 4}
 ];
 
 export function normalizeIngredientUnit(unit?: string | null): string {
@@ -118,18 +107,8 @@ function snapToCookingFraction(quantity: number): number {
     return snapToNearestFraction(quantity, COOKING_CUP_FRACTIONS);
 }
 
-function snapToPieceFraction(quantity: number): number {
-    return snapToNearestFraction(quantity, PIECE_FRACTIONS);
-}
-
-function usesWholePiecesOnly(
-    unit?: string | null,
-    options?: IngredientQuantityOptions
-): boolean {
-    return (
-        normalizeIngredientUnit(unit) === 'PIECE' &&
-        options?.allowFractions !== true
-    );
+function usesWholePiecesOnly(unit?: string | null): boolean {
+    return normalizeIngredientUnit(unit) === 'PIECE';
 }
 
 function snapToWholeQuantity(quantity: number): number {
@@ -169,15 +148,13 @@ export function snapFriendlyQuantityForUnit(
         return 0;
     }
 
-    if (usesWholePiecesOnly(unit, options)) {
+    if (usesWholePiecesOnly(unit)) {
         return snapToWholeQuantity(quantity);
     }
 
     const normalized = normalizeIngredientUnit(unit);
 
     switch (normalized) {
-        case 'PIECE':
-            return snapToNearestFraction(quantity, [{num: 1, den: 2}]);
         case 'CUP':
         case 'TBSP':
         case 'TSP':
@@ -203,15 +180,13 @@ export function snapQuantityForUnit(
         return 0;
     }
 
-    if (usesWholePiecesOnly(unit, options)) {
+    if (usesWholePiecesOnly(unit)) {
         return snapToWholeQuantity(quantity);
     }
 
     const normalized = normalizeIngredientUnit(unit);
 
     switch (normalized) {
-        case 'PIECE':
-            return snapToPieceFraction(quantity);
         case 'CUP':
         case 'TBSP':
         case 'TSP':
@@ -285,11 +260,8 @@ export function formatIngredientQuantity(
     unit?: string | null,
     options?: IngredientQuantityOptions
 ): string {
-    const normalized = normalizeIngredientUnit(unit);
     const snapped = snapQuantityForUnit(quantity, unit, options);
-    const allowedFractions =
-        normalized === 'PIECE' ? PIECE_FRACTIONS : COOKING_CUP_FRACTIONS;
-    return formatSnappedQuantityAsFraction(snapped, allowedFractions);
+    return formatSnappedQuantityAsFraction(snapped, COOKING_CUP_FRACTIONS);
 }
 
 /**
@@ -300,13 +272,8 @@ export function formatFriendlyIngredientQuantity(
     unit?: string | null,
     options?: IngredientQuantityOptions
 ): string {
-    const normalized = normalizeIngredientUnit(unit);
     const snapped = snapFriendlyQuantityForUnit(quantity, unit, options);
-    const allowedFractions =
-        normalized === 'PIECE'
-            ? [{num: 1, den: 2}]
-            : FRIENDLY_VOLUME_FRACTIONS;
-    return formatSnappedQuantityAsFraction(snapped, allowedFractions);
+    return formatSnappedQuantityAsFraction(snapped, FRIENDLY_VOLUME_FRACTIONS);
 }
 
 /** Units whose scaled count should drive targetGrams (not linear calorie scale). */
@@ -368,9 +335,8 @@ export function roundPieceQuantity(quantity: number): number {
 }
 
 /**
- * Scales a quantity while preserving fractional precision.
- * For PIECE (pz), automatic scaling rounds to the nearest whole piece unless
- * `allowFractions` is set (manual edits).
+ * Scales a quantity while snapping to kitchen measures.
+ * Piece (pz) counts always round to the nearest whole number (2 1/4 → 2).
  */
 export function scaleIngredientQuantity(
     quantity: number,
@@ -399,7 +365,7 @@ export function targetGramsForPieceQuantity(
 
 /**
  * Returns a user-friendly quantity string for ingredient inputs on blur.
- * Piece fields keep kitchen fractions (1/4, 1/3, 1/2) instead of rounding to 1.
+ * Piece (pz) fields round to a whole count (2 1/4 → 2).
  */
 export function formatIngredientQuantityInput(
     input: string | number | null | undefined,
