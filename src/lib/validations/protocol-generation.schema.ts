@@ -1,3 +1,4 @@
+import {MENU_DAY_PATTERN_IDS} from '@/lib/config/menu-day-pattern';
 import {z} from 'zod';
 
 const macroMealTargetSchema = z.object({
@@ -30,6 +31,7 @@ export const activityLevelSchema = z.enum([
 export const generateProtocolPlanSchema = z.object({
     title: z.string().min(3).max(120).optional(),
     weekCount: z.number().int().min(1).max(4).default(1),
+    menuDayPattern: z.enum(MENU_DAY_PATTERN_IDS).optional(),
     goal: protocolGoalSchema.default('personalizado'),
     activityLevel: activityLevelSchema.default('moderado'),
     weightKg: z.number().min(20).max(400).optional(),

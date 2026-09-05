@@ -6,8 +6,10 @@ export interface MealIngredientPortion {
     baseGrams: number;
     targetGrams: number;
     unit?: string;
-    /** From Food.isDiscrete. Pieces can be kitchen fractions (½ aguacate). */
+    /** From Food.isDiscrete. Counted in pieces (pz). */
     isDiscrete?: boolean;
+    /** From Food.allowPieceFractions. Half avocado yes; bread slice / tortilla no. */
+    allowPieceFractions?: boolean;
     minGrams?: number | null;
     maxGrams?: number | null;
     baseCalories?: number;

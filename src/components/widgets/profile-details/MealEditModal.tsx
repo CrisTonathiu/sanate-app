@@ -134,23 +134,24 @@ function existingPieceCount(portion: {
     unit?: string;
     _quantity?: string;
     targetQuantity?: number;
+    isDiscrete?: boolean;
+    allowPieceFractions?: boolean;
 }) {
     if (!isDiscreteUnit(portion.unit)) {
         return 1;
     }
 
+    const snap = pieceSnapOptions(portion);
     const parsed = parseIngredientQuantity(portion._quantity);
     if (parsed != null && parsed > 0) {
-        return snapQuantityForUnit(parsed, 'PIECE', {allowFractions: true});
+        return snapQuantityForUnit(parsed, 'PIECE', snap);
     }
 
     if (
         typeof portion.targetQuantity === 'number' &&
         portion.targetQuantity > 0
     ) {
-        return snapQuantityForUnit(portion.targetQuantity, 'PIECE', {
-            allowFractions: true
-        });
+        return snapQuantityForUnit(portion.targetQuantity, 'PIECE', snap);
     }
 
     return 1;
@@ -208,6 +209,16 @@ function computeMealTotals(portions: MealIngredientPortion[]) {
         },
         {calories: 0, protein: 0, carbs: 0, fat: 0}
     );
+}
+
+function pieceSnapOptions(portion: {
+    isDiscrete?: boolean;
+    allowPieceFractions?: boolean;
+}) {
+    return {
+        isDiscrete: portion.isDiscrete ?? false,
+        allowFractions: portion.allowPieceFractions === true
+    };
 }
 
 function isDiscreteUnit(unit?: string) {
@@ -281,7 +292,7 @@ function resolveTargetQuantity(portion: EditablePortion) {
 
     const qty = Math.round(parsed * 1000) / 1000;
     if (isDiscreteUnit(portion.unit)) {
-        return snapQuantityForUnit(qty, portion.unit, {allowFractions: true});
+        return snapQuantityForUnit(qty, portion.unit, pieceSnapOptions(portion));
     }
     if (isWholeCountUnit(portion.unit)) {
         return snapQuantityForUnit(qty, portion.unit);
@@ -445,6 +456,8 @@ export default function MealEditModal({
                         ...p,
                         unit: value,
                         isDiscrete: p.isDiscrete ?? true,
+                        allowPieceFractions:
+                            matchedFood?.allowPieceFractions === true,
                         baseQuantity: 1,
                         targetQuantity: 1,
                         baseGrams: gramsPerPiece,
@@ -564,6 +577,7 @@ export default function MealEditModal({
                         _isNew: false,
                         ...nutrition,
                         isDiscrete: true,
+                        allowPieceFractions: food.allowPieceFractions === true,
                         unit: 'PIECE',
                         baseQuantity: 1,
                         targetQuantity: pieceCount,
@@ -624,6 +638,8 @@ export default function MealEditModal({
                             _isNew: false,
                             ...nutrition,
                             isDiscrete: true,
+                            allowPieceFractions:
+                                matchedFood.allowPieceFractions === true,
                             unit: 'PIECE',
                             baseQuantity: 1,
                             targetQuantity: pieceCount,

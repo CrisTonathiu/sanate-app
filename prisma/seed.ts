@@ -651,6 +651,7 @@ async function main() {
         density?: number;
         isDiscrete?: boolean;
         gramsPerPiece?: number;
+        allowPieceFractions?: boolean;
         minPortionQuantity?: number;
         minPortionUnit?: 'GRAM' | 'PIECE' | 'CUP' | 'TBSP' | 'TSP' | 'ML' | 'OZ';
         maxPortionQuantity?: number;
@@ -682,6 +683,7 @@ async function main() {
             calories: 160,
             isDiscrete: true,
             gramsPerPiece: 200,
+            allowPieceFractions: true,
             minPortionQuantity: 0.5,
             minPortionUnit: 'PIECE' as const,
             maxPortionQuantity: 0.5,
@@ -700,7 +702,13 @@ async function main() {
             caloriesPer100g: fat.calories,
             ...(fat.density != null ? {density: fat.density} : {}),
             ...(fat.isDiscrete
-                ? {isDiscrete: true, gramsPerPiece: fat.gramsPerPiece}
+                ? {
+                      isDiscrete: true,
+                      gramsPerPiece: fat.gramsPerPiece,
+                      ...(fat.allowPieceFractions
+                          ? {allowPieceFractions: true}
+                          : {})
+                  }
                 : {}),
             ...(fat.maxPortionQuantity != null
                 ? {

@@ -41,6 +41,7 @@ export const createFoodSchema = z
             .optional()
             .transform(value => (value === undefined ? undefined : value)),
         isDiscrete: z.boolean().optional(),
+        allowPieceFractions: z.boolean().optional(),
         gramsPerPiece: z
             .union([
                 z.number().positive(

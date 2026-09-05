@@ -100,6 +100,7 @@ export type ProtocolDraftSnapshot = {
     hydrationRecommendations: string;
     supplementRecommendations: string;
     selectedTemplateName: string | null;
+    menuDayPattern?: string;
 };
 
 export type ProtocolDraftSummary = {
@@ -136,6 +137,7 @@ export const protocolMealWithPortionsSelect = {
                                     fatPer100g: true,
                     density: true,
                     isDiscrete: true,
+                    allowPieceFractions: true,
                     gramsPerPiece: true
                                 }
                             }
@@ -361,6 +363,30 @@ export async function listProtocolsForPatient(
         hydrationRecommendations: protocol.hydrationRecommendations,
         supplementRecommendations: protocol.supplementRecommendations
     }));
+}
+
+export async function listPreviouslyAssignedRecipeIdsForPatient(
+    patientId: string
+): Promise<string[]> {
+    const meals = await prisma.protocolMeal.findMany({
+        where: {
+            recipeId: {not: null},
+            day: {
+                week: {
+                    protocol: {
+                        patientId,
+                        status: {in: ['ACTIVE', 'COMPLETED']}
+                    }
+                }
+            }
+        },
+        distinct: ['recipeId'],
+        select: {recipeId: true}
+    });
+
+    return meals
+        .map(meal => meal.recipeId)
+        .filter((recipeId): recipeId is string => Boolean(recipeId));
 }
 
 export async function getProtocolDetailForPatient(

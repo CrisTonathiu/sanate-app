@@ -106,7 +106,7 @@ export default function AddPatientDialog({
                         phone: data.phone,
                         birthDate: data.birthDate,
                         height: data.height,
-                        initWeight: data.initialWeight,
+                        initialWeight: data.initialWeight,
                         gender: data.gender
                     })
                 });

@@ -6,6 +6,31 @@ import type {
 } from '@/lib/services/protocol/protocol-week-plan.service';
 import {useQuery} from '@tanstack/react-query';
 
+export function useGetPreviouslyAssignedRecipeIds(patientId?: string) {
+    return useQuery<string[]>({
+        queryKey: ['previouslyAssignedRecipeIds', patientId],
+        enabled: !!patientId,
+        queryFn: async () => {
+            const res = await fetch(
+                `/api/patients/${patientId}/protocols/assigned-recipes`,
+                {credentials: 'include'}
+            );
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(
+                    error?.message ||
+                        'No se pudieron cargar las recetas asignadas anteriormente'
+                );
+            }
+
+            const rawData = await res.json();
+            return (rawData?.data ?? []) as string[];
+        },
+        staleTime: 1000 * 60 * 2
+    });
+}
+
 export function useGetPatientProtocols(patientId?: string) {
     return useQuery<PatientProtocolListItem[]>({
         queryKey: ['patientProtocols', patientId],

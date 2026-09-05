@@ -8,6 +8,7 @@ import {
     buildMultiMealWeeklySchedules,
     type MealSlotTargets
 } from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {parseMenuDayPatternId} from '@/lib/config/menu-day-pattern';
 import {getAppSettings} from '@/lib/services/settings/app-settings.service';
 import {
     applyMixableMainMealsCatalog,
@@ -65,6 +66,7 @@ type RecipeSummary = {
         carbsPer100g: number;
         fatPer100g: number;
         isDiscrete: boolean;
+        allowPieceFractions: boolean;
         minGrams: number | null;
         maxGrams: number | null;
         density: number | null;
@@ -428,6 +430,7 @@ function buildMeal(
             targetGrams: scaled.targetGrams,
             unit: scaled.unit,
             isDiscrete: scaled.isDiscrete,
+            allowPieceFractions: scaled.allowPieceFractions,
             minGrams: item.minGrams,
             maxGrams: item.maxGrams,
             baseCalories: item.caloriesPer100g,
@@ -619,6 +622,7 @@ export async function generateProtocolPlanForPatient(
                                     carbsPer100g: true,
                                     fatPer100g: true,
                                     isDiscrete: true,
+                                    allowPieceFractions: true,
                                     isFreePortion: true,
                                     maxPortionGrams: true,
                                     minPortionQuantity: true,
@@ -696,6 +700,8 @@ export async function generateProtocolPlanForPatient(
                         carbsPer100g: item.ingredient.food?.carbsPer100g ?? 0,
                         fatPer100g: item.ingredient.food?.fatPer100g ?? 0,
                         isDiscrete: item.ingredient.food?.isDiscrete ?? false,
+                        allowPieceFractions:
+                            item.ingredient.food?.allowPieceFractions === true,
                         minGrams: limits.minGrams,
                         maxGrams: limits.maxGrams,
                         density: item.ingredient.food?.density ?? null,
@@ -784,7 +790,8 @@ export async function generateProtocolPlanForPatient(
         weekCount,
         shuffleSeed,
         sharedPoolKeys,
-        mealTargets
+        mealTargets,
+        parseMenuDayPatternId(input.menuDayPattern)
     );
 
     const weekPlan: DayMeals[] = [];
