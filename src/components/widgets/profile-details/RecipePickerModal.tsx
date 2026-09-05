@@ -132,6 +132,7 @@ function recipeToMealSlot(
             carbsPer100g: food?.carbsPer100g ?? 0,
             fatPer100g: food?.fatPer100g ?? 0,
             isDiscrete: food?.isDiscrete ?? false,
+            allowPieceFractions: food?.allowPieceFractions === true,
             density: food?.density,
             gramsPerPiece: food?.gramsPerPiece
         };
@@ -170,6 +171,7 @@ function recipeToMealSlot(
                 targetGrams: scaled.targetGrams,
                 unit: scaled.unit,
                 isDiscrete: scaled.isDiscrete,
+                allowPieceFractions: scaled.allowPieceFractions,
                 minGrams: limits.minGrams,
                 maxGrams: limits.maxGrams,
                 baseCalories: kcal ?? 0,
@@ -231,6 +233,8 @@ interface RecipePickerModalProps {
     macroTarget?: MacroKcalTarget;
     /** Recipe IDs already used in other weeks (any meal) — hidden when replacing in a multi-week plan. */
     excludedRecipeIds?: string[];
+    /** Recipe IDs assigned in previous ACTIVE or COMPLETED protocols — labeled, still selectable. */
+    previouslyAssignedRecipeIds?: string[];
     /** Protein types already used in other meals of this day (eggs, chicken, fish, …). */
     excludedProteinFamilies?: string[];
     onClose: () => void;
@@ -243,6 +247,7 @@ export default function RecipePickerModal({
     targetCalories,
     macroTarget,
     excludedRecipeIds = [],
+    previouslyAssignedRecipeIds = [],
     excludedProteinFamilies = [],
     onClose,
     onSelect
@@ -256,6 +261,10 @@ export default function RecipePickerModal({
     const excluded = useMemo(
         () => new Set(excludedRecipeIds),
         [excludedRecipeIds]
+    );
+    const previouslyAssigned = useMemo(
+        () => new Set(previouslyAssignedRecipeIds),
+        [previouslyAssignedRecipeIds]
     );
     const excludedProteins = useMemo(
         () => new Set(excludedProteinFamilies),
@@ -384,6 +393,13 @@ export default function RecipePickerModal({
                                             {mealTypeLabel[recipe.mealType] ??
                                                 recipe.mealType}
                                         </Badge>
+                                        {previouslyAssigned.has(recipe.id) && (
+                                            <Badge
+                                                variant='secondary'
+                                                className='absolute top-3 right-3 text-[10px] font-medium border border-border bg-background/90 text-muted-foreground backdrop-blur-sm'>
+                                                Usada antes
+                                            </Badge>
+                                        )}
                                     </div>
 
                                     {/* Recipe Info */}

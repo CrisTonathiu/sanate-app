@@ -50,6 +50,7 @@ export type FoodFormData = {
     fatPer100g?: number | null;
     density?: number | null;
     isDiscrete?: boolean;
+    allowPieceFractions?: boolean;
     gramsPerPiece?: number | null;
     minPortionQuantity?: number | null;
     minPortionUnit?: FoodPortionUnit | null;
@@ -218,6 +219,7 @@ export function FoodForm({
     const [maxPortionQuantity, setMaxPortionQuantity] = useState('');
     const [maxPortionUnit, setMaxPortionUnit] = useState<FoodPortionUnit>('GRAM');
     const [isDiscrete, setIsDiscrete] = useState(false);
+    const [allowPieceFractions, setAllowPieceFractions] = useState(false);
     const [kcalPerPiece, setKcalPerPiece] = useState('');
     const [gramsPerPiece, setGramsPerPiece] = useState('');
     const [gramsPerEquivalent, setGramsPerEquivalent] = useState('');
@@ -260,6 +262,7 @@ export function FoodForm({
                 (initialData.maxPortionGrams != null ? 'GRAM' : defaultUnit)
         );
         setIsDiscrete(initialData.isDiscrete ?? false);
+        setAllowPieceFractions(initialData.allowPieceFractions ?? false);
         setGramsPerPiece(formatNumberField(initialData.gramsPerPiece));
         const kcalPer100g = initialData.caloriesPer100g;
         const grams = initialData.gramsPerPiece;
@@ -408,6 +411,7 @@ export function FoodForm({
                 maxPortionQuantity: maxLimit.quantity,
                 maxPortionUnit: maxLimit.unit,
                 isDiscrete,
+                allowPieceFractions: isDiscrete && allowPieceFractions,
                 gramsPerPiece: isDiscrete ? parsedGramsPerPiece : null,
                 gramsPerEquivalent: parseOptionalNumber(gramsPerEquivalent),
                 equivalentDisplayText: equivalentDisplayText.trim() || null,
@@ -649,6 +653,8 @@ export function FoodForm({
                                         if (!maxPortionQuantity) {
                                             setMaxPortionUnit('PIECE');
                                         }
+                                    } else {
+                                        setAllowPieceFractions(false);
                                     }
                                 }}
                                 className='h-4 w-4 rounded border-border'
@@ -657,6 +663,24 @@ export function FoodForm({
                                 Porción discreta (piezas, unidades)
                             </Label>
                         </div>
+                        {isDiscrete ? (
+                            <div className='sm:col-span-2 flex items-center gap-2'>
+                                <input
+                                    id='allowPieceFractions'
+                                    type='checkbox'
+                                    checked={allowPieceFractions}
+                                    onChange={e =>
+                                        setAllowPieceFractions(e.target.checked)
+                                    }
+                                    className='h-4 w-4 rounded border-border'
+                                />
+                                <Label
+                                    htmlFor='allowPieceFractions'
+                                    className='text-sm'>
+                                    Permitir fracciones (1/2 pz, 1/3 pz)
+                                </Label>
+                            </div>
+                        ) : null}
                         {isDiscrete ? (
                             <div className='sm:col-span-2'>
                                 <Label className='text-xs text-muted-foreground mb-1.5 block'>

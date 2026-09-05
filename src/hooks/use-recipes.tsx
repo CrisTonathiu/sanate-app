@@ -20,6 +20,7 @@ export interface RecipeIngredient {
             carbsPer100g?: number | null;
             fatPer100g?: number | null;
             isDiscrete?: boolean;
+            allowPieceFractions?: boolean;
             isFreePortion?: boolean;
             maxPortionGrams?: number | null;
             minPortionQuantity?: number | null;

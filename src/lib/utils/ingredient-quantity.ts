@@ -1,9 +1,9 @@
 export type IngredientQuantityOptions = {
-    /** Food marked as discrete (eggs, bread slices). */
+    /** Food marked as counted in pieces (eggs, bread, avocado). */
     isDiscrete?: boolean;
     /**
      * For pieza (pz): allow 1/4, 1/3, 1/2, 2/3, 3/4 (e.g. medio aguacate).
-     * Tablespoons (cda) stay whole regardless.
+     * Default is whole pieces only (tortilla, pan). Tablespoons stay whole.
      */
     allowFractions?: boolean;
 };
@@ -103,6 +103,17 @@ function snapToNearestFraction(
 
 function snapToCookingFraction(quantity: number): number {
     return snapToNearestFraction(quantity, PATIENT_VOLUME_FRACTIONS);
+}
+
+/** Piece snap options from a catalog food. Fractions only when explicitly allowed. */
+export function quantityOptionsForPieceFood(food?: {
+    isDiscrete?: boolean | null;
+    allowPieceFractions?: boolean | null;
+} | null): IngredientQuantityOptions {
+    return {
+        isDiscrete: food?.isDiscrete ?? false,
+        allowFractions: food?.allowPieceFractions === true
+    };
 }
 
 function usesWholeCountUnit(

@@ -320,7 +320,7 @@ export function useCreatePatient() {
             whatsappNumber?: string;
             birthDate?: string;
             height?: number;
-            initWeight?: number;
+            initialWeight?: number;
             gender?: 'MALE' | 'FEMALE' | 'OTHER';
         }) => {
             const res = await fetch('/api/patients', {

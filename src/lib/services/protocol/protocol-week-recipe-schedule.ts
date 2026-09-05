@@ -1,5 +1,12 @@
 import {DAYS_PER_WEEK} from '@/lib/utils/protocol-week-plan';
 import {
+    expandMenuDayPattern,
+    parseMenuDayPatternId,
+    uniqueMenuDayCount,
+    uniqueMenuDayLetters,
+    type MenuDayPatternId
+} from '@/lib/config/menu-day-pattern';
+import {
     collectProteinFamiliesFromNames,
     recipeHasProteinSource,
     recipeSharesProteinFamily
@@ -182,10 +189,6 @@ function pickRecipeForSlot<T extends SchedulableRecipe>(
         return undefined;
     }
 
-    if (pool.length === 1) {
-        return pool[0];
-    }
-
     const uniqueToday = (recipe: T) => !usedToday.has(recipe.id);
     const notPrevious = (recipe: T) => recipe.id !== previousId;
     const uniqueProtein = (recipe: T) =>
@@ -230,19 +233,21 @@ function pickRecipeForSlot<T extends SchedulableRecipe>(
 function resolveWeekPool<T extends SchedulableRecipe>(
     mealCatalog: T[],
     weekRecipes: T[],
-    otherWeekIds: Set<string>
+    otherWeekIds: Set<string>,
+    minSize: number = 0
 ): T[] {
     const weekIds = new Set(weekRecipes.map(recipe => recipe.id));
-    const weekPool = mealCatalog.filter(recipe => weekIds.has(recipe.id));
-    if (weekPool.length > 0) {
-        return weekPool;
+    let weekPool = mealCatalog.filter(recipe => weekIds.has(recipe.id));
+
+    if (weekPool.length < Math.max(1, minSize)) {
+        const leftovers = mealCatalog.filter(
+            recipe => !weekIds.has(recipe.id) && !otherWeekIds.has(recipe.id)
+        );
+        weekPool = uniqueRecipesById([...weekPool, ...leftovers]);
     }
 
-    const uniquePool = mealCatalog.filter(
-        recipe => !otherWeekIds.has(recipe.id)
-    );
-    if (uniquePool.length > 0) {
-        return uniquePool;
+    if (weekPool.length > 0) {
+        return weekPool;
     }
 
     return mealCatalog;
@@ -253,12 +258,14 @@ function buildWeekPoolsForMeals<T extends SchedulableRecipe>(
     mealKeys: string[],
     weekCount: number,
     shuffleSeed: number,
-    sharedPoolKeys: string[]
+    sharedPoolKeys: string[],
+    uniqueDaysPerWeek: number
 ): Record<string, T[][]> {
     const pools: Record<string, T[][]> = {};
     const sharedKeySet = new Set(sharedPoolKeys);
     const sharedKeys = mealKeys.filter(key => sharedKeySet.has(key));
     const independentKeys = mealKeys.filter(key => !sharedKeySet.has(key));
+    const daysPerWeek = Math.max(1, uniqueDaysPerWeek);
 
     if (sharedKeys.length > 0) {
         const union = uniqueRecipesById(
@@ -268,7 +275,7 @@ function buildWeekPoolsForMeals<T extends SchedulableRecipe>(
             union,
             weekCount,
             shuffleSeed,
-            DAYS_PER_WEEK * sharedKeys.length
+            daysPerWeek * sharedKeys.length
         );
 
         for (const mealKey of sharedKeys) {
@@ -281,7 +288,8 @@ function buildWeekPoolsForMeals<T extends SchedulableRecipe>(
                 return resolveWeekPool(
                     catalog[mealKey] ?? [],
                     weekRecipes,
-                    otherWeekIds
+                    otherWeekIds,
+                    daysPerWeek
                 );
             });
         }
@@ -292,7 +300,8 @@ function buildWeekPoolsForMeals<T extends SchedulableRecipe>(
         const partitions = partitionRecipesAcrossWeeks(
             mealCatalog,
             weekCount,
-            shuffleSeed + mealOffset * 19 + mealKey.length
+            shuffleSeed + mealOffset * 19 + mealKey.length,
+            daysPerWeek
         );
 
         pools[mealKey] = partitions.map((weekRecipes, weekIndex) => {
@@ -301,7 +310,12 @@ function buildWeekPoolsForMeals<T extends SchedulableRecipe>(
                     index === weekIndex ? [] : recipes.map(recipe => recipe.id)
                 )
             );
-            return resolveWeekPool(mealCatalog, weekRecipes, otherWeekIds);
+            return resolveWeekPool(
+                mealCatalog,
+                weekRecipes,
+                otherWeekIds,
+                daysPerWeek
+            );
         });
     }
 
@@ -337,10 +351,12 @@ export function buildWeeklyRecipeSchedule<T extends SchedulableRecipe>(
  *   protein-rich option exists
  * - breakfast, lunch, and dinner prefer recipes that can hit the protein target
  *   so macros stay even across the week
- * - the same recipe is not used on consecutive days of the same meal
+ * - unique day templates (A/B/C) never share a recipe when another unused
+ *   option exists in that week's pool
  *
  * `sharedPoolKeys` (breakfast/lunch/dinner when mixing is on) share one
  * catalog and one per-week partition.
+ * `dayPatternId` stamps those templates onto the 7-day week (ABABABA, etc.).
  */
 export function buildMultiMealWeeklySchedules<T extends SchedulableRecipe>(
     catalog: Record<string, T[]>,
@@ -348,7 +364,8 @@ export function buildMultiMealWeeklySchedules<T extends SchedulableRecipe>(
     weekCount: number,
     shuffleSeed: number,
     sharedPoolKeys: string[] = [],
-    mealTargets: Record<string, MealSlotTargets> = {}
+    mealTargets: Record<string, MealSlotTargets> = {},
+    dayPatternId: MenuDayPatternId = 'UNIQUE'
 ): Record<string, T[][]> {
     const schedules: Record<string, T[][]> = Object.fromEntries(
         mealKeys.map(key => [key, []])
@@ -358,32 +375,51 @@ export function buildMultiMealWeeklySchedules<T extends SchedulableRecipe>(
         return schedules;
     }
 
+    const patternId = parseMenuDayPatternId(dayPatternId);
+    const weekLetters = expandMenuDayPattern(patternId, DAYS_PER_WEEK);
+    const uniqueLetters = uniqueMenuDayLetters(patternId);
     const weekPools = buildWeekPoolsForMeals(
         catalog,
         mealKeys,
         weekCount,
         shuffleSeed,
-        sharedPoolKeys
+        sharedPoolKeys,
+        uniqueMenuDayCount(patternId)
     );
     const safeWeekCount = Math.max(1, weekCount);
 
     for (let weekIndex = 0; weekIndex < safeWeekCount; weekIndex++) {
         const useCount = new Map<string, number>();
+        const usedInWeekTemplates = new Set<string>();
+        const templates: Record<string, Partial<Record<string, T>>> = {};
 
         for (const mealKey of mealKeys) {
             schedules[mealKey].push([]);
         }
 
-        for (let day = 0; day < DAYS_PER_WEEK; day++) {
+        for (let slot = 0; slot < uniqueLetters.length; slot++) {
+            const letter = uniqueLetters[slot];
+            templates[letter] = {};
             const usedToday = new Set<string>();
             const usedProteinToday = new Set<string>();
+            const previousLetter =
+                slot > 0 ? uniqueLetters[slot - 1] : undefined;
 
             for (const mealKey of mealKeys) {
                 const pool = weekPools[mealKey]?.[weekIndex] ?? [];
-                const previousId = schedules[mealKey][weekIndex][day - 1]?.id;
+                const blockedIds = new Set([
+                    ...usedInWeekTemplates,
+                    ...usedToday
+                ]);
+                const unusedPool = pool.filter(
+                    recipe => !blockedIds.has(recipe.id)
+                );
+                const previousId = previousLetter
+                    ? templates[previousLetter]?.[mealKey]?.id
+                    : undefined;
                 const targets = mealTargets[mealKey];
                 const picked = pickRecipeForSlot(
-                    pool,
+                    unusedPool.length > 0 ? unusedPool : pool,
                     usedToday,
                     usedProteinToday,
                     previousId,
@@ -396,12 +432,26 @@ export function buildMultiMealWeeklySchedules<T extends SchedulableRecipe>(
                     continue;
                 }
 
-                schedules[mealKey][weekIndex].push(picked);
+                templates[letter][mealKey] = picked;
                 usedToday.add(picked.id);
+                usedInWeekTemplates.add(picked.id);
                 for (const family of picked.proteinFamilies ?? []) {
                     usedProteinToday.add(family);
                 }
                 useCount.set(picked.id, (useCount.get(picked.id) ?? 0) + 1);
+            }
+        }
+
+        for (let day = 0; day < DAYS_PER_WEEK; day++) {
+            const letter = weekLetters[day];
+
+            for (const mealKey of mealKeys) {
+                const picked = templates[letter]?.[mealKey];
+                if (!picked) {
+                    continue;
+                }
+
+                schedules[mealKey][weekIndex].push(picked);
             }
         }
     }

@@ -29,12 +29,21 @@ import {
     Percent,
     PieChart,
     Plus,
+    Repeat,
     Wheat,
     X
 } from 'lucide-react';
 import React from 'react';
 
 import {MAX_PROTOCOL_WEEKS} from '@/lib/utils/protocol-week-plan';
+import {
+    DEFAULT_MENU_DAY_PATTERN,
+    MENU_DAY_PATTERN_IDS,
+    MENU_DAY_PATTERNS,
+    menuDayPatternPreview,
+    uniqueMenuDayCount,
+    type MenuDayPatternId
+} from '@/lib/config/menu-day-pattern';
 
 interface ProtocolDistributionCardProps {
     planCalories: number;
@@ -51,6 +60,8 @@ interface ProtocolDistributionCardProps {
         React.SetStateAction<MacroMealPercentages>
     >;
     macroPercents: MacroPercents;
+    menuDayPattern: MenuDayPatternId;
+    setMenuDayPattern: React.Dispatch<React.SetStateAction<MenuDayPatternId>>;
 }
 
 const createEmptyMealPercentages = (): MealPercentages => ({
@@ -101,7 +112,9 @@ export function ProtocolDistributionCard({
     setMealPercentages,
     macroMealPercentages,
     setMacroMealPercentages,
-    macroPercents
+    macroPercents,
+    menuDayPattern = DEFAULT_MENU_DAY_PATTERN,
+    setMenuDayPattern
 }: ProtocolDistributionCardProps) {
     // Check if distribution is valid (totals 100%)
     const enabledMealsList = Object.entries(enabledMeals)
@@ -223,6 +236,7 @@ export function ProtocolDistributionCard({
     >({});
 
     const canRemove = Object.values(enabledMeals).filter(Boolean).length > 1;
+    const uniqueDays = uniqueMenuDayCount(menuDayPattern);
     const totalMealsToGenerate = enabledMealsList.length * 7 * weekCount;
 
     return (
@@ -280,6 +294,70 @@ export function ProtocolDistributionCard({
                             {enabledMealsList.length} por dia x 7 dias x{' '}
                             {weekCount} {weekCount === 1 ? 'semana' : 'semanas'}
                             ).
+                        </p>
+                    </div>
+                    <div className='space-y-3 rounded-xl border border-border bg-secondary/20 p-4'>
+                        <Label className='flex items-center gap-2 text-sm font-medium'>
+                            <Repeat className='h-4 w-4 text-primary' />
+                            Patron de repeticion
+                        </Label>
+                        <p className='text-xs text-muted-foreground'>
+                            Elige cuantos menus distintos hay en la semana.
+                            Cada semana usa recetas diferentes.
+                        </p>
+                        <div className='grid gap-2 sm:grid-cols-2'>
+                            {MENU_DAY_PATTERN_IDS.map(patternId => {
+                                const pattern = MENU_DAY_PATTERNS[patternId];
+                                const preview =
+                                    menuDayPatternPreview(patternId);
+                                const selected = menuDayPattern === patternId;
+
+                                return (
+                                    <button
+                                        key={patternId}
+                                        type='button'
+                                        onClick={() =>
+                                            setMenuDayPattern(patternId)
+                                        }
+                                        className={cn(
+                                            'rounded-xl border p-3 text-left transition-colors',
+                                            selected
+                                                ? 'border-primary bg-primary/5'
+                                                : 'border-border bg-background hover:border-primary/40'
+                                        )}>
+                                        <div className='flex items-center justify-between gap-2'>
+                                            <span className='text-sm font-semibold text-foreground'>
+                                                {pattern.label}
+                                            </span>
+                                            {selected ? (
+                                                <Check className='h-4 w-4 shrink-0 text-primary' />
+                                            ) : null}
+                                        </div>
+                                        <p className='mt-1 text-xs text-muted-foreground'>
+                                            {pattern.description}
+                                        </p>
+                                        <div className='mt-2 flex gap-1'>
+                                            {preview.map(item => (
+                                                <span
+                                                    key={`${patternId}-${item.day}`}
+                                                    className='flex min-w-0 flex-1 flex-col items-center rounded-md bg-secondary/60 px-1 py-1'>
+                                                    <span className='text-[10px] text-muted-foreground'>
+                                                        {item.day}
+                                                    </span>
+                                                    <span className='text-xs font-semibold text-foreground'>
+                                                        {item.slot}
+                                                    </span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className='text-xs text-muted-foreground'>
+                            Este patron usa {uniqueDays}{' '}
+                            {uniqueDays === 1 ? 'menu distinto' : 'menus distintos'}{' '}
+                            por semana.
                         </p>
                     </div>
                     {/* Add Meal Types Section */}

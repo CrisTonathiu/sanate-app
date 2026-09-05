@@ -31,6 +31,7 @@ export type ScalableIngredient = {
     carbsPer100g?: number | null;
     fatPer100g?: number | null;
     isDiscrete?: boolean | null;
+    allowPieceFractions?: boolean | null;
     density?: number | null;
     gramsPerPiece?: number | null;
 };
@@ -82,11 +83,12 @@ export function scaleIngredientByFactor(
         item.gramsPerPiece
     );
     const isDiscrete = item.isDiscrete ?? false;
+    const allowPieceFractions = item.allowPieceFractions ?? false;
     const targetQuantity = scaleIngredientQuantity(
         item.quantity,
         scale,
         unit,
-        {isDiscrete}
+        {isDiscrete, allowFractions: allowPieceFractions}
     );
     const targetGrams = usesUnitBasedGramScaling(unit)
         ? targetGramsForPieceQuantity(
@@ -101,7 +103,8 @@ export function scaleIngredientByFactor(
         targetQuantity,
         targetGrams,
         unit,
-        isDiscrete
+        isDiscrete,
+        allowPieceFractions
     };
 }
 
@@ -110,6 +113,7 @@ export type CalorieScaledPortion = {
     targetQuantity?: number;
     unit?: string | null;
     isDiscrete?: boolean | null;
+    allowPieceFractions?: boolean | null;
     baseCalories?: number | null;
     baseProtein?: number | null;
     baseCarbs?: number | null;
@@ -224,8 +228,11 @@ function applyTargetGrams<T extends CalorieScaledPortion>(
             portion.maxGrams != null && portion.maxGrams > 0
                 ? portion.maxGrams / gramsEach
                 : 6;
-        const allowFractions = maxPieces < 0.95 || Math.abs(maxPieces - Math.round(maxPieces)) > 0.05;
-        const snapped = snapQuantityForUnit(rawQty, 'PIECE', {allowFractions});
+        const allowFractions = portion.allowPieceFractions === true;
+        const snapped = snapQuantityForUnit(rawQty, 'PIECE', {
+            isDiscrete: portion.isDiscrete ?? false,
+            allowFractions
+        });
         const minPieces =
             portion.minGrams != null && gramsEach > 0
                 ? portion.minGrams / gramsEach
@@ -636,7 +643,7 @@ function syncQuantitiesFromGrams<T extends CalorieScaledPortion>(
                     unit,
                     {
                         isDiscrete: portion.isDiscrete ?? false,
-                        allowFractions: true
+                        allowFractions: portion.allowPieceFractions === true
                     }
                 )
             };

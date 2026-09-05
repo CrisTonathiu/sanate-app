@@ -21,6 +21,7 @@ const MEAL_COLUMN_CLASS = 'min-w-64';
 
 interface WeeklyMealPlannerProps {
     weekPlan: DayMeals[];
+    previouslyAssignedRecipeIds?: string[];
     onOpenRecipeModal: (day: string, mealType: MealType) => void;
     onMealUpdate?: (
         day: string,
@@ -32,6 +33,7 @@ interface WeeklyMealPlannerProps {
 
 export default function WeeklyMealPlanner({
     weekPlan,
+    previouslyAssignedRecipeIds = [],
     onOpenRecipeModal,
     onMealUpdate
 }: WeeklyMealPlannerProps) {
@@ -39,6 +41,10 @@ export default function WeeklyMealPlanner({
     const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
     const {data: appSettings} = useGetAppSettings();
     const mixMainMeals = appSettings?.mixMainMeals ?? false;
+    const previouslyAssigned = useMemo(
+        () => new Set(previouslyAssignedRecipeIds),
+        [previouslyAssignedRecipeIds]
+    );
 
     const visibleDays = useMemo(
         () => getDaysForWeekIndex(weekPlan, selectedWeekIndex),
@@ -165,6 +171,9 @@ export default function WeeklyMealPlanner({
                                             dayLabel={day.day}
                                             mealTypeLabel={label}
                                             multiWeekPlan={totalWeeks > 1}
+                                            previouslyAssigned={previouslyAssigned.has(
+                                                day[key]?.id
+                                            )}
                                             onReplace={() =>
                                                 onOpenRecipeModal(day.day, key)
                                             }

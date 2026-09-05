@@ -1,5 +1,6 @@
 'use client';
 
+import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import {MealType} from '@/lib/config/meal-config';
 import {MealSlot} from '@/lib/interface/meal-interface';
@@ -14,6 +15,7 @@ export default function MealCell({
     dayLabel,
     mealTypeLabel,
     multiWeekPlan = false,
+    previouslyAssigned = false,
     onReplace,
     onEdit
 }: {
@@ -22,6 +24,7 @@ export default function MealCell({
     dayLabel?: string;
     mealTypeLabel?: string;
     multiWeekPlan?: boolean;
+    previouslyAssigned?: boolean;
     onReplace: () => void;
     onEdit: (
         updatedMeal: MealSlot,
@@ -88,6 +91,13 @@ export default function MealCell({
                     <div className='absolute top-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow-sm'>
                         <Icon className='h-3.5 w-3.5 text-primary' />
                     </div>
+                    {previouslyAssigned && (
+                        <Badge
+                            variant='secondary'
+                            className='absolute top-2 right-2 text-[10px] font-medium border border-border bg-background/90 text-muted-foreground backdrop-blur-sm'>
+                            Usada antes
+                        </Badge>
+                    )}
                     {/* Hover overlay with actions */}
                     <div className='absolute inset-0 flex items-center justify-center gap-2 rounded-t-xl bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity'>
                         <Button

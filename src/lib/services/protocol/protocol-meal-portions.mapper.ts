@@ -105,6 +105,7 @@ export function mapDbIngredientsToMealPortions(
             name: string;
             food?: {
                 isDiscrete?: boolean | null;
+                allowPieceFractions?: boolean | null;
                 caloriesPer100g?: number | null;
                 proteinPer100g?: number | null;
                 carbsPer100g?: number | null;
@@ -139,6 +140,7 @@ export function mapDbIngredientsToMealPortions(
             targetGrams: row.targetGrams,
             unit: row.unit,
             isDiscrete: food?.isDiscrete ?? false,
+            allowPieceFractions: food?.allowPieceFractions === true,
             baseCalories: kcal,
             baseProtein: food?.proteinPer100g ?? undefined,
             baseCarbs: food?.carbsPer100g ?? undefined,
@@ -160,6 +162,7 @@ export function mapRecipeRowsToMealPortions(
                 carbsPer100g: number | null;
                 fatPer100g: number | null;
                 isDiscrete?: boolean | null;
+                allowPieceFractions?: boolean | null;
                 density?: number | null;
                 gramsPerPiece?: number | null;
             } | null;
@@ -187,6 +190,7 @@ export function mapRecipeRowsToMealPortions(
             targetGrams: nutritionGrams,
             unit,
             isDiscrete: food?.isDiscrete ?? false,
+            allowPieceFractions: food?.allowPieceFractions === true,
             baseCalories: food?.caloriesPer100g ?? undefined,
             baseProtein: food?.proteinPer100g ?? undefined,
             baseCarbs: food?.carbsPer100g ?? undefined,
@@ -268,6 +272,7 @@ export function buildMealSlotFromProtocolMeal(meal: {
                     density?: number | null;
                     gramsPerPiece?: number | null;
                     isDiscrete?: boolean | null;
+                    allowPieceFractions?: boolean | null;
                 } | null;
             };
         }>;
@@ -360,6 +365,7 @@ export function formatScaledIngredientDisplay(
         targetGrams: number;
         targetQuantity: number;
         isDiscrete?: boolean;
+        allowPieceFractions?: boolean;
     },
     recipeBase: RecipeIngredientBase
 ): {amount: string; unit: string} {
@@ -368,7 +374,7 @@ export function formatScaledIngredientDisplay(
         INGREDIENT_UNIT_LABEL[unit as IngredientUnit] ?? unit.toLowerCase();
     const quantityOptions = {
         isDiscrete: scaled.isDiscrete,
-        allowFractions: unit === 'PIECE'
+        allowFractions: scaled.allowPieceFractions === true
     };
 
     if (unit === 'GRAM') {
@@ -440,13 +446,15 @@ export function formatMealPortionDisplay(portion: {
     baseGrams?: number;
     unit?: string;
     isDiscrete?: boolean;
+    allowPieceFractions?: boolean;
 }): {amount: string; unitLabel: string} {
     const {amount, unit} = formatScaledIngredientDisplay(
         {
             unit: portion.unit ?? 'GRAM',
             targetGrams: portion.targetGrams,
             targetQuantity: portion.targetQuantity ?? portion.targetGrams,
-            isDiscrete: portion.isDiscrete
+            isDiscrete: portion.isDiscrete,
+            allowPieceFractions: portion.allowPieceFractions
         },
         {
             quantity: portion.baseQuantity ?? portion.targetQuantity ?? null,
@@ -470,6 +478,7 @@ export function mapStoredPortionsToSliderIngredients(
                 food?: {
                     density?: number | null;
                     isDiscrete?: boolean | null;
+                    allowPieceFractions?: boolean | null;
                     gramsPerPiece?: number | null;
                 } | null;
             };
@@ -502,7 +511,9 @@ export function mapStoredPortionsToSliderIngredients(
                 unit: row.unit,
                 targetGrams: row.targetGrams,
                 targetQuantity: row.targetQuantity,
-                isDiscrete: recipeRow?.ingredient.food?.isDiscrete ?? false
+                isDiscrete: recipeRow?.ingredient.food?.isDiscrete ?? false,
+                allowPieceFractions:
+                    recipeRow?.ingredient.food?.allowPieceFractions === true
             },
             recipeBase
         );

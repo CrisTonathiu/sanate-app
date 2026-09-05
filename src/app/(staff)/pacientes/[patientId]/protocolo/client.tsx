@@ -44,12 +44,18 @@ import {
     collectRecipeIdsUsedOnSameDay,
     collectProteinFamiliesUsedOnSameDay
 } from '@/lib/services/protocol/protocol-week-recipe-schedule';
+import {useGetPreviouslyAssignedRecipeIds} from '@/hooks/use-patient-protocols';
 import type {ProtocolDraftSnapshot} from '@/lib/services/protocol/protocol-week-plan.service';
 import {
     countWeeksInPlan,
     dayBelongsToWeek,
     parseWeekIndexFromDayLabel
 } from '@/lib/utils/protocol-week-plan';
+import {
+    DEFAULT_MENU_DAY_PATTERN,
+    parseMenuDayPatternId,
+    type MenuDayPatternId
+} from '@/lib/config/menu-day-pattern';
 
 interface ClientPageProps {
     patientId: string;
@@ -152,6 +158,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         useGetPatientConditions(patientId);
     const {data: foodDislikes = [], isPending: isPendingFoodDislikes} =
         useGetPatientFoodDislikes(patientId);
+    const {data: previouslyAssignedRecipeIds = []} =
+        useGetPreviouslyAssignedRecipeIds(patientId);
 
     // Consultation State
     const [reason, setReason] = useState<string>('');
@@ -162,6 +170,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     // Protocol State
     const [planCalories, setPlanCalories] = useState<number>(0);
     const [weekCount, setWeekCount] = useState<number>(1);
+    const [menuDayPattern, setMenuDayPattern] = useState<MenuDayPatternId>(
+        DEFAULT_MENU_DAY_PATTERN
+    );
     const durationLabel = `Duracion: ${weekCount} ${weekCount === 1 ? 'semana' : 'semanas'}`;
     const [macroPercents, setMacroPercents] = useState<MacroPercents>(
         DEFAULT_MACRO_PERCENTS
@@ -243,6 +254,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         notes,
         planCalories,
         weekCount,
+        menuDayPattern,
         macroPercents,
         enabledMeals,
         mealPercentages,
@@ -266,6 +278,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             notes,
             planCalories,
             weekCount,
+            menuDayPattern,
             macroPercents,
             enabledMeals,
             mealPercentages,
@@ -446,6 +459,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setActiveProtocolCreatedAt(null);
         setWeekPlan([]);
         setWeekCount(1);
+        setMenuDayPattern(DEFAULT_MENU_DAY_PATTERN);
         setShowMenuDownload(false);
         setBaselineFormState(null);
         setIsStartDialogOpen(false);
@@ -461,6 +475,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setNotes(snapshot.notes ?? '');
         setPlanCalories(snapshot.planCalories ?? 0);
         setWeekCount(snapshot.weekCount ?? 1);
+        setMenuDayPattern(parseMenuDayPatternId(snapshot.menuDayPattern));
         setMacroPercents(prev => ({
             ...prev,
             ...(snapshot.macroPercents ?? {})
@@ -943,6 +958,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                             planCalories={planCalories}
                             weekCount={weekCount}
                             setWeekCount={setWeekCount}
+                            menuDayPattern={menuDayPattern}
+                            setMenuDayPattern={setMenuDayPattern}
                             enabledMeals={enabledMeals}
                             setEnabledMeals={setEnabledMeals}
                             mealPercentages={mealPercentages}
@@ -956,6 +973,9 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     return (
                         <WeeklyMealPlanner
                             weekPlan={weekPlan}
+                            previouslyAssignedRecipeIds={
+                                previouslyAssignedRecipeIds
+                            }
                             onOpenRecipeModal={handleOpenRecipeModal}
                             onMealUpdate={handleMealUpdate}
                         />
@@ -1073,6 +1093,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const handleGeneratePlan = async (payload: {
         planCalories: number;
         weekCount: number;
+        menuDayPattern: MenuDayPatternId;
         macroPercents: {carbs: number; protein: number; fat: number};
         mealDistribution: Record<string, number>;
         macroMealDistribution: MacroMealDistributionPayload;
@@ -1166,6 +1187,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             handleGeneratePlan({
                 planCalories,
                 weekCount,
+                menuDayPattern,
                 macroPercents,
                 mealDistribution,
                 macroMealDistribution
@@ -1323,6 +1345,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                               ]
                             : [])
                     ]}
+                    previouslyAssignedRecipeIds={previouslyAssignedRecipeIds}
                     excludedProteinFamilies={collectProteinFamiliesUsedOnSameDay(
                         weekPlan,
                         selectedDayMeal.day,

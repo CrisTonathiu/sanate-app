@@ -193,8 +193,12 @@ type UpdatePatientProfileInput = Pick<
     | 'birthDate'
     | 'gender'
     | 'height'
+    | 'initialWeight'
     | 'vital'
->;
+> & {
+    /** Alias used by some client payloads; mapped to Patient.initialWeight. */
+    initWeight?: number;
+};
 
 export async function updatePatientProfile(
     patientId: string,
@@ -250,7 +254,9 @@ export async function updatePatientProfile(
                         ? new Date(input.birthDate)
                         : null,
                     ...(normalizedGender ? {gender: normalizedGender} : {}),
-                    height: input.height ?? null
+                    height: input.height ?? null,
+                    initialWeight:
+                        input.initialWeight ?? input.initWeight ?? null
                 }
             });
 
