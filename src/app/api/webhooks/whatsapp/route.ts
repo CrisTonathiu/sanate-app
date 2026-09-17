@@ -7,13 +7,25 @@ import {
     replyForWhatsAppUserLookup,
     resolveWhatsAppUser
 } from '@/lib/webhooks/resolve-whatsapp-user';
-import {parseTwilioWhatsAppWebhook} from '@/lib/webhooks/parse-whatsapp-webhook';
+import {parseWhatsAppCloudWebhook} from '@/lib/webhooks/parse-whatsapp-webhook';
 import {sendWhatsAppMessage} from '@/lib/webhooks/send-whatsapp-message';
 import {after} from 'next/server';
-import twilio from 'twilio';
 
 const MENU_ANALYSIS_ACK =
     '🔍 Analizando el menú con tu plan semanal. Te respondo en unos segundos...';
+
+export function GET(request: Request) {
+    const url = new URL(request.url);
+    const mode = url.searchParams.get('hub.mode');
+    const verifyToken = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+
+    if (mode === 'subscribe' && verifyToken === process.env.WHATSAPP_VERIFY_TOKEN) {
+        return new Response(challenge ?? '', {status: 200});
+    }
+
+    return new Response('Forbidden', {status: 403});
+}
 
 export async function POST(request: Request) {
     try {
@@ -26,11 +38,8 @@ export async function POST(request: Request) {
             );
         }
 
-        const params = new URLSearchParams(raw);
-        const messages = parseTwilioWhatsAppWebhook(params);
-        const twiml = new twilio.twiml.MessagingResponse();
-        const twilioFrom = params.get('To')?.trim() ?? '';
-        const twilioTo = params.get('From')?.trim() ?? '';
+        const body = JSON.parse(raw);
+        const messages = parseWhatsAppCloudWebhook(body);
 
         for (const parsed of messages) {
             const lookup = await resolveWhatsAppUser(parsed.phoneNumber);
@@ -40,7 +49,10 @@ export async function POST(request: Request) {
                     phoneNumber: parsed.phoneNumber,
                     status: lookup.status
                 });
-                twiml.message(replyForWhatsAppUserLookup(lookup));
+                await sendWhatsAppMessage({
+                    to: parsed.phoneNumber,
+                    body: replyForWhatsAppUserLookup(lookup)
+                });
                 continue;
             }
 
@@ -70,8 +82,11 @@ export async function POST(request: Request) {
                 classified.intent === 'MENU_ANALYSIS' &&
                 parsed.media?.type === 'image';
 
-            if (isMenuPhotoAnalysis && twilioFrom && twilioTo) {
-                twiml.message(MENU_ANALYSIS_ACK);
+            if (isMenuPhotoAnalysis) {
+                await sendWhatsAppMessage({
+                    to: parsed.phoneNumber,
+                    body: MENU_ANALYSIS_ACK
+                });
 
                 after(async () => {
                     try {
@@ -79,8 +94,7 @@ export async function POST(request: Request) {
                             media: parsed.media
                         });
                         await sendWhatsAppMessage({
-                            from: twilioFrom,
-                            to: twilioTo,
+                            to: parsed.phoneNumber,
                             body: reply
                         });
                     } catch (error) {
@@ -91,8 +105,7 @@ export async function POST(request: Request) {
 
                         try {
                             await sendWhatsAppMessage({
-                                from: twilioFrom,
-                                to: twilioTo,
+                                to: parsed.phoneNumber,
                                 body: 'No pude analizar la foto del menú. Intenta enviar una imagen más clara o vuelve a intentar en un momento.'
                             });
                         } catch (sendError) {
@@ -109,15 +122,13 @@ export async function POST(request: Request) {
                 continue;
             }
 
-            twiml.message(
-                await replyForWhatsAppIntent(classified, {media: parsed.media})
-            );
+            await sendWhatsAppMessage({
+                to: parsed.phoneNumber,
+                body: await replyForWhatsAppIntent(classified, {media: parsed.media})
+            });
         }
 
-        return new Response(twiml.toString(), {
-            status: 200,
-            headers: {'Content-Type': 'text/xml'}
-        });
+        return Response.json({success: true});
     } catch (error) {
         console.error('[whatsapp/webhook] Failed to process webhook', error);
 

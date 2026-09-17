@@ -1,8 +1,8 @@
-/** Twilio WhatsApp (and Programmable Messaging) max body length per send. */
-export const WHATSAPP_BODY_MAX_LENGTH = 1600;
+/** WhatsApp Cloud API max text message body length per send. */
+export const WHATSAPP_BODY_MAX_LENGTH = 4096;
 
 /**
- * Splits a long reply into chunks that fit Twilio's per-message limit.
+ * Splits a long reply into chunks that fit WhatsApp's per-message limit.
  * Prefers paragraph, line, then word boundaries.
  */
 export function splitWhatsAppBody(
