@@ -16,7 +16,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
     title: 'Zanate',
-    description: 'Plataforma de gestión nutricional.'
+    description: 'Plataforma de gestión nutricional.',
+    other: {
+        'facebook-domain-verification': '1txsdgpaxuzpvq1yb2udva463knt2a'
+    }
 };
 
 export default function RootLayout({
