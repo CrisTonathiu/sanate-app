@@ -1,34 +1,55 @@
 import {splitWhatsAppBody} from '@/lib/webhooks/split-whatsapp-body';
-import twilio from 'twilio';
 
-function twilioClient() {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
-    const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-    if (!accountSid || !authToken) {
+const GRAPH_API_VERSION = 'v21.0';
+
+function whatsappCredentials(): {accessToken: string; phoneNumberId: string} {
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
+    if (!accessToken || !phoneNumberId) {
         throw new Error(
-            'TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be configured'
+            'WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID must be configured'
         );
     }
 
-    return twilio(accountSid, authToken);
+    return {accessToken, phoneNumberId};
 }
 
-/** Sends an outbound WhatsApp message (Twilio From/To from the inbound webhook). */
+/** Sends an outbound WhatsApp message via the Cloud API. */
 export async function sendWhatsAppMessage(input: {
-    from: string;
     to: string;
     body: string;
 }): Promise<void> {
-    const from = input.from.trim();
     const to = input.to.trim();
-    if (!from || !to) {
-        throw new Error('Missing Twilio WhatsApp from/to addresses');
+    if (!to) {
+        throw new Error('Missing WhatsApp recipient number');
     }
 
-    const client = twilioClient();
+    const {accessToken, phoneNumberId} = whatsappCredentials();
     const parts = splitWhatsAppBody(input.body);
 
     for (const body of parts) {
-        await client.messages.create({from, to, body});
+        const response = await fetch(
+            `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messaging_product: 'whatsapp',
+                    to,
+                    type: 'text',
+                    text: {body}
+                })
+            }
+        );
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(
+                `Failed to send WhatsApp message (${response.status}): ${errorBody}`
+            );
+        }
     }
 }
