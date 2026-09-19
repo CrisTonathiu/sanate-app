@@ -8,11 +8,8 @@ export const createPatientSchema = z.object({
     whatsappNumber: z.string().optional(),
     birthDate: z.string().optional(),
     gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
-    height: z.coerce.number().min(1, 'La altura debe ser mayor a 0').optional(),
-    initialWeight: z.coerce
-        .number()
-        .min(1, 'El peso debe ser mayor a 0')
-        .optional()
+    height: z.coerce.number().default(1),
+    initialWeight: z.coerce.number().default(1)
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
