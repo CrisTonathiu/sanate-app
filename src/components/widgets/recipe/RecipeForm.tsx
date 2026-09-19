@@ -56,6 +56,7 @@ import {
     snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
 import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
+import {toast} from 'sonner';
 
 // --- Constants ---
 const MEAL_TYPES = [
@@ -351,12 +352,12 @@ export function RecipeForm(props: RecipeFormProps) {
     // Image Handlers
     const handleImageUpload = async (file: File) => {
         if (!file.type.startsWith('image/')) {
-            alert('Selecciona un archivo de imagen valido.');
+            toast.error('Selecciona un archivo de imagen valido.');
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            alert('La imagen no debe exceder 5MB.');
+            toast.error('La imagen no debe exceder 5MB.');
             return;
         }
 
@@ -392,7 +393,9 @@ export function RecipeForm(props: RecipeFormProps) {
         } catch (error) {
             setRecipeImage(null);
             setUploadedImageUrl(null);
-            alert(error instanceof Error ? error.message : 'Error inesperado');
+            toast.error(
+                error instanceof Error ? error.message : 'Error inesperado'
+            );
         } finally {
             setIsUploadingImage(false);
         }
@@ -632,7 +635,7 @@ export function RecipeForm(props: RecipeFormProps) {
     // Save Recipe
     const handleSaveRecipe = async () => {
         if (!title.trim() || !mealType) {
-            alert('Agrega titulo y tipo de comida.');
+            toast.error('Agrega titulo y tipo de comida.');
             return;
         }
 
@@ -667,7 +670,7 @@ export function RecipeForm(props: RecipeFormProps) {
             });
 
         if (payloadIngredients.length === 0) {
-            alert('Agrega al menos un ingrediente.');
+            toast.error('Agrega al menos un ingrediente.');
             return;
         }
 
@@ -691,7 +694,9 @@ export function RecipeForm(props: RecipeFormProps) {
                 steps: payloadSteps
             });
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Error inesperado');
+            toast.error(
+                error instanceof Error ? error.message : 'Error inesperado'
+            );
         } finally {
             setIsSaving(false);
         }

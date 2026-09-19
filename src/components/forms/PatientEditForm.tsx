@@ -79,7 +79,7 @@ export function PatientEditForm({
     patientProfile,
     onBack
 }: PatientEditFormProps) {
-    const {register, watch, handleSubmit, formState} =
+    const {register, watch, setValue, handleSubmit, formState} =
         useForm<PatientProfileDTO>({
             defaultValues: {
                 ...patientProfile,
@@ -325,13 +325,16 @@ export function PatientEditForm({
                                     <FormField label='Género'>
                                         <Select
                                             value={watch('gender')}
-                                            onValueChange={v => {
-                                                const input =
-                                                    document.querySelector(
-                                                        '[name="gender"]'
-                                                    ) as HTMLInputElement;
-                                                if (input) input.value = v;
-                                            }}
+                                            onValueChange={v =>
+                                                setValue(
+                                                    'gender',
+                                                    v as PatientProfileDTO['gender'],
+                                                    {
+                                                        shouldDirty: true,
+                                                        shouldTouch: true
+                                                    }
+                                                )
+                                            }
                                             disabled={isSaving}>
                                             <SelectTrigger
                                                 className={`${inputStyles} rounded-xl`}>
@@ -349,10 +352,6 @@ export function PatientEditForm({
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <input
-                                            {...register('gender')}
-                                            type='hidden'
-                                        />
                                     </FormField>
                                 </div>
 
