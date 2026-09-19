@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import {Separator} from '@/components/ui/separator';
 import {useCreatePatient} from '@/hooks/use-patients';
+import {toast} from 'sonner';
 
 interface NewPatientForm {
     firstName: string;
@@ -74,7 +75,7 @@ export default function AddPatientDialog({
     onOpenChange: (open: boolean) => void;
     onPatientCreated?: (patientId: string) => void;
 }) {
-    const {register, watch, handleSubmit, reset, formState} =
+    const {register, watch, setValue, handleSubmit, reset, formState} =
         useForm<NewPatientForm>({
             defaultValues: {
                 firstName: '',
@@ -133,7 +134,12 @@ export default function AddPatientDialog({
             reset();
             onOpenChange(false);
             setIsSubmitting(false);
-        } catch {
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo crear el paciente'
+            );
             setIsSubmitting(false);
         }
     };
@@ -268,13 +274,16 @@ export default function AddPatientDialog({
                                 <FormField label='Género'>
                                     <Select
                                         value={genderValue}
-                                        onValueChange={v => {
-                                            const input =
-                                                document.querySelector(
-                                                    'input[name="gender"]'
-                                                ) as HTMLInputElement;
-                                            if (input) input.value = v;
-                                        }}
+                                        onValueChange={v =>
+                                            setValue(
+                                                'gender',
+                                                v as NewPatientForm['gender'],
+                                                {
+                                                    shouldDirty: true,
+                                                    shouldTouch: true
+                                                }
+                                            )
+                                        }
                                         disabled={isSubmitting}>
                                         <SelectTrigger
                                             className={`${inputStyles} rounded-xl`}>
@@ -292,10 +301,6 @@ export default function AddPatientDialog({
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <input
-                                        {...register('gender')}
-                                        type='hidden'
-                                    />
                                 </FormField>
                             </div>
 

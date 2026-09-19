@@ -2,7 +2,13 @@ import {Button} from '@/components/ui/button';
 import {useSidebar} from '@/lib/context/sidebar-context';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
-import {Check, ChevronLeft, ChevronRight, Loader2} from 'lucide-react';
+import {
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Loader2,
+    RefreshCw
+} from 'lucide-react';
 
 interface ProtocolNavigationProps {
     currentStep: number;
@@ -14,6 +20,8 @@ interface ProtocolNavigationProps {
     isGenerating?: boolean;
     disableNextStep?: boolean;
     isCompleting?: boolean;
+    showRegenerateAction?: boolean;
+    onRegenerate?: () => void;
 }
 
 export function ProtocolNavigation({
@@ -25,7 +33,9 @@ export function ProtocolNavigation({
     onComplete,
     isGenerating = false,
     disableNextStep = false,
-    isCompleting = false
+    isCompleting = false,
+    showRegenerateAction = false,
+    onRegenerate
 }: ProtocolNavigationProps) {
     const {sidebarOpen} = useSidebar();
 
@@ -48,55 +58,82 @@ export function ProtocolNavigation({
                     Anterior
                 </Button>
 
-                {currentStep < maxStep ? (
-                    <Button
-                        onClick={nextStep}
-                        disabled={isGenerating || disableNextStep}
-                        className='h-11 min-w-0 flex-1 rounded-xl px-3 text-sm sm:flex-none sm:px-6'>
-                        {isGenerating ? (
-                            <>
-                                <Loader2 className='mr-1 h-4 w-4 shrink-0 animate-spin sm:mr-2' />
-                                <span className='truncate sm:hidden'>Generando...</span>
-                                <span className='hidden truncate sm:inline'>
-                                    Generando plan...
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <span className='truncate sm:hidden'>Siguiente</span>
-                                <span className='hidden truncate sm:inline'>
-                                    Siguiente paso
-                                </span>
-                                <ChevronRight className='ml-1 h-4 w-4 shrink-0 sm:ml-2' />
-                            </>
-                        )}
-                    </Button>
-                ) : (
-                    <Button
-                        onClick={onComplete}
-                        disabled={isCompleting}
-                        className='h-11 min-w-0 flex-1 rounded-xl px-3 text-sm sm:flex-none sm:px-6'>
-                        {isCompleting ? (
-                            <>
-                                <Loader2 className='mr-1 h-4 w-4 shrink-0 animate-spin sm:mr-2' />
-                                <span className='truncate sm:hidden'>Guardando...</span>
-                                <span className='hidden truncate sm:inline'>
-                                    Guardando protocolo...
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <Check className='mr-1 h-4 w-4 shrink-0 sm:mr-2' />
-                                <span className='truncate sm:hidden'>Completar</span>
-                                <span className='hidden truncate sm:inline'>
-                                    {isFirstConsultation
-                                        ? 'Completar Protocolo'
-                                        : 'Completar Cambios'}
-                                </span>
-                            </>
-                        )}
-                    </Button>
-                )}
+                <div className='flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3'>
+                    {showRegenerateAction && (
+                        <Button
+                            type='button'
+                            variant='outline'
+                            onClick={onRegenerate}
+                            disabled={isGenerating}
+                            className='h-11 min-w-0 flex-1 rounded-xl border-amber-500/40 px-3 text-sm text-amber-700 hover:bg-amber-500/10 dark:text-amber-400 sm:flex-none sm:px-6'>
+                            <RefreshCw className='mr-1 h-4 w-4 shrink-0 sm:mr-2' />
+                            <span className='truncate sm:hidden'>
+                                Regenerar
+                            </span>
+                            <span className='hidden truncate sm:inline'>
+                                Generar de nuevo
+                            </span>
+                        </Button>
+                    )}
+
+                    {currentStep < maxStep ? (
+                        <Button
+                            onClick={nextStep}
+                            disabled={isGenerating || disableNextStep}
+                            className='h-11 min-w-0 flex-1 rounded-xl px-3 text-sm sm:flex-none sm:px-6'>
+                            {isGenerating ? (
+                                <>
+                                    <Loader2 className='mr-1 h-4 w-4 shrink-0 animate-spin sm:mr-2' />
+                                    <span className='truncate sm:hidden'>
+                                        Generando...
+                                    </span>
+                                    <span className='hidden truncate sm:inline'>
+                                        Generando plan...
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className='truncate sm:hidden'>
+                                        Siguiente
+                                    </span>
+                                    <span className='hidden truncate sm:inline'>
+                                        Siguiente paso
+                                    </span>
+                                    <ChevronRight className='ml-1 h-4 w-4 shrink-0 sm:ml-2' />
+                                </>
+                            )}
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={onComplete}
+                            disabled={isCompleting}
+                            className='h-11 min-w-0 flex-1 rounded-xl px-3 text-sm sm:flex-none sm:px-6'>
+                            {isCompleting ? (
+                                <>
+                                    <Loader2 className='mr-1 h-4 w-4 shrink-0 animate-spin sm:mr-2' />
+                                    <span className='truncate sm:hidden'>
+                                        Guardando...
+                                    </span>
+                                    <span className='hidden truncate sm:inline'>
+                                        Guardando protocolo...
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <Check className='mr-1 h-4 w-4 shrink-0 sm:mr-2' />
+                                    <span className='truncate sm:hidden'>
+                                        Completar
+                                    </span>
+                                    <span className='hidden truncate sm:inline'>
+                                        {isFirstConsultation
+                                            ? 'Completar Protocolo'
+                                            : 'Completar Cambios'}
+                                    </span>
+                                </>
+                            )}
+                        </Button>
+                    )}
+                </div>
             </div>
         </motion.div>
     );

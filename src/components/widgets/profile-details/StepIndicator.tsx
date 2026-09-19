@@ -38,10 +38,12 @@ const EDIT_MODE_STEPS = [
 
 export default function StepIndicator({
     currentStep,
+    maxStepReached,
     onStepClick,
     isFirstConsultation
 }: {
     currentStep: StepKey;
+    maxStepReached: StepKey;
     onStepClick: (step: StepKey) => void;
     isFirstConsultation: boolean;
 }) {
@@ -52,7 +54,7 @@ export default function StepIndicator({
             <div className='flex items-center justify-center gap-2 mb-8'>
                 {steps.map((step, index) => {
                     const isActive = currentStep === step.key;
-                    const isCompleted = currentStep > step.key;
+                    const isCompleted = !isActive && maxStepReached >= step.key;
                     const isLocked = !isActive && !isCompleted;
 
                     return (

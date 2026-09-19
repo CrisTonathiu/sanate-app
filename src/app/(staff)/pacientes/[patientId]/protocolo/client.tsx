@@ -4,6 +4,7 @@ import PatientBreadcrumb from '@/components/widgets/profile-details/PatientBread
 import {useRouter} from 'next/navigation';
 import {AnimatePresence, motion} from 'framer-motion';
 import {Button} from '@/components/ui/button';
+import {AlertTriangle} from 'lucide-react';
 import ProfileDetailsLoader from '@/components/loaders/ProfileDetailsLoader';
 import {
     useGetPatientAllergies,
@@ -149,6 +150,20 @@ function round2(value: number) {
     return Number(value.toFixed(2));
 }
 
+type DistributionConfig = {
+    planCalories: number;
+    weekCount: number;
+    menuDayPattern: MenuDayPatternId;
+    macroPercents: MacroPercents;
+    enabledMeals: Record<MealType, boolean>;
+    mealPercentages: MealPercentages;
+    macroMealPercentages: MacroMealPercentages;
+};
+
+function serializeDistributionConfig(config: DistributionConfig): string {
+    return JSON.stringify(config);
+}
+
 export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const router = useRouter();
     const {data: patient, isPending} = useGetPatientProfile(patientId);
@@ -188,6 +203,34 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [macroMealPercentages, setMacroMealPercentages] =
         useState<MacroMealPercentages>(DEFAULT_MACRO_MEAL_PERCENTAGES);
 
+    // Tracks which distribution config the current weekPlan was generated
+    // from, so editing calories/macros/meal distribution after generating
+    // can be flagged to the user as "menu is now out of date".
+    const distributionConfigKey = useMemo(
+        () =>
+            serializeDistributionConfig({
+                planCalories,
+                weekCount,
+                menuDayPattern,
+                macroPercents,
+                enabledMeals,
+                mealPercentages,
+                macroMealPercentages
+            }),
+        [
+            planCalories,
+            weekCount,
+            menuDayPattern,
+            macroPercents,
+            enabledMeals,
+            mealPercentages,
+            macroMealPercentages
+        ]
+    );
+    const [generatedConfigKey, setGeneratedConfigKey] = useState<
+        string | null
+    >(null);
+
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [recipeModalOpen, setRecipeModalOpen] = useState<boolean>(false);
@@ -212,6 +255,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     >(null);
 
     const [weekPlan, setWeekPlan] = useState<DayMeals[]>([]);
+    const isDistributionConfigDirty =
+        weekPlan.length > 0 &&
+        generatedConfigKey !== null &&
+        generatedConfigKey !== distributionConfigKey;
     const [activeProtocolId, setActiveProtocolId] = useState<string | null>(
         null
     );
@@ -227,6 +274,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [supplementRecommendations, setSupplementRecommendations] =
         useState<string>('');
     const [currentStep, setCurrentStep] = useState<StepKey>(1);
+    // The furthest step reached so far, so navigating back doesn't lock the
+    // steps already visited — the user can jump forward to any of them again
+    // without needing to click "Siguiente" through each one.
+    const [maxStepReached, setMaxStepReached] = useState<StepKey>(1);
     const [showMenuDownload, setShowMenuDownload] = useState<boolean>(false);
     const [aiInstructionsGenerated, setAiInstructionsGenerated] =
         useState(false);
@@ -306,6 +357,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
         setBaselineFormState(prev => prev ?? currentFormState);
     }, [isStartDialogOpen, showMenuDownload, currentFormState]);
+
+    useEffect(() => {
+        setMaxStepReached(prev => (currentStep > prev ? currentStep : prev));
+    }, [currentStep]);
 
     useEffect(() => {
         let cancelled = false;
@@ -458,10 +513,13 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setActiveProtocolId(existingDraft?.protocolId ?? null);
         setActiveProtocolCreatedAt(null);
         setWeekPlan([]);
+        setGeneratedConfigKey(null);
         setWeekCount(1);
         setMenuDayPattern(DEFAULT_MENU_DAY_PATTERN);
         setShowMenuDownload(false);
         setBaselineFormState(null);
+        setCurrentStep(1);
+        setMaxStepReached(1);
         setIsStartDialogOpen(false);
     };
 
@@ -502,10 +560,46 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 ...(snapshot.macroMealPercentages?.fat ?? {})
             }
         }));
-        setWeekPlan(
-            Array.isArray(snapshot.weekPlan)
-                ? (snapshot.weekPlan as DayMeals[])
-                : []
+        const draftWeekPlan = Array.isArray(snapshot.weekPlan)
+            ? (snapshot.weekPlan as DayMeals[])
+            : [];
+        setWeekPlan(draftWeekPlan);
+        setGeneratedConfigKey(
+            draftWeekPlan.length > 0
+                ? serializeDistributionConfig({
+                      planCalories: snapshot.planCalories ?? 0,
+                      weekCount: snapshot.weekCount ?? 1,
+                      menuDayPattern: parseMenuDayPatternId(
+                          snapshot.menuDayPattern
+                      ),
+                      macroPercents: {
+                          ...DEFAULT_MACRO_PERCENTS,
+                          ...(snapshot.macroPercents ?? {})
+                      },
+                      enabledMeals: {
+                          ...DEFAULT_ENABLED_MEALS,
+                          ...(snapshot.enabledMeals ?? {})
+                      },
+                      mealPercentages: {
+                          ...DEFAULT_MEAL_PERCENTAGES,
+                          ...(snapshot.mealPercentages ?? {})
+                      },
+                      macroMealPercentages: {
+                          carbs: {
+                              ...DEFAULT_MACRO_MEAL_PERCENTAGES.carbs,
+                              ...(snapshot.macroMealPercentages?.carbs ?? {})
+                          },
+                          protein: {
+                              ...DEFAULT_MACRO_MEAL_PERCENTAGES.protein,
+                              ...(snapshot.macroMealPercentages?.protein ?? {})
+                          },
+                          fat: {
+                              ...DEFAULT_MACRO_MEAL_PERCENTAGES.fat,
+                              ...(snapshot.macroMealPercentages?.fat ?? {})
+                          }
+                      }
+                  })
+                : null
         );
         setAffiliateLinks(
             Array.isArray(snapshot.affiliateLinks)
@@ -517,12 +611,12 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         setHydrationRecommendations(snapshot.hydrationRecommendations ?? '');
         setSupplementRecommendations(snapshot.supplementRecommendations ?? '');
         setSelectedTemplateName(snapshot.selectedTemplateName ?? null);
-        setCurrentStep(
-            Math.min(
-                Math.max(snapshot.currentStep || 1, 1),
-                maxStep
-            ) as StepKey
-        );
+        const resumedStep = Math.min(
+            Math.max(snapshot.currentStep || 1, 1),
+            maxStep
+        ) as StepKey;
+        setCurrentStep(resumedStep);
+        setMaxStepReached(resumedStep);
         setShowMenuDownload(false);
         setBaselineFormState(null);
         setIsStartDialogOpen(false);
@@ -546,6 +640,45 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         try {
             setActiveProtocolId(existingDraft?.protocolId ?? null);
             setWeekPlan(template.weeklyPlan);
+            setGeneratedConfigKey(
+                template.weeklyPlan.length > 0
+                    ? serializeDistributionConfig({
+                          planCalories: template.planCalories ?? 0,
+                          weekCount:
+                              template.weekCount ??
+                              countWeeksInPlan(template.weeklyPlan),
+                          menuDayPattern,
+                          macroPercents: {
+                              ...DEFAULT_MACRO_PERCENTS,
+                              ...(template.macroPercents ?? {})
+                          },
+                          enabledMeals: {
+                              ...DEFAULT_ENABLED_MEALS,
+                              ...(template.enabledMeals ?? {})
+                          },
+                          mealPercentages: {
+                              ...DEFAULT_MEAL_PERCENTAGES,
+                              ...(template.mealPercentages ?? {})
+                          },
+                          macroMealPercentages: {
+                              carbs: {
+                                  ...DEFAULT_MACRO_MEAL_PERCENTAGES.carbs,
+                                  ...(template.macroMealPercentages?.carbs ??
+                                      {})
+                              },
+                              protein: {
+                                  ...DEFAULT_MACRO_MEAL_PERCENTAGES.protein,
+                                  ...(template.macroMealPercentages
+                                      ?.protein ?? {})
+                              },
+                              fat: {
+                                  ...DEFAULT_MACRO_MEAL_PERCENTAGES.fat,
+                                  ...(template.macroMealPercentages?.fat ?? {})
+                              }
+                          }
+                      })
+                    : null
+            );
             setAiInstructionsGenerated(false);
             setWeekCount(
                 template.weekCount ?? countWeeksInPlan(template.weeklyPlan)
@@ -583,6 +716,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     : []
             );
             setCurrentStep(1);
+            setMaxStepReached(1);
             setSelectedTemplateName(template.name);
             setBaselineFormState(null);
             setIsStartDialogOpen(false);
@@ -954,20 +1088,39 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     );
                 case 3:
                     return (
-                        <ProtocolDistributionCard
-                            planCalories={planCalories}
-                            weekCount={weekCount}
-                            setWeekCount={setWeekCount}
-                            menuDayPattern={menuDayPattern}
-                            setMenuDayPattern={setMenuDayPattern}
-                            enabledMeals={enabledMeals}
-                            setEnabledMeals={setEnabledMeals}
-                            mealPercentages={mealPercentages}
-                            setMealPercentages={setMealPercentages}
-                            macroMealPercentages={macroMealPercentages}
-                            setMacroMealPercentages={setMacroMealPercentages}
-                            macroPercents={macroPercents}
-                        />
+                        <div className='space-y-4'>
+                            {isDistributionConfigDirty && (
+                                <div className='flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3'>
+                                    <AlertTriangle className='mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400' />
+                                    <p className='text-sm text-foreground'>
+                                        Cambiaste la distribución del plan
+                                        despues de generar el menú. El menú
+                                        actual ya no refleja estos cambios;
+                                        usa{' '}
+                                        <span className='font-semibold'>
+                                            Generar de nuevo
+                                        </span>{' '}
+                                        para aplicarlos.
+                                    </p>
+                                </div>
+                            )}
+                            <ProtocolDistributionCard
+                                planCalories={planCalories}
+                                weekCount={weekCount}
+                                setWeekCount={setWeekCount}
+                                menuDayPattern={menuDayPattern}
+                                setMenuDayPattern={setMenuDayPattern}
+                                enabledMeals={enabledMeals}
+                                setEnabledMeals={setEnabledMeals}
+                                mealPercentages={mealPercentages}
+                                setMealPercentages={setMealPercentages}
+                                macroMealPercentages={macroMealPercentages}
+                                setMacroMealPercentages={
+                                    setMacroMealPercentages
+                                }
+                                macroPercents={macroPercents}
+                            />
+                        </div>
                     );
                 case 4:
                     return (
@@ -1090,14 +1243,17 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
-    const handleGeneratePlan = async (payload: {
-        planCalories: number;
-        weekCount: number;
-        menuDayPattern: MenuDayPatternId;
-        macroPercents: {carbs: number; protein: number; fat: number};
-        mealDistribution: Record<string, number>;
-        macroMealDistribution: MacroMealDistributionPayload;
-    }) => {
+    const handleGeneratePlan = async (
+        payload: {
+            planCalories: number;
+            weekCount: number;
+            menuDayPattern: MenuDayPatternId;
+            macroPercents: {carbs: number; protein: number; fat: number};
+            mealDistribution: Record<string, number>;
+            macroMealDistribution: MacroMealDistributionPayload;
+        },
+        configKey: string
+    ) => {
         setIsGenerating(true);
 
         try {
@@ -1128,6 +1284,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
 
             setWeekPlan(generatedWeekPlan);
             setAiInstructionsGenerated(false);
+            setGeneratedConfigKey(configKey);
             setCurrentStep(4);
         } catch (error) {
             window.alert(
@@ -1140,58 +1297,77 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
-    const nextStep = () => {
-        if (currentStep === 3) {
-            // Build mealDistribution payload from enabled meals + percentages
-            const mealDistribution: Record<string, number> = {};
-            const macroCalories = {
-                carbs: (planCalories * macroPercents.carbs) / 100,
-                protein: (planCalories * macroPercents.protein) / 100,
-                fat: (planCalories * macroPercents.fat) / 100
-            };
-            const macroMealDistribution: MacroMealDistributionPayload = {};
+    const generateWeekPlanFromCurrentConfig = () => {
+        // Build mealDistribution payload from enabled meals + percentages
+        const mealDistribution: Record<string, number> = {};
+        const macroCalories = {
+            carbs: (planCalories * macroPercents.carbs) / 100,
+            protein: (planCalories * macroPercents.protein) / 100,
+            fat: (planCalories * macroPercents.fat) / 100
+        };
+        const macroMealDistribution: MacroMealDistributionPayload = {};
 
-            (Object.keys(enabledMeals) as MealType[]).forEach(key => {
-                if (enabledMeals[key]) {
-                    mealDistribution[key] = mealPercentages[key];
-                    macroMealDistribution[key] = {
-                        totalPercentage: round2(mealPercentages[key]),
-                        totalKcal: round2(
-                            (planCalories * mealPercentages[key]) / 100
-                        ),
-                        carbsPercentage: round2(
-                            macroMealPercentages.carbs[key]
-                        ),
-                        carbsKcal: round2(
-                            (macroCalories.carbs *
-                                macroMealPercentages.carbs[key]) /
-                                100
-                        ),
-                        proteinPercentage: round2(
-                            macroMealPercentages.protein[key]
-                        ),
-                        proteinKcal: round2(
-                            (macroCalories.protein *
-                                macroMealPercentages.protein[key]) /
-                                100
-                        ),
-                        fatPercentage: round2(macroMealPercentages.fat[key]),
-                        fatKcal: round2(
-                            (macroCalories.fat *
-                                macroMealPercentages.fat[key]) /
-                                100
-                        )
-                    };
-                }
-            });
-            handleGeneratePlan({
+        (Object.keys(enabledMeals) as MealType[]).forEach(key => {
+            if (enabledMeals[key]) {
+                mealDistribution[key] = mealPercentages[key];
+                macroMealDistribution[key] = {
+                    totalPercentage: round2(mealPercentages[key]),
+                    totalKcal: round2(
+                        (planCalories * mealPercentages[key]) / 100
+                    ),
+                    carbsPercentage: round2(macroMealPercentages.carbs[key]),
+                    carbsKcal: round2(
+                        (macroCalories.carbs *
+                            macroMealPercentages.carbs[key]) /
+                            100
+                    ),
+                    proteinPercentage: round2(
+                        macroMealPercentages.protein[key]
+                    ),
+                    proteinKcal: round2(
+                        (macroCalories.protein *
+                            macroMealPercentages.protein[key]) /
+                            100
+                    ),
+                    fatPercentage: round2(macroMealPercentages.fat[key]),
+                    fatKcal: round2(
+                        (macroCalories.fat * macroMealPercentages.fat[key]) /
+                            100
+                    )
+                };
+            }
+        });
+        handleGeneratePlan(
+            {
                 planCalories,
                 weekCount,
                 menuDayPattern,
                 macroPercents,
                 mealDistribution,
                 macroMealDistribution
-            });
+            },
+            distributionConfigKey
+        );
+    };
+
+    const handleRegenerateWeekPlan = () => {
+        generateWeekPlanFromCurrentConfig();
+    };
+
+    const nextStep = () => {
+        if (currentStep === 3) {
+            if (weekPlan.length > 0) {
+                // A plan was already generated for this protocol; a protocol
+                // can only be generated once via "Siguiente", so just advance
+                // without regenerating and discarding any edits made in step
+                // 4. If the distribution settings changed since generating,
+                // the user can still regenerate explicitly (see the
+                // "Generar de nuevo" action shown while isDistributionConfigDirty).
+                setCurrentStep(4);
+                return;
+            }
+
+            generateWeekPlanFromCurrentConfig();
             return;
         }
         if (currentStep < maxStep) {
@@ -1211,7 +1387,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     };
 
     const handleStepClick = (step: StepKey) => {
-        if (step <= currentStep) {
+        if (step <= maxStepReached) {
             setCurrentStep(step);
         }
     };
@@ -1290,6 +1466,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             {/* Step Indicator */}
             <StepIndicator
                 currentStep={currentStep}
+                maxStepReached={maxStepReached}
                 onStepClick={handleStepClick}
                 isFirstConsultation={isFirstConsultation}
             />
@@ -1316,6 +1493,10 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 onComplete={handleGenerateProtocol}
                 isGenerating={isGenerating}
                 isCompleting={isSavingProtocol}
+                showRegenerateAction={
+                    currentStep === 3 && isDistributionConfigDirty
+                }
+                onRegenerate={handleRegenerateWeekPlan}
             />
 
             {selectedDayMeal && (
