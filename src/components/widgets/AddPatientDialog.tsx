@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import {Separator} from '@/components/ui/separator';
 import {useCreatePatient} from '@/hooks/use-patients';
+import {toast} from 'sonner';
 
 interface NewPatientForm {
     firstName: string;
@@ -133,7 +134,12 @@ export default function AddPatientDialog({
             reset();
             onOpenChange(false);
             setIsSubmitting(false);
-        } catch {
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'No se pudo crear el paciente'
+            );
             setIsSubmitting(false);
         }
     };

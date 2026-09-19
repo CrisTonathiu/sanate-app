@@ -8,7 +8,9 @@ import {
 } from '@/lib/validations/patient.schema';
 import {sendPatientInviteEmail} from '@/lib/services/email/patient-invite.service';
 import {prisma} from '../../prisma';
-import {ZodError} from 'zod';
+import {ZodError, z} from 'zod';
+
+type PatientInputDraft = z.input<typeof createPatientSchema>;
 
 type PatientIntakeData = Record<string, unknown>;
 
@@ -166,7 +168,7 @@ function readGenderValue(
     return undefined;
 }
 
-function extractPatientInput(data: PatientIntakeData): CreatePatientInput {
+function extractPatientInput(data: PatientIntakeData): PatientInputDraft {
     const email = readStringValue(data, [
         'email',
         'correo',
