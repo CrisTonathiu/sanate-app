@@ -25,6 +25,7 @@ export default function ClientPage() {
         null
     );
     const [searchTerm, setSearchTerm] = useState('');
+    const [intakeSearchTerm, setIntakeSearchTerm] = useState('');
     const {data: patients, isPending} = useGetPatients();
     const {data: patientIntakes, isPending: isPendingIntakes} =
         useGetPatientIntakes();
@@ -44,7 +45,8 @@ export default function ClientPage() {
     const filteredPatients = (patients ?? []).filter(patient => {
         if (!normalizedSearchTerm) return true;
 
-        const fullName = `${patient.firstName} ${patient.lastName}`.toLowerCase();
+        const fullName =
+            `${patient.firstName} ${patient.lastName}`.toLowerCase();
         return (
             fullName.includes(normalizedSearchTerm) ||
             (patient.email ?? '').toLowerCase().includes(normalizedSearchTerm)
@@ -69,7 +71,21 @@ export default function ClientPage() {
         )
     }));
 
-    const intakeRows = (patientIntakes ?? []).map(intake => ({
+    const normalizedIntakeSearchTerm = intakeSearchTerm.trim().toLowerCase();
+    const filteredPatientIntakes = (patientIntakes ?? []).filter(intake => {
+        if (!normalizedIntakeSearchTerm) return true;
+
+        const fullName =
+            `${intake.firstName ?? ''} ${intake.lastName ?? ''}`.toLowerCase();
+        return (
+            fullName.includes(normalizedIntakeSearchTerm) ||
+            (intake.email ?? '')
+                .toLowerCase()
+                .includes(normalizedIntakeSearchTerm)
+        );
+    });
+
+    const intakeRows = filteredPatientIntakes.map(intake => ({
         name: {
             primary:
                 `${intake.firstName ?? ''} ${intake.lastName ?? ''}`.trim() ||
@@ -100,17 +116,7 @@ export default function ClientPage() {
 
     return (
         <div className='space-y-8'>
-            <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-3 md:mt-0'>
-                <div className='relative w-full md:w-auto'>
-                    <Search className='absolute left-3 top-2.5 h-4 w-4 text-muted-foreground' />
-                    <Input
-                        type='search'
-                        placeholder='Buscar por nombre o email'
-                        className='w-full rounded-2xl pl-9 md:w-[500px]'
-                        value={searchTerm}
-                        onChange={event => setSearchTerm(event.target.value)}
-                    />
-                </div>
+            <div className='flex justify-end mt-3 md:mt-0'>
                 <Button onClick={() => setIsAddPatientOpen(true)}>
                     <UserPlus className='mr-2 h-4 w-4' />
                     Nuevo Paciente
@@ -133,6 +139,19 @@ export default function ClientPage() {
                     </p>
                 </div>
 
+                <div className='relative w-full md:w-auto'>
+                    <Search className='absolute left-3 top-2.5 h-4 w-4 text-muted-foreground' />
+                    <Input
+                        type='search'
+                        placeholder='Buscar por nombre o email'
+                        className='w-full rounded-2xl pl-9 md:w-[500px]'
+                        value={intakeSearchTerm}
+                        onChange={event =>
+                            setIntakeSearchTerm(event.target.value)
+                        }
+                    />
+                </div>
+
                 <Table
                     columns={[
                         {key: 'name', label: 'Nombre'},
@@ -150,6 +169,17 @@ export default function ClientPage() {
                     <h2 className='text-lg font-semibold text-foreground'>
                         Pacientes activos
                     </h2>
+                </div>
+
+                <div className='relative w-full md:w-auto'>
+                    <Search className='absolute left-3 top-2.5 h-4 w-4 text-muted-foreground' />
+                    <Input
+                        type='search'
+                        placeholder='Buscar por nombre o email'
+                        className='w-full rounded-2xl pl-9 md:w-[500px]'
+                        value={searchTerm}
+                        onChange={event => setSearchTerm(event.target.value)}
+                    />
                 </div>
 
                 <Table
