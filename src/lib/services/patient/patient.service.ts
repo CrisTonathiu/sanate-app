@@ -66,6 +66,17 @@ export async function createPatient(
                 errors: error.flatten()
             };
         }
+
+        if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+        ) {
+            return {
+                success: false,
+                message: 'Ya existe un paciente con este correo electrónico'
+            };
+        }
+
         return {
             success: false,
             message: 'Error al crear el paciente',
