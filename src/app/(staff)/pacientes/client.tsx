@@ -2,6 +2,7 @@
 
 import {useRouter} from 'next/navigation';
 import {useState} from 'react';
+import dynamic from 'next/dynamic';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import Table from '@/components/widgets/Table';
@@ -12,11 +13,18 @@ import {
 } from '@/hooks/use-patients';
 import {Loader2, Search, UserPlus} from 'lucide-react';
 
+const AddPatientDialog = dynamic(
+    () => import('@/components/widgets/AddPatientDialog'),
+    {ssr: false}
+);
+
 export default function ClientPage() {
     const router = useRouter();
+    const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
     const [acceptingIntakeId, setAcceptingIntakeId] = useState<string | null>(
         null
     );
+    const [searchTerm, setSearchTerm] = useState('');
     const {data: patients, isPending} = useGetPatients();
     const {data: patientIntakes, isPending: isPendingIntakes} =
         useGetPatientIntakes();
@@ -32,7 +40,18 @@ export default function ClientPage() {
         }
     };
 
-    const rows = (patients ?? []).map(patient => ({
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+    const filteredPatients = (patients ?? []).filter(patient => {
+        if (!normalizedSearchTerm) return true;
+
+        const fullName = `${patient.firstName} ${patient.lastName}`.toLowerCase();
+        return (
+            fullName.includes(normalizedSearchTerm) ||
+            (patient.email ?? '').toLowerCase().includes(normalizedSearchTerm)
+        );
+    });
+
+    const rows = filteredPatients.map(patient => ({
         name: {
             primary: `${patient.firstName} ${patient.lastName}`,
             secondary: patient.email
@@ -81,14 +100,27 @@ export default function ClientPage() {
 
     return (
         <div className='space-y-8'>
-            <div className='relative w-full md:w-auto mt-3 md:mt-0'>
-                <Search className='absolute left-3 top-2.5 h-4 w-4 text-muted-foreground' />
-                <Input
-                    type='search'
-                    placeholder='Buscar por nombre o email'
-                    className='w-full rounded-2xl pl-9 md:w-[500px]'
-                />
+            <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-3 md:mt-0'>
+                <div className='relative w-full md:w-auto'>
+                    <Search className='absolute left-3 top-2.5 h-4 w-4 text-muted-foreground' />
+                    <Input
+                        type='search'
+                        placeholder='Buscar por nombre o email'
+                        className='w-full rounded-2xl pl-9 md:w-[500px]'
+                        value={searchTerm}
+                        onChange={event => setSearchTerm(event.target.value)}
+                    />
+                </div>
+                <Button onClick={() => setIsAddPatientOpen(true)}>
+                    <UserPlus className='mr-2 h-4 w-4' />
+                    Nuevo Paciente
+                </Button>
             </div>
+
+            <AddPatientDialog
+                open={isAddPatientOpen}
+                onOpenChange={setIsAddPatientOpen}
+            />
 
             <section className='space-y-4'>
                 <div>
