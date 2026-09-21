@@ -185,15 +185,30 @@ function parseDisplayQuantity(
 ): {quantity: number; unit: string} | null {
     const match = toPdfSafeText(text)
         .trim()
-        .match(/^(\d+(?:\.\d+)?|\d+\s*\/\s*\d+)\s+(.+)$/);
+        .match(
+            /^(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s+(.+)$/
+        );
     if (!match) {
         return null;
     }
 
-    const rawQuantity = match[1].replace(/\s+/g, '');
+    const rawQuantity = match[1].trim();
     let quantity: number;
-    if (rawQuantity.includes('/')) {
-        const [numerator, denominator] = rawQuantity.split('/').map(Number);
+
+    const mixedMatch = rawQuantity.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+    if (mixedMatch) {
+        const whole = Number(mixedMatch[1]);
+        const numerator = Number(mixedMatch[2]);
+        const denominator = Number(mixedMatch[3]);
+        if (!denominator) {
+            return null;
+        }
+        quantity = whole + numerator / denominator;
+    } else if (rawQuantity.includes('/')) {
+        const [numerator, denominator] = rawQuantity
+            .replace(/\s+/g, '')
+            .split('/')
+            .map(Number);
         if (!denominator) {
             return null;
         }
