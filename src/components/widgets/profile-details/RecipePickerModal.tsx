@@ -134,7 +134,8 @@ function recipeToMealSlot(
             isDiscrete: food?.isDiscrete ?? false,
             allowPieceFractions: food?.allowPieceFractions === true,
             density: food?.density,
-            gramsPerPiece: food?.gramsPerPiece
+            gramsPerPiece: food?.gramsPerPiece,
+            isFreePortion: food?.isFreePortion ?? false
         };
     });
 

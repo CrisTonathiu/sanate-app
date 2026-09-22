@@ -34,6 +34,7 @@ export type ScalableIngredient = {
     allowPieceFractions?: boolean | null;
     density?: number | null;
     gramsPerPiece?: number | null;
+    isFreePortion?: boolean | null;
 };
 
 function round4(value: number) {
@@ -48,6 +49,15 @@ export function macroKcalToGrams(target: MacroKcalTarget): MacroGramTargets {
         fat: target.fatKcal / 9
     };
 }
+
+/**
+ * Free-portion ingredients (lettuce, broccoli, tomato…) don't count toward
+ * the calorie budget, but still grow with the recipe's calorie scale so a
+ * bigger meal gets more garnish too. Capped so a low-calorie ingredient
+ * doesn't balloon into kilos when the meal's target is far above the
+ * recipe's baseline calories.
+ */
+const FREE_PORTION_MAX_SCALE = 2;
 
 /**
  * Uniform calorie scale so every meal of the same type hits the same kcal
@@ -67,7 +77,13 @@ export function computeIngredientScalesForMacros(
     const calorieScale =
         recipeCalories > 0 ? targetCalories / recipeCalories : 1;
 
-    return ingredients.map(() => round4(calorieScale));
+    return ingredients.map(ingredient =>
+        round4(
+            ingredient.isFreePortion
+                ? Math.min(calorieScale, FREE_PORTION_MAX_SCALE)
+                : calorieScale
+        )
+    );
 }
 
 export function scaleIngredientByFactor(

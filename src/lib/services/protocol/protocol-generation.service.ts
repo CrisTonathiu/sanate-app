@@ -72,6 +72,7 @@ type RecipeSummary = {
         density: number | null;
         gramsPerPiece: number | null;
         foodGroupName: string | null;
+        isFreePortion: boolean;
     }>;
     proteinFamilies?: string[];
 };
@@ -707,7 +708,9 @@ export async function generateProtocolPlanForPatient(
                         density: item.ingredient.food?.density ?? null,
                         gramsPerPiece:
                             item.ingredient.food?.gramsPerPiece ?? null,
-                        foodGroupName: item.ingredient.food?.group?.name ?? null
+                        foodGroupName: item.ingredient.food?.group?.name ?? null,
+                        isFreePortion:
+                            item.ingredient.food?.isFreePortion ?? false
                     };
                 })
             };
