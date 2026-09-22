@@ -124,9 +124,11 @@ function snapAmount(quantity: number, mode: AmountSnap): number {
         return 0;
     }
 
-    if (mode === 'whole') {
-        const rounded = Math.round(quantity);
-        return rounded === 0 ? 1 : rounded;
+    // Below 1 unit, rounding up to a whole would overstate a portion whose
+    // single equivalencia is itself a fraction (e.g. avena = 1/2 taza).
+    // Snap to quarters instead so the fraction survives.
+    if (mode === 'whole' && quantity >= 1) {
+        return Math.round(quantity);
     }
 
     const snapped = Math.round(quantity * 4) / 4;
@@ -136,7 +138,7 @@ function snapAmount(quantity: number, mode: AmountSnap): number {
 function formatSnappedQuantity(quantity: number, mode: AmountSnap): string {
     const snapped = snapAmount(quantity, mode);
 
-    if (mode === 'whole') {
+    if (mode === 'whole' && quantity >= 1) {
         return String(snapped);
     }
 
