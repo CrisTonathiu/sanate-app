@@ -352,6 +352,7 @@ const styles = StyleSheet.create({
     equivalenciasItemName: {
         flexGrow: 1,
         flexShrink: 1,
+        flexBasis: 0,
         fontSize: 7.5,
         fontFamily: 'Helvetica',
         color: EQUIVALENCIAS_PDF_COLORS.text,
