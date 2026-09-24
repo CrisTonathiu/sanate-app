@@ -2,6 +2,9 @@ export type EquivalenciasFoodRow = {
     name: string;
     groupName: string;
     isFree: boolean;
+    /** Counted in whole pieces (Porción Discreta). */
+    isDiscrete?: boolean;
+    allowPieceFractions?: boolean;
     gramsPerEquivalent: number | null;
     equivalentDisplayText: string | null;
 };
@@ -107,7 +110,7 @@ function formatGrams(grams: number): string {
     return `${rounded} g`;
 }
 
-type AmountSnap = 'whole' | 'quarter';
+type AmountSnap = 'whole' | 'quarter' | 'discrete';
 
 const WHOLE_NUMBER_COLUMN_KEYS = new Set([
     'proteinas',
@@ -119,9 +122,22 @@ function snapModeForColumn(columnKey: string): AmountSnap {
     return WHOLE_NUMBER_COLUMN_KEYS.has(columnKey) ? 'whole' : 'quarter';
 }
 
+function snapModeForFood(
+    food: EquivalenciasFoodRow,
+    columnMode: AmountSnap
+): AmountSnap {
+    return food.isDiscrete && !food.allowPieceFractions ? 'discrete' : columnMode;
+}
+
 function snapAmount(quantity: number, mode: AmountSnap): number {
     if (!Number.isFinite(quantity) || quantity <= 0) {
         return 0;
+    }
+
+    // Discrete foods are bought/eaten in whole pieces: never show fractions,
+    // and never drop below one piece.
+    if (mode === 'discrete') {
+        return Math.max(1, Math.round(quantity));
     }
 
     // Below 1 unit, rounding up to a whole would overstate a portion whose
@@ -138,7 +154,7 @@ function snapAmount(quantity: number, mode: AmountSnap): number {
 function formatSnappedQuantity(quantity: number, mode: AmountSnap): string {
     const snapped = snapAmount(quantity, mode);
 
-    if (mode === 'whole' && quantity >= 1) {
+    if (mode === 'discrete' || (mode === 'whole' && quantity >= 1)) {
         return String(snapped);
     }
 
@@ -390,7 +406,7 @@ export function buildEquivalenciasColumns(
                     ...formatItemLine(
                         food,
                         food.isFree ? 1 : factor,
-                        snapMode
+                        snapModeForFood(food, snapMode)
                     )
                 });
             }
