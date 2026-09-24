@@ -4,6 +4,9 @@ import {Badge} from '@/components/ui/badge';
 import {Button} from '@/components/ui/button';
 import SectionHeading from '../SectionHeading';
 import {useDownloadPlan} from '@/components/widgets/patient-portal/DownloadPlanButton';
+import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
+import {buildProtocolMenuFileName} from '@/components/widgets/profile-details/ProtocolMenuDownload';
+import {useGetPatientProfile} from '@/hooks/use-patients';
 import {useGetPatientProtocols} from '@/hooks/use-patient-protocols';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
@@ -24,37 +27,33 @@ const STATUS_LABELS: Record<string, string> = {
 
 function ProtocolDownloadButton({
     patientId,
+    patientName,
     protocol
 }: {
     patientId: string;
+    patientName: string;
     protocol: {
         id: string;
         title: string;
+        createdAt: string;
         generalRecommendations: string | null;
         tips: string | null;
         hydrationRecommendations: string | null;
         supplementRecommendations: string | null;
+        affiliateLinks: AffiliateLink[];
     };
 }) {
-    const slug = protocol.title
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 40);
-
     const {isDownloading, handleDownload} = useDownloadPlan(
         {
             generalRecommendations: protocol.generalRecommendations,
             tips: protocol.tips,
             hydrationRecommendations: protocol.hydrationRecommendations,
             supplementRecommendations: protocol.supplementRecommendations,
-            affiliateLinks: []
+            affiliateLinks: protocol.affiliateLinks
         },
         {
             planMenuUrl: `/api/patients/${patientId}/protocols/${protocol.id}/plan-menu`,
-            fileName: `plan-${slug || protocol.id}.pdf`
+            fileName: buildProtocolMenuFileName(patientName, protocol.createdAt)
         }
     );
 
@@ -87,6 +86,10 @@ export default function AppointmentHistoryTab({
 }: AppointmentHistoryTabProps) {
     const {data: protocols = [], isPending, isError} =
         useGetPatientProtocols(patientId);
+    const {data: patient} = useGetPatientProfile(patientId);
+    const patientName = patient
+        ? `${patient.firstName} ${patient.lastName}`
+        : '';
 
     return (
         <motion.div
@@ -176,6 +179,7 @@ export default function AppointmentHistoryTab({
                                 </Button>
                                 <ProtocolDownloadButton
                                     patientId={patientId}
+                                    patientName={patientName}
                                     protocol={protocol}
                                 />
                             </div>

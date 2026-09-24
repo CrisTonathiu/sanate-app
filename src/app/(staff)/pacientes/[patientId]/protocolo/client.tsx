@@ -792,6 +792,12 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         }
     };
 
+    // Once the protocol is completed it is ACTIVE; saving a draft then would
+    // fork a second protocol, so the button only shows for new/draft protocols.
+    const canSaveAsDraft =
+        !showMenuDownload &&
+        (!activeProtocolId || activeProtocolId === existingDraft?.protocolId);
+
     const requestNavigation = (href: string) => {
         if (isDirty) {
             setPendingNavigation(href);
@@ -1497,6 +1503,16 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     currentStep === 3 && isDistributionConfigDirty
                 }
                 onRegenerate={handleRegenerateWeekPlan}
+                onSaveDraft={
+                    canSaveAsDraft
+                        ? () => {
+                              void persistDraft();
+                          }
+                        : undefined
+                }
+                isSavingDraft={isSavingDraft}
+                canSaveDraft={isDirty}
+                isDraftSaved={Boolean(existingDraft)}
             />
 
             {selectedDayMeal && (

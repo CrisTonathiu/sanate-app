@@ -3,9 +3,9 @@ import {MealType} from '@prisma/client';
 import {openai} from '@/lib/config/openai';
 import {prisma} from '@/lib/prisma';
 
-const MAX_STEPS = 3;
+const MAX_STEPS = 5;
 const MIN_STEPS = 1;
-const MAX_STEP_CHARS = 100;
+const MAX_STEP_CHARS = 200;
 
 const INSTRUCTIONS_MODEL =
     process.env.OPENAI_RECIPE_INSTRUCTIONS_MODEL?.trim() || 'gpt-4o-mini';
@@ -90,7 +90,7 @@ export function normalizeInstructionSteps(
 }
 
 function buildSystemPrompt() {
-    return `Eres un nutricionista que escribe instrucciones de preparación muy breves en español para pacientes.
+    return `Eres un nutricionista que escribe instrucciones de preparación detalladas en español para pacientes.
 
 Reglas obligatorias:
 - Responde SOLO JSON válido con la forma {"recipes":[{"id":"...","steps":["..."]}]}.
