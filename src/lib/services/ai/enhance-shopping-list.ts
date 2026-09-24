@@ -653,21 +653,21 @@ const planShoppingListSchema = z.object({
 
 const PLAN_SHOPPING_SYSTEM_PROMPT = [
     'Eres un experto en listas de compras para supermercados en México.',
-    'Tu trabajo es transformar ingredientes de un plan nutricional completo en una lista de súper por categorías.',
+    'Tu trabajo es transformar los ingredientes de una semana de un plan nutricional en una lista de súper por categorías.',
     'NO incluyas cantidades, medidas, pesos ni presentaciones (ni g, kg, piezas, tazas, frascos, etc.).',
     'Solo nombres de alimentos/productos crudos o tal como se compran en el súper, sin duplicados.',
     'NUNCA incluyas métodos de cocción, preparaciones, guarniciones opcionales ni nombres de platillos.',
     'Responde únicamente JSON válido según el esquema solicitado.'
 ].join(' ');
 
-function buildPlanShoppingPrompt(items: ShoppingItem[]) {
+function buildPlanShoppingPrompt(items: ShoppingItem[], weekNumber: number) {
     const rawList = items.map(item => ({
         name: item.name,
         category: item.category
     }));
 
     return [
-        'Convierte esta lista cruda de un plan nutricional completo (todas las semanas juntas) en una lista de compras por categorías para el súper en México.',
+        `Convierte esta lista cruda de la semana ${weekNumber} de un plan nutricional en una lista de compras por categorías para el súper en México.`,
         '',
         'LISTA CRUDA (JSON):',
         JSON.stringify(rawList, null, 2),
@@ -691,7 +691,7 @@ function buildPlanShoppingPrompt(items: ShoppingItem[]) {
         '- Solo el nombre del producto de súper (bien: "Huevo", "Frijoles", "Sal", "Pechuga de pollo").',
         '- Excluye instrucciones/opcionales/preparaciones sin producto claro ("verduras al vapor", "al gusto", "si deseas").',
         '- Nombres cortos, capitalización normal.',
-        '- No dividas por semanas; es UNA sola lista para todo el protocolo.',
+        '- Es UNA sola lista para esta semana; no la dividas por días.',
         '',
         '## EJEMPLOS',
         'Entrada: Huevo crudo, Huevo estrellado, Huevos revueltos → Salida: {"name":"Huevo","category":"protein"}',
@@ -727,11 +727,12 @@ function fallbackPlanShoppingItems(items: ShoppingItem[]): PlanShoppingListItem[
 }
 
 /**
- * OpenAI names-only shopping list for the full protocol PDF:
- * unique foods by category, no quantities, no week split.
+ * OpenAI names-only shopping list for one week of the protocol PDF:
+ * unique foods by category, no quantities.
  */
 export async function enhancePlanShoppingListWithAI(
-    items: ShoppingItem[]
+    items: ShoppingItem[],
+    weekNumber: number
 ): Promise<PlanShoppingListItem[]> {
     const purchasableItems = filterPurchasableRawItems(items);
 
@@ -759,7 +760,7 @@ export async function enhancePlanShoppingListWithAI(
                 },
                 {
                     role: 'user',
-                    content: buildPlanShoppingPrompt(purchasableItems)
+                    content: buildPlanShoppingPrompt(purchasableItems, weekNumber)
                 }
             ]
         });
@@ -778,7 +779,7 @@ export async function enhancePlanShoppingListWithAI(
     } catch (error) {
         console.error(
             '[shopping-list.ai] Plan shopping list enhancement failed; using raw names',
-            {error}
+            {error, weekNumber}
         );
         return fallbackPlanShoppingItems(purchasableItems);
     }

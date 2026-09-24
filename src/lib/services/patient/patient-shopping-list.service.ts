@@ -1,6 +1,9 @@
-import {buildUnifiedShoppingList, buildWeeklyShoppingLists} from '@/lib/patient-portal/build-shopping-list';
+import {
+    buildPlanWeeklyShoppingLists,
+    buildWeeklyShoppingLists
+} from '@/lib/patient-portal/build-shopping-list';
 import type {
-    PlanShoppingListItem,
+    PlanWeeklyShoppingList,
     ShoppingListPayload
 } from '@/lib/patient-portal/shopping-list.types';
 import {
@@ -129,19 +132,24 @@ export async function loadProtocolShoppingListForUser(
 }
 
 async function loadPlanShoppingListFromWeeks(
-    weeks: Parameters<typeof buildUnifiedShoppingList>[0]
-): Promise<PlanShoppingListItem[]> {
-    if (weeks.length === 0) {
-        return [];
-    }
+    weeks: Parameters<typeof buildPlanWeeklyShoppingLists>[0]
+): Promise<PlanWeeklyShoppingList[]> {
+    const weeklyLists = await Promise.all(
+        buildPlanWeeklyShoppingLists(weeks).map(async week => ({
+            weekNumber: week.weekNumber,
+            items: await enhancePlanShoppingListWithAI(
+                week.items,
+                week.weekNumber
+            )
+        }))
+    );
 
-    const rawItems = buildUnifiedShoppingList(weeks);
-    return enhancePlanShoppingListWithAI(rawItems);
+    return weeklyLists.filter(week => week.items.length > 0);
 }
 
 export async function loadPlanShoppingListByProtocolId(
     protocolId: string
-): Promise<PlanShoppingListItem[]> {
+): Promise<PlanWeeklyShoppingList[]> {
     const protocol = await prisma.protocol.findUnique({
         where: {id: protocolId},
         select: {
@@ -161,7 +169,7 @@ export async function loadPlanShoppingListByProtocolId(
 
 export async function loadPlanShoppingListForUser(
     userId: string
-): Promise<PlanShoppingListItem[]> {
+): Promise<PlanWeeklyShoppingList[]> {
     const patient = await prisma.patient.findUnique({
         where: {userId},
         select: {id: true}

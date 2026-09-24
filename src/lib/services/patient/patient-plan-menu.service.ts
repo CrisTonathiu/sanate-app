@@ -4,7 +4,7 @@ import {
     PROTOCOL_MEAL_TIMES
 } from '@/lib/config/protocol-meal-times';
 import type {EquivalenciasColumn} from '@/lib/patient-portal/equivalencias';
-import type {PlanShoppingListItem} from '@/lib/patient-portal/shopping-list.types';
+import type {PlanWeeklyShoppingList} from '@/lib/patient-portal/shopping-list.types';
 import {
     mapProtocolMealToSliderRecipe,
     PROTOCOL_MEAL_DISPLAY_ORDER
@@ -83,7 +83,7 @@ export type PlanWeekSchedule = {
 export type PlanMenuPayload = {
     sections: PlanMenuSectionPayload[];
     weekSchedules: PlanWeekSchedule[];
-    shoppingList: PlanShoppingListItem[];
+    shoppingList: PlanWeeklyShoppingList[];
     equivalencias: EquivalenciasColumn[];
 };
 
