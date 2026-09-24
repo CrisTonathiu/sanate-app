@@ -10,7 +10,10 @@ import {
     Circle
 } from '@react-pdf/renderer';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
-import type {PlanShoppingListItem} from '@/lib/patient-portal/shopping-list.types';
+import type {
+    PlanShoppingListItem,
+    PlanWeeklyShoppingList
+} from '@/lib/patient-portal/shopping-list.types';
 import type {PlanWeekSchedule} from '@/lib/services/patient/patient-plan-menu.service';
 import {
     buildShoppingListPdfSections,
@@ -914,11 +917,13 @@ function ShoppingListCheckbox({size = 8}: {size?: number}) {
 
 type PlanShoppingListPageProps = {
     items: PlanShoppingListItem[];
+    title: string;
     letterheadSrc: string;
 };
 
 function PlanShoppingListPage({
     items,
+    title,
     letterheadSrc
 }: PlanShoppingListPageProps) {
     const sections = buildShoppingListPdfSections(
@@ -940,7 +945,7 @@ function PlanShoppingListPage({
             </View>
 
             <View style={styles.shoppingListContent}>
-                <Text style={styles.shoppingListTitle}>Lista de compras</Text>
+                <Text style={styles.shoppingListTitle}>{title}</Text>
 
                 {items.length === 0 ? (
                     <Text style={styles.shoppingListEmpty}>
@@ -1142,7 +1147,7 @@ type PlanPdfProps = {
     recipeBackgroundSrc: string;
     menuSections: PlanMenuSectionGroup[];
     weekSchedules: PlanWeekSchedule[];
-    shoppingList: PlanShoppingListItem[];
+    shoppingList: PlanWeeklyShoppingList[];
     equivalencias?: EquivalenciasColumn[];
 };
 
@@ -1208,12 +1213,18 @@ export function PlanPdf({
                 </Page>
             ) : null}
 
-            {shoppingList.length > 0 ? (
+            {shoppingList.map(week => (
                 <PlanShoppingListPage
-                    items={shoppingList}
+                    key={`shopping-list-${week.weekNumber}`}
+                    items={week.items}
+                    title={
+                        shoppingList.length > 1
+                            ? `Lista de compras - Semana ${week.weekNumber}`
+                            : 'Lista de compras'
+                    }
                     letterheadSrc={letterheadSrc}
                 />
-            ) : null}
+            ))}
 
             {menuSections.flatMap(({section, recipes}) => [
                 <PlanSectionDividerPage

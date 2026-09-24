@@ -5,29 +5,12 @@ import Link from 'next/link';
 import PortalHeader from '@/components/widgets/patient-portal/PortalHeader';
 import {loadWeekProtocolMeals} from '@/lib/services/patient/patient-meal-by-type.service';
 import {AffiliateProducts} from '@/components/widgets/patient-portal/AffiliateProducts';
-import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
+import {parseAffiliateLinks} from '@/lib/utils/affiliate-links';
 import {prisma} from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 const DAY_SHORT_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-function parseAffiliateLinks(value: unknown): AffiliateLink[] {
-    if (!Array.isArray(value)) {
-        return [];
-    }
-
-    return value.filter(
-        (item): item is AffiliateLink =>
-            typeof item === 'object' &&
-            item !== null &&
-            typeof item.id === 'string' &&
-            typeof item.name === 'string' &&
-            typeof item.url === 'string' &&
-            item.name.trim().length > 0 &&
-            item.url.trim().length > 0
-    );
-}
 
 function getMondayOfCurrentWeek(now: Date) {
     const start = new Date(now);

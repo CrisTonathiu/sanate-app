@@ -4,6 +4,8 @@ import {
     buildMealSlotFromProtocolMeal,
     buildProtocolMealPortionsCreateData
 } from '@/lib/services/protocol/protocol-meal-portions.mapper';
+import {parseAffiliateLinks} from '@/lib/utils/affiliate-links';
+import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
 import {prisma} from '@/lib/prisma';
 import {MealType, Prisma} from '@prisma/client';
 
@@ -75,11 +77,13 @@ export type PatientProtocolListItem = {
     tips: string | null;
     hydrationRecommendations: string | null;
     supplementRecommendations: string | null;
+    affiliateLinks: AffiliateLink[];
 };
 
 export type PatientProtocolDetail = ActiveProtocolSummary & {
     status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'DRAFT';
     createdAt: string;
+    affiliateLinks: AffiliateLink[];
 };
 
 export type ProtocolDraftSnapshot = {
@@ -348,7 +352,8 @@ export async function listProtocolsForPatient(
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
-            supplementRecommendations: true
+            supplementRecommendations: true,
+            affiliateLinks: true
         }
     });
 
@@ -361,7 +366,8 @@ export async function listProtocolsForPatient(
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
         hydrationRecommendations: protocol.hydrationRecommendations,
-        supplementRecommendations: protocol.supplementRecommendations
+        supplementRecommendations: protocol.supplementRecommendations,
+        affiliateLinks: parseAffiliateLinks(protocol.affiliateLinks)
     }));
 }
 
@@ -408,6 +414,7 @@ export async function getProtocolDetailForPatient(
             tips: true,
             hydrationRecommendations: true,
             supplementRecommendations: true,
+            affiliateLinks: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
                 select: {
@@ -445,7 +452,8 @@ export async function getProtocolDetailForPatient(
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
         hydrationRecommendations: protocol.hydrationRecommendations,
-        supplementRecommendations: protocol.supplementRecommendations
+        supplementRecommendations: protocol.supplementRecommendations,
+        affiliateLinks: parseAffiliateLinks(protocol.affiliateLinks)
     };
 }
 

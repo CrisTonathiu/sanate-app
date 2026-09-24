@@ -17,6 +17,8 @@ export async function loadEquivalenciasColumns(
             gramsPerEquivalent: true,
             equivalentDisplayText: true,
             isFreePortion: true,
+            isDiscrete: true,
+            allowPieceFractions: true,
             group: {
                 select: {
                     name: true,
@@ -31,6 +33,8 @@ export async function loadEquivalenciasColumns(
         name: food.name,
         groupName: food.group.name,
         isFree: food.isFreePortion || food.group.isFree,
+        isDiscrete: food.isDiscrete,
+        allowPieceFractions: food.allowPieceFractions,
         gramsPerEquivalent: food.gramsPerEquivalent,
         equivalentDisplayText: food.equivalentDisplayText
     }));

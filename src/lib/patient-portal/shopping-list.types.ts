@@ -26,9 +26,15 @@ export type ShoppingListPayload = {
     activeProtocolWeekIndex: number;
 };
 
-/** Names-only shopping list for the full protocol PDF (no quantities, no weeks). */
+/** Names-only shopping list item for the full protocol PDF (no quantities). */
 export type PlanShoppingListItem = {
     id: string;
     name: string;
     category: ShoppingCategory;
+};
+
+/** Names-only shopping list for a single protocol week in the full plan PDF. */
+export type PlanWeeklyShoppingList = {
+    weekNumber: number;
+    items: PlanShoppingListItem[];
 };
