@@ -344,10 +344,32 @@ function foodsForGroup(
         .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
+/**
+ * Free foods are listed without an amount on purpose; any other food needs
+ * equivalence data or there is nothing useful to show for it.
+ */
+function hasEquivalenceData(food: EquivalenciasFoodRow): boolean {
+    if (food.isFree) {
+        return true;
+    }
+
+    if (food.equivalentDisplayText?.trim()) {
+        return true;
+    }
+
+    return (
+        food.gramsPerEquivalent != null &&
+        Number.isFinite(food.gramsPerEquivalent) &&
+        food.gramsPerEquivalent > 0
+    );
+}
+
 export function buildEquivalenciasColumns(
-    foods: EquivalenciasFoodRow[],
+    allFoods: EquivalenciasFoodRow[],
     assignedPortions: AssignedMenuPortion[] = []
 ): EquivalenciasColumn[] {
+    const foods = allFoods.filter(hasEquivalenceData);
+
     return COLUMN_DEFS.flatMap(def => {
         const lines: EquivalenciasLine[] = [];
         const columnFoods = def.groups.flatMap(group =>
