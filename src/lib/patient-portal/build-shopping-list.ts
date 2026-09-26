@@ -383,10 +383,14 @@ export function buildWeeklyShoppingLists(input: {
 }
 
 /**
- * Single shopping list for the whole protocol (all weeks merged).
+ * One raw shopping list per protocol week.
  * Quantities may still be present for intermediate AI cleanup; strip them for PDF display.
  */
-export function buildUnifiedShoppingList(weeks: ProtocolWeekInput[]): ShoppingItem[] {
-    const meals = weeks.flatMap(week => week.days.flatMap(day => day.meals));
-    return aggregateWeekMeals(meals);
+export function buildPlanWeeklyShoppingLists(
+    weeks: ProtocolWeekInput[]
+): {weekNumber: number; items: ShoppingItem[]}[] {
+    return weeks.map(week => ({
+        weekNumber: week.weekNumber,
+        items: aggregateWeekMeals(week.days.flatMap(day => day.meals))
+    }));
 }

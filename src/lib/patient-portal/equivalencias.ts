@@ -2,6 +2,9 @@ export type EquivalenciasFoodRow = {
     name: string;
     groupName: string;
     isFree: boolean;
+    /** Counted in whole pieces (Porción Discreta). */
+    isDiscrete?: boolean;
+    allowPieceFractions?: boolean;
     gramsPerEquivalent: number | null;
     equivalentDisplayText: string | null;
 };
@@ -107,7 +110,7 @@ function formatGrams(grams: number): string {
     return `${rounded} g`;
 }
 
-type AmountSnap = 'whole' | 'quarter';
+type AmountSnap = 'whole' | 'quarter' | 'discrete';
 
 const WHOLE_NUMBER_COLUMN_KEYS = new Set([
     'proteinas',
@@ -119,9 +122,22 @@ function snapModeForColumn(columnKey: string): AmountSnap {
     return WHOLE_NUMBER_COLUMN_KEYS.has(columnKey) ? 'whole' : 'quarter';
 }
 
+function snapModeForFood(
+    food: EquivalenciasFoodRow,
+    columnMode: AmountSnap
+): AmountSnap {
+    return food.isDiscrete && !food.allowPieceFractions ? 'discrete' : columnMode;
+}
+
 function snapAmount(quantity: number, mode: AmountSnap): number {
     if (!Number.isFinite(quantity) || quantity <= 0) {
         return 0;
+    }
+
+    // Discrete foods are bought/eaten in whole pieces: never show fractions,
+    // and never drop below one piece.
+    if (mode === 'discrete') {
+        return Math.max(1, Math.round(quantity));
     }
 
     // Below 1 unit, rounding up to a whole would overstate a portion whose
@@ -138,7 +154,7 @@ function snapAmount(quantity: number, mode: AmountSnap): number {
 function formatSnappedQuantity(quantity: number, mode: AmountSnap): string {
     const snapped = snapAmount(quantity, mode);
 
-    if (mode === 'whole' && quantity >= 1) {
+    if (mode === 'discrete' || (mode === 'whole' && quantity >= 1)) {
         return String(snapped);
     }
 
@@ -328,10 +344,32 @@ function foodsForGroup(
         .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
+/**
+ * Free foods are listed without an amount on purpose; any other food needs
+ * equivalence data or there is nothing useful to show for it.
+ */
+function hasEquivalenceData(food: EquivalenciasFoodRow): boolean {
+    if (food.isFree) {
+        return true;
+    }
+
+    if (food.equivalentDisplayText?.trim()) {
+        return true;
+    }
+
+    return (
+        food.gramsPerEquivalent != null &&
+        Number.isFinite(food.gramsPerEquivalent) &&
+        food.gramsPerEquivalent > 0
+    );
+}
+
 export function buildEquivalenciasColumns(
-    foods: EquivalenciasFoodRow[],
+    allFoods: EquivalenciasFoodRow[],
     assignedPortions: AssignedMenuPortion[] = []
 ): EquivalenciasColumn[] {
+    const foods = allFoods.filter(hasEquivalenceData);
+
     return COLUMN_DEFS.flatMap(def => {
         const lines: EquivalenciasLine[] = [];
         const columnFoods = def.groups.flatMap(group =>
@@ -390,7 +428,7 @@ export function buildEquivalenciasColumns(
                     ...formatItemLine(
                         food,
                         food.isFree ? 1 : factor,
-                        snapMode
+                        snapModeForFood(food, snapMode)
                     )
                 });
             }

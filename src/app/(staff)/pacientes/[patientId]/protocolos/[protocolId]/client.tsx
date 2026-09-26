@@ -5,6 +5,7 @@ import {Button} from '@/components/ui/button';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import PatientBreadcrumb from '@/components/widgets/profile-details/PatientBreadcrumb';
 import {DownloadPlanButton} from '@/components/widgets/patient-portal/DownloadPlanButton';
+import {buildProtocolMenuFileName} from '@/components/widgets/profile-details/ProtocolMenuDownload';
 import ProfileDetailsLoader from '@/components/loaders/ProfileDetailsLoader';
 import {useGetPatientProfile} from '@/hooks/use-patients';
 import {useGetPatientProtocol} from '@/hooks/use-patient-protocols';
@@ -88,14 +89,6 @@ export default function ProtocolDetailClient({
         }
     ].filter(block => block.value?.trim());
 
-    const planFileSlug = protocol.title
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .slice(0, 40);
-
     return (
         <div className='relative mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8'>
             <PatientBreadcrumb
@@ -167,10 +160,13 @@ export default function ProtocolDetailClient({
                                 protocol.hydrationRecommendations,
                             supplementRecommendations:
                                 protocol.supplementRecommendations,
-                            affiliateLinks: []
+                            affiliateLinks: protocol.affiliateLinks
                         }}
                         planMenuUrl={`/api/patients/${patientId}/protocols/${protocolId}/plan-menu`}
-                        fileName={`plan-${planFileSlug || protocolId}.pdf`}
+                        fileName={buildProtocolMenuFileName(
+                            `${patient.firstName} ${patient.lastName}`,
+                            protocol.createdAt
+                        )}
                     />
                 </div>
             </motion.div>
