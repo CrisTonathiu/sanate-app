@@ -7,7 +7,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Loader2,
-    RefreshCw
+    RefreshCw,
+    Save
 } from 'lucide-react';
 
 interface ProtocolNavigationProps {
@@ -22,6 +23,12 @@ interface ProtocolNavigationProps {
     isCompleting?: boolean;
     showRegenerateAction?: boolean;
     onRegenerate?: () => void;
+    /** Omit to hide the "Guardar borrador" button. */
+    onSaveDraft?: () => void;
+    isSavingDraft?: boolean;
+    /** False when there are no unsaved changes. */
+    canSaveDraft?: boolean;
+    isDraftSaved?: boolean;
 }
 
 export function ProtocolNavigation({
@@ -35,7 +42,11 @@ export function ProtocolNavigation({
     disableNextStep = false,
     isCompleting = false,
     showRegenerateAction = false,
-    onRegenerate
+    onRegenerate,
+    onSaveDraft,
+    isSavingDraft = false,
+    canSaveDraft = true,
+    isDraftSaved = false
 }: ProtocolNavigationProps) {
     const {sidebarOpen} = useSidebar();
 
@@ -59,6 +70,36 @@ export function ProtocolNavigation({
                 </Button>
 
                 <div className='flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3'>
+                    {onSaveDraft && (
+                        <Button
+                            type='button'
+                            variant='ghost'
+                            onClick={onSaveDraft}
+                            disabled={
+                                isSavingDraft ||
+                                !canSaveDraft ||
+                                isGenerating ||
+                                isCompleting
+                            }
+                            aria-label='Guardar borrador'
+                            className='h-11 shrink-0 rounded-xl px-3 text-sm sm:px-4'>
+                            {isSavingDraft ? (
+                                <Loader2 className='h-4 w-4 shrink-0 animate-spin sm:mr-2' />
+                            ) : isDraftSaved && !canSaveDraft ? (
+                                <Check className='h-4 w-4 shrink-0 sm:mr-2' />
+                            ) : (
+                                <Save className='h-4 w-4 shrink-0 sm:mr-2' />
+                            )}
+                            <span className='hidden sm:inline'>
+                                {isSavingDraft
+                                    ? 'Guardando...'
+                                    : isDraftSaved && !canSaveDraft
+                                      ? 'Borrador guardado'
+                                      : 'Guardar borrador'}
+                            </span>
+                        </Button>
+                    )}
+
                     {showRegenerateAction && (
                         <Button
                             type='button'
