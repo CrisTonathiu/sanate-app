@@ -75,3 +75,19 @@ export function getActiveProtocolWeekIndex(
 
     return Math.min(elapsedWeeks, weekCount - 1);
 }
+
+/**
+ * True once all protocol weeks have elapsed. An expired ACTIVE protocol keeps
+ * serving its last week until a new protocol replaces it.
+ */
+export function isProtocolExpired(
+    startDate: Date | string,
+    weekCount: number,
+    now: Date = new Date()
+): boolean {
+    const msPerWeek = DAYS_PER_WEEK * 24 * 60 * 60 * 1000;
+    const endTime =
+        new Date(startDate).getTime() + Math.max(1, weekCount) * msPerWeek;
+
+    return now.getTime() >= endTime;
+}

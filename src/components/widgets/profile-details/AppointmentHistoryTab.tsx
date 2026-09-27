@@ -9,13 +9,15 @@ import {buildProtocolMenuFileName} from '@/components/widgets/profile-details/Pr
 import {useGetPatientProfile} from '@/hooks/use-patients';
 import {useGetPatientProtocols} from '@/hooks/use-patient-protocols';
 import {cn} from '@/lib/utils';
+import {isProtocolExpired} from '@/lib/utils/protocol-week-plan';
 import {motion} from 'framer-motion';
 import {
     Calendar,
     ClipboardList,
     Download,
     Eye,
-    Loader2
+    Loader2,
+    Pencil
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -166,6 +168,30 @@ export default function AppointmentHistoryTab({
                                     {STATUS_LABELS[protocol.status] ??
                                         protocol.status}
                                 </Badge>
+                                {protocol.status === 'ACTIVE' &&
+                                isProtocolExpired(
+                                    protocol.startDate,
+                                    protocol.weekCount
+                                ) ? (
+                                    <Badge
+                                        variant='secondary'
+                                        className='border-none bg-[hsl(38,92%,50%)/0.15] text-[hsl(38,92%,40%)]'>
+                                        Vencido
+                                    </Badge>
+                                ) : null}
+                                {protocol.status === 'ACTIVE' ? (
+                                    <Button
+                                        asChild
+                                        variant='outline'
+                                        size='sm'
+                                        className='h-9 rounded-lg'>
+                                        <Link
+                                            href={`/pacientes/${patientId}/protocolo?editar=${protocol.id}`}>
+                                            <Pencil className='mr-1.5 h-3.5 w-3.5' />
+                                            Editar
+                                        </Link>
+                                    </Button>
+                                ) : null}
                                 <Button
                                     asChild
                                     variant='outline'

@@ -18,7 +18,9 @@ interface ProtocolLeaveDialogProps {
     isSaving: boolean;
     onOpenChange: (open: boolean) => void;
     onStay: () => void;
-    onSaveDraft: () => void;
+    /** Omit when drafts aren't allowed (e.g. editing an active protocol). */
+    onSaveDraft?: () => void;
+    onLeaveWithoutSaving: () => void;
 }
 
 export default function ProtocolLeaveDialog({
@@ -26,8 +28,11 @@ export default function ProtocolLeaveDialog({
     isSaving,
     onOpenChange,
     onStay,
-    onSaveDraft
+    onSaveDraft,
+    onLeaveWithoutSaving
 }: ProtocolLeaveDialogProps) {
+    const canSaveDraft = Boolean(onSaveDraft);
+
     return (
         <AlertDialog
             open={open}
@@ -41,12 +46,14 @@ export default function ProtocolLeaveDialog({
                         <Save className='text-primary' />
                     </AlertDialogMedia>
                     <AlertDialogTitle>
-                        ¿Guardar borrador antes de salir?
+                        {canSaveDraft
+                            ? '¿Guardar borrador antes de salir?'
+                            : '¿Salir sin guardar los cambios?'}
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                        Tienes cambios sin guardar en este protocolo. Puedes
-                        seguir editando o guardar un borrador para continuar
-                        después.
+                        {canSaveDraft
+                            ? 'Tienes cambios sin guardar en este protocolo. Puedes seguir editando o guardar un borrador para continuar después.'
+                            : 'Tienes cambios sin guardar en este protocolo. Si sales ahora, el paciente seguirá viendo la versión anterior.'}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -57,15 +64,21 @@ export default function ProtocolLeaveDialog({
                         disabled={isSaving}
                         onClick={event => {
                             event.preventDefault();
-                            onSaveDraft();
+                            if (onSaveDraft) {
+                                onSaveDraft();
+                            } else {
+                                onLeaveWithoutSaving();
+                            }
                         }}>
                         {isSaving ? (
                             <>
                                 <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                                 Guardando...
                             </>
-                        ) : (
+                        ) : canSaveDraft ? (
                             'Guardar borrador'
+                        ) : (
+                            'Salir sin guardar'
                         )}
                     </AlertDialogAction>
                 </AlertDialogFooter>

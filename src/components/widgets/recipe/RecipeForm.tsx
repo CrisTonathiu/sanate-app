@@ -55,7 +55,12 @@ import {
     resolveReferenceGramsPerUnit,
     snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
-import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
+import {
+    getSafeRecipeImageSrc,
+    isAllowedRecipeImageType,
+    RECIPE_IMAGE_ACCEPT,
+    RECIPE_IMAGE_FORMAT_ERROR
+} from '@/lib/utils/recipe-image-url';
 import {toast} from 'sonner';
 
 // --- Constants ---
@@ -351,8 +356,8 @@ export function RecipeForm(props: RecipeFormProps) {
 
     // Image Handlers
     const handleImageUpload = async (file: File) => {
-        if (!file.type.startsWith('image/')) {
-            toast.error('Selecciona un archivo de imagen valido.');
+        if (!isAllowedRecipeImageType(file.type)) {
+            toast.error(RECIPE_IMAGE_FORMAT_ERROR);
             return;
         }
 
@@ -403,6 +408,8 @@ export function RecipeForm(props: RecipeFormProps) {
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        // Reset so picking the same file again after an error re-triggers.
+        e.target.value = '';
         if (file) {
             handleImageUpload(file);
         }
@@ -862,7 +869,7 @@ export function RecipeForm(props: RecipeFormProps) {
                                 <input
                                     ref={fileInputRef}
                                     type='file'
-                                    accept='image/*'
+                                    accept={RECIPE_IMAGE_ACCEPT}
                                     onChange={handleFileInputChange}
                                     className='hidden'
                                 />

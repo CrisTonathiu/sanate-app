@@ -43,13 +43,27 @@ export async function getProtocolById(input: ProtocolIdInput) {
 export async function createProtocol(input: CreateProtocolInput) {
     try {
         const validatedInput = createProtocolSchema.parse(input);
-        const protocol = await prisma.protocol.create({
-            data: {
-                title: validatedInput.title,
-                weekCount: validatedInput.weekCount || 1,
-                patientId: validatedInput.patientId,
-                status: validatedInput.status || 'ACTIVE'
+        const status = validatedInput.status || 'ACTIVE';
+        const protocol = await prisma.$transaction(async tx => {
+            // Only one ACTIVE protocol per patient
+            if (status === 'ACTIVE' && validatedInput.patientId) {
+                await tx.protocol.updateMany({
+                    where: {
+                        patientId: validatedInput.patientId,
+                        status: 'ACTIVE'
+                    },
+                    data: {status: 'COMPLETED'}
+                });
             }
+
+            return tx.protocol.create({
+                data: {
+                    title: validatedInput.title,
+                    weekCount: validatedInput.weekCount || 1,
+                    patientId: validatedInput.patientId,
+                    status
+                }
+            });
         });
 
         return {success: true, protocol};
@@ -72,9 +86,25 @@ export async function createProtocol(input: CreateProtocolInput) {
 export async function updateProtocol(input: UpdateProtocolStatusInput) {
     try {
         const validatedInput = updateProtocolStatusSchema.parse(input);
-        const protocol = await prisma.protocol.update({
-            where: {id: validatedInput.protocolId},
-            data: {status: validatedInput.status}
+        const protocol = await prisma.$transaction(async tx => {
+            const updated = await tx.protocol.update({
+                where: {id: validatedInput.protocolId},
+                data: {status: validatedInput.status}
+            });
+
+            // Only one ACTIVE protocol per patient
+            if (updated.status === 'ACTIVE' && updated.patientId) {
+                await tx.protocol.updateMany({
+                    where: {
+                        patientId: updated.patientId,
+                        status: 'ACTIVE',
+                        id: {not: updated.id}
+                    },
+                    data: {status: 'COMPLETED'}
+                });
+            }
+
+            return updated;
         });
 
         return {success: true, protocol};

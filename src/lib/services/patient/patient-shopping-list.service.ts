@@ -92,7 +92,7 @@ export async function loadProtocolShoppingListForUser(
         },
         orderBy: {createdAt: 'desc'},
         select: {
-            createdAt: true,
+            startDate: true,
             weekCount: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
@@ -110,14 +110,14 @@ export async function loadProtocolShoppingListForUser(
     }
 
     const activeProtocolWeekIndex = getActiveProtocolWeekIndex(
-        protocol.createdAt,
+        protocol.startDate,
         protocol.weekCount,
         now
     );
 
     const weeklyLists = buildWeeklyShoppingLists({
         weeks: protocol.weeksPlan,
-        planStart: protocol.createdAt,
+        planStart: protocol.startDate,
         activeProtocolWeekIndex
     });
 
