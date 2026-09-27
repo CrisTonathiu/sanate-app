@@ -64,6 +64,7 @@ export async function getPatientCurrentTodayMeal(
     if (meals.length === 0) {
         const hasProtocol = await prisma.protocol.findFirst({
             where: {patientId: patient.id, status: 'ACTIVE'},
+            orderBy: {createdAt: 'desc'},
             select: {id: true}
         });
 

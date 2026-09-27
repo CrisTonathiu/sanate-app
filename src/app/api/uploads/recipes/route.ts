@@ -1,5 +1,9 @@
 import {requireRole} from '@/lib/auth/requireRole';
 import {createAdminClient} from '@/lib/supabase/admin';
+import {
+    isAllowedRecipeImageType,
+    RECIPE_IMAGE_FORMAT_ERROR
+} from '@/lib/utils/recipe-image-url';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const BUCKET_NAME =
@@ -29,12 +33,12 @@ export async function POST(request: Request) {
             size: file.size
         });
 
-        if (!file.type.startsWith('image/')) {
+        if (!isAllowedRecipeImageType(file.type)) {
             console.warn('[uploads/recipes] Invalid file type', {
                 type: file.type
             });
             return Response.json(
-                {success: false, message: 'Solo se permiten imagenes'},
+                {success: false, message: RECIPE_IMAGE_FORMAT_ERROR},
                 {status: 400}
             );
         }
@@ -50,8 +54,8 @@ export async function POST(request: Request) {
             );
         }
 
-        const fileExtension =
-            file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        // Derive the extension from the validated MIME type, not the name.
+        const fileExtension = file.type === 'image/png' ? 'png' : 'jpg';
         const filePath = `recipes/${Date.now()}-${crypto.randomUUID()}.${fileExtension}`;
         console.log('[uploads/recipes] Uploading to Supabase bucket', {
             bucket: BUCKET_NAME,

@@ -64,6 +64,7 @@ export type ActiveProtocolSummary = {
     title: string;
     weekCount: number;
     createdAt: string;
+    startDate: string;
     weekPlan: DayMeals[];
 } & ProtocolRecommendations;
 
@@ -73,6 +74,7 @@ export type PatientProtocolListItem = {
     weekCount: number;
     status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'DRAFT';
     createdAt: string;
+    startDate: string;
     generalRecommendations: string | null;
     tips: string | null;
     hydrationRecommendations: string | null;
@@ -349,6 +351,7 @@ export async function listProtocolsForPatient(
             weekCount: true,
             status: true,
             createdAt: true,
+            startDate: true,
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
@@ -363,6 +366,7 @@ export async function listProtocolsForPatient(
         weekCount: protocol.weekCount,
         status: protocol.status,
         createdAt: protocol.createdAt.toISOString(),
+        startDate: protocol.startDate.toISOString(),
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
         hydrationRecommendations: protocol.hydrationRecommendations,
@@ -410,6 +414,7 @@ export async function getProtocolDetailForPatient(
             weekCount: true,
             status: true,
             createdAt: true,
+            startDate: true,
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
@@ -448,6 +453,7 @@ export async function getProtocolDetailForPatient(
         weekCount,
         status: protocol.status,
         createdAt: protocol.createdAt.toISOString(),
+        startDate: protocol.startDate.toISOString(),
         weekPlan,
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
@@ -471,6 +477,7 @@ export async function getActiveProtocolForPatient(
             title: true,
             weekCount: true,
             createdAt: true,
+            startDate: true,
             generalRecommendations: true,
             tips: true,
             hydrationRecommendations: true,
@@ -507,6 +514,7 @@ export async function getActiveProtocolForPatient(
         title: protocol.title,
         weekCount,
         createdAt: protocol.createdAt.toISOString(),
+        startDate: protocol.startDate.toISOString(),
         weekPlan,
         generalRecommendations: protocol.generalRecommendations,
         tips: protocol.tips,
@@ -755,6 +763,25 @@ export async function deleteDraftProtocolsForPatient(
     });
 }
 
+/**
+ * A patient has at most one ACTIVE protocol: publishing a new one completes
+ * the previous one so every consumer (portal, WhatsApp bot) reads the same plan.
+ */
+function completeOtherActiveProtocols(
+    patientId: string,
+    exceptProtocolId?: string,
+    tx: Prisma.TransactionClient = prisma
+) {
+    return tx.protocol.updateMany({
+        where: {
+            patientId,
+            status: 'ACTIVE',
+            ...(exceptProtocolId ? {id: {not: exceptProtocolId}} : {})
+        },
+        data: {status: 'COMPLETED'}
+    });
+}
+
 export async function createPatientProtocol(input: {
     patientId: string;
     title: string;
@@ -765,12 +792,13 @@ export async function createPatientProtocol(input: {
     const weekCount = input.weekCount ?? 1;
     const weekCreates = buildProtocolWeekCreates(input.weekPlan, weekCount);
 
-    const protocol = await prisma.protocol.create({
+    const createProtocol = prisma.protocol.create({
         data: {
             title: input.title,
             weekCount,
             patientId: input.patientId,
             status: 'ACTIVE',
+            startDate: new Date(),
             draftSnapshot: Prisma.JsonNull,
             affiliateLinks: input.affiliateLinks,
             generalRecommendations: input.generalRecommendations ?? null,
@@ -794,6 +822,11 @@ export async function createPatientProtocol(input: {
             supplementRecommendations: true
         }
     });
+
+    const [, protocol] = await prisma.$transaction([
+        completeOtherActiveProtocols(input.patientId),
+        createProtocol
+    ]);
 
     await deleteDraftProtocolsForPatient(input.patientId, protocol.id);
 
@@ -827,6 +860,11 @@ export async function updatePatientProtocol(input: {
         select: {patientId: true, status: true}
     });
 
+    // Publishing a draft starts the plan now; editing an active protocol keeps
+    // its startDate so the patient stays on their current week.
+    const isPublishingDraft =
+        Boolean(input.promoteFromDraft) && protocolMeta?.status === 'DRAFT';
+
     await prisma.$transaction(
         async tx => {
             await tx.protocol.update({
@@ -835,6 +873,7 @@ export async function updatePatientProtocol(input: {
                     title: input.title,
                     weekCount,
                     status: input.promoteFromDraft ? 'ACTIVE' : undefined,
+                    startDate: isPublishingDraft ? new Date() : undefined,
                     draftSnapshot: input.promoteFromDraft
                         ? Prisma.JsonNull
                         : undefined,
@@ -850,6 +889,14 @@ export async function updatePatientProtocol(input: {
             });
 
             await replaceProtocolWeekPlan(input.protocolId, weekCreates, tx);
+
+            if (isPublishingDraft && protocolMeta?.patientId) {
+                await completeOtherActiveProtocols(
+                    protocolMeta.patientId,
+                    input.protocolId,
+                    tx
+                );
+            }
         },
         {
             maxWait: 15_000,

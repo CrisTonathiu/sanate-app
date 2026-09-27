@@ -12,7 +12,16 @@ import {useGetPatientProtocol} from '@/hooks/use-patient-protocols';
 import {MEAL_CONFIG, MealType} from '@/lib/config/meal-config';
 import {cn} from '@/lib/utils';
 import {motion} from 'framer-motion';
-import {ArrowLeft, Calendar, Droplets, FileText, Leaf, Sparkles} from 'lucide-react';
+import {isProtocolExpired} from '@/lib/utils/protocol-week-plan';
+import {
+    ArrowLeft,
+    Calendar,
+    Droplets,
+    FileText,
+    Leaf,
+    Pencil,
+    Sparkles
+} from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +68,10 @@ export default function ProtocolDetailClient({
             </div>
         );
     }
+
+    const isExpired =
+        protocol.status === 'ACTIVE' &&
+        isProtocolExpired(protocol.startDate, protocol.weekCount);
 
     const mealEntries = MEAL_CONFIG.map(({key, label, icon: Icon}) => ({
         key,
@@ -124,6 +137,13 @@ export default function ProtocolDetailClient({
                                 {STATUS_LABELS[protocol.status] ??
                                     protocol.status}
                             </Badge>
+                            {isExpired ? (
+                                <Badge
+                                    variant='secondary'
+                                    className='border-none bg-[hsl(38,92%,50%)/0.15] text-[hsl(38,92%,40%)]'>
+                                    Vencido
+                                </Badge>
+                            ) : null}
                         </div>
                         <p className='flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground'>
                             <span>
@@ -132,14 +152,13 @@ export default function ProtocolDetailClient({
                             <span className='hidden sm:inline'>·</span>
                             <span className='inline-flex items-center gap-1'>
                                 <Calendar className='h-3.5 w-3.5' />
-                                {new Date(protocol.createdAt).toLocaleDateString(
-                                    'es-MX',
-                                    {
-                                        day: 'numeric',
-                                        month: 'long',
-                                        year: 'numeric'
-                                    }
-                                )}
+                                {new Date(
+                                    protocol.createdAt
+                                ).toLocaleDateString('es-MX', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric'
+                                })}
                             </span>
                             <span className='hidden sm:inline'>·</span>
                             <span>
@@ -151,30 +170,43 @@ export default function ProtocolDetailClient({
                         </p>
                     </div>
 
-                    <DownloadPlanButton
-                        recommendations={{
-                            generalRecommendations:
-                                protocol.generalRecommendations,
-                            tips: protocol.tips,
-                            hydrationRecommendations:
-                                protocol.hydrationRecommendations,
-                            supplementRecommendations:
-                                protocol.supplementRecommendations,
-                            affiliateLinks: protocol.affiliateLinks
-                        }}
-                        planMenuUrl={`/api/patients/${patientId}/protocols/${protocolId}/plan-menu`}
-                        fileName={buildProtocolMenuFileName(
-                            `${patient.firstName} ${patient.lastName}`,
-                            protocol.createdAt
-                        )}
-                    />
+                    <div className='flex flex-wrap items-center gap-2'>
+                        {protocol.status === 'ACTIVE' ? (
+                            <Button asChild variant='outline'>
+                                <Link
+                                    href={`/pacientes/${patientId}/protocolo?editar=${protocol.protocolId}`}>
+                                    <Pencil className='mr-1.5 h-4 w-4' />
+                                    Editar
+                                </Link>
+                            </Button>
+                        ) : null}
+                        <DownloadPlanButton
+                            recommendations={{
+                                generalRecommendations:
+                                    protocol.generalRecommendations,
+                                tips: protocol.tips,
+                                hydrationRecommendations:
+                                    protocol.hydrationRecommendations,
+                                supplementRecommendations:
+                                    protocol.supplementRecommendations,
+                                affiliateLinks: protocol.affiliateLinks
+                            }}
+                            planMenuUrl={`/api/patients/${patientId}/protocols/${protocolId}/plan-menu`}
+                            fileName={buildProtocolMenuFileName(
+                                `${patient.firstName} ${patient.lastName}`,
+                                protocol.createdAt
+                            )}
+                        />
+                    </div>
                 </div>
             </motion.div>
 
             <div className='space-y-6'>
                 <Card>
                     <CardHeader className='border-b border-border pb-3'>
-                        <CardTitle className='text-lg'>Plan de comidas</CardTitle>
+                        <CardTitle className='text-lg'>
+                            Plan de comidas
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className='space-y-4 pt-6'>
                         {protocol.weekPlan.length === 0 ? (

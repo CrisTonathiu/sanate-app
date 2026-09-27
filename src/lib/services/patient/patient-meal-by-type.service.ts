@@ -101,7 +101,7 @@ async function loadActiveProtocolWeekDays(userId: string, now: Date = new Date()
         orderBy: {createdAt: 'desc'},
         select: {
             weekCount: true,
-            createdAt: true,
+            startDate: true,
             weeksPlan: {
                 orderBy: {weekNumber: 'asc'},
                 select: {
@@ -155,7 +155,7 @@ async function loadActiveProtocolWeekDays(userId: string, now: Date = new Date()
     }
 
     const activeWeekIndex = getActiveProtocolWeekIndex(
-        protocol.createdAt,
+        protocol.startDate,
         protocol.weekCount,
         now
     );
@@ -300,6 +300,7 @@ export async function getPatientTodayMealByType(
     if (meals.length === 0) {
         const hasProtocol = await prisma.protocol.findFirst({
             where: {patientId: patient.id, status: 'ACTIVE'},
+            orderBy: {createdAt: 'desc'},
             select: {id: true}
         });
 

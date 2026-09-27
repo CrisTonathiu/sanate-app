@@ -368,6 +368,10 @@ model Protocol {
 
   status ProtocolStatus @default(ACTIVE)
 
+  // When the patient starts following the plan (set on publish). Drives the
+  // current-week calculation; edits to an active protocol keep it unchanged.
+  startDate DateTime @default(now())
+
   affiliateLinks Json?
   draftSnapshot  Json?
 

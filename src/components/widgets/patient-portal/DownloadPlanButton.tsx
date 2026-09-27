@@ -47,6 +47,85 @@ async function fetchImageAsDataUri(path: string): Promise<string> {
     });
 }
 
+function readBlobAsDataUri(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+                return;
+            }
+
+            reject(new Error('No se pudo leer la imagen'));
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+/** Detects PNG/JPEG by magic bytes; the Content-Type header can't be trusted. */
+async function sniffPdfImageMime(
+    blob: Blob
+): Promise<'image/png' | 'image/jpeg' | null> {
+    const bytes = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+
+    if (
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47
+    ) {
+        return 'image/png';
+    }
+
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+        return 'image/jpeg';
+    }
+
+    return null;
+}
+
+/**
+ * react-pdf only renders PNG and JPEG. Other formats (WebP, AVIF, GIF…) load
+ * fine but render as an empty box, so they're re-encoded to JPEG via canvas.
+ */
+async function fetchRecipeImageAsPdfDataUri(url: string): Promise<string> {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`No se pudo cargar la imagen (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const mime = await sniffPdfImageMime(blob);
+
+    if (mime) {
+        return readBlobAsDataUri(new Blob([blob], {type: mime}));
+    }
+
+    const bitmap = await createImageBitmap(blob);
+
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            throw new Error('No se pudo convertir la imagen');
+        }
+
+        // JPEG has no alpha; paint white under transparent images.
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0);
+
+        return canvas.toDataURL('image/jpeg', 0.9);
+    } finally {
+        bitmap.close();
+    }
+}
+
 async function resolveImageSrc(
     imageUrl: string | null,
     cache: Map<string, string>,
@@ -75,10 +154,14 @@ async function resolveImageSrc(
     }
 
     try {
-        const src = await fetchImageAsDataUri(fetchUrl);
+        const src = await fetchRecipeImageAsPdfDataUri(fetchUrl);
         cache.set(trimmed, src);
         return src;
-    } catch {
+    } catch (error) {
+        console.warn('[plan-pdf] Recipe image failed, using fallback', {
+            imageUrl: trimmed,
+            error
+        });
         return fallbackSrc;
     }
 }

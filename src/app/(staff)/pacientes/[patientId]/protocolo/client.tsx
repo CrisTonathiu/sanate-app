@@ -46,7 +46,10 @@ import {
     collectProteinFamiliesUsedOnSameDay
 } from '@/lib/services/protocol/protocol-week-recipe-schedule';
 import {useGetPreviouslyAssignedRecipeIds} from '@/hooks/use-patient-protocols';
-import type {ProtocolDraftSnapshot} from '@/lib/services/protocol/protocol-week-plan.service';
+import type {
+    PatientProtocolDetail,
+    ProtocolDraftSnapshot
+} from '@/lib/services/protocol/protocol-week-plan.service';
 import {
     countWeeksInPlan,
     dayBelongsToWeek,
@@ -60,6 +63,8 @@ import {
 
 interface ClientPageProps {
     patientId: string;
+    /** When set, the wizard opens this ACTIVE protocol for in-place editing. */
+    editProtocolId?: string | null;
 }
 
 type MacroMealDistributionPayload = Record<
@@ -164,7 +169,10 @@ function serializeDistributionConfig(config: DistributionConfig): string {
     return JSON.stringify(config);
 }
 
-export default function PacienteProtocolClient({patientId}: ClientPageProps) {
+export default function PacienteProtocolClient({
+    patientId,
+    editProtocolId = null
+}: ClientPageProps) {
     const router = useRouter();
     const {data: patient, isPending} = useGetPatientProfile(patientId);
     const {data: allergies = [], isPending: isPendingAllergies} =
@@ -234,8 +242,14 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const [isFirstConsultation] = useState<boolean>(true);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [recipeModalOpen, setRecipeModalOpen] = useState<boolean>(false);
-    const [isStartDialogOpen, setIsStartDialogOpen] =
-        useState<boolean>(isFirstConsultation);
+    const [isStartDialogOpen, setIsStartDialogOpen] = useState<boolean>(
+        isFirstConsultation && !editProtocolId
+    );
+    // True once an ACTIVE protocol is loaded for in-place editing; saving then
+    // overwrites it (keeping its start date) and drafts are disabled.
+    const [isEditingActive, setIsEditingActive] = useState<boolean>(false);
+    const [isLoadingEditProtocol, setIsLoadingEditProtocol] =
+        useState<boolean>(Boolean(editProtocolId));
     const [protocolTemplates, setProtocolTemplates] = useState<
         ProtocolTemplateRecord[]
     >([]);
@@ -397,6 +411,86 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
             cancelled = true;
         };
     }, [patientId]);
+
+    useEffect(() => {
+        if (!editProtocolId) return;
+
+        let cancelled = false;
+
+        const loadProtocolForEdit = async () => {
+            try {
+                const response = await fetch(
+                    `/api/patients/${patientId}/protocols/${editProtocolId}`,
+                    {credentials: 'include'}
+                );
+                const result = await response.json();
+                const protocol = result?.data as
+                    | PatientProtocolDetail
+                    | undefined;
+
+                if (cancelled) return;
+
+                if (!response.ok || !result?.success || !protocol) {
+                    throw new Error(
+                        result?.message || 'No se pudo cargar el protocolo'
+                    );
+                }
+
+                if (protocol.status !== 'ACTIVE') {
+                    throw new Error(
+                        'Solo se puede editar el protocolo activo del paciente.'
+                    );
+                }
+
+                setActiveProtocolId(protocol.protocolId);
+                setActiveProtocolCreatedAt(protocol.createdAt);
+                setIsEditingActive(true);
+                setDiagnosis(protocol.title);
+                setWeekCount(protocol.weekCount);
+                setWeekPlan(protocol.weekPlan);
+                setGeneratedConfigKey(null);
+                setAffiliateLinks(protocol.affiliateLinks ?? []);
+                setGeneralRecommendations(
+                    protocol.generalRecommendations ?? ''
+                );
+                setTips(protocol.tips ?? '');
+                setHydrationRecommendations(
+                    protocol.hydrationRecommendations ?? ''
+                );
+                setSupplementRecommendations(
+                    protocol.supplementRecommendations ?? ''
+                );
+                setSelectedTemplateName(null);
+                // Saved meals already carry their recipe steps; regenerating
+                // would overwrite the shared recipes' instructions with AI
+                // output and compete with the save for DB connections.
+                setAiInstructionsGenerated(true);
+                setCurrentStep(4);
+                setMaxStepReached(maxStep);
+                setShowMenuDownload(false);
+                setBaselineFormState(null);
+            } catch (error) {
+                if (cancelled) return;
+                window.alert(
+                    error instanceof Error
+                        ? error.message
+                        : 'No se pudo cargar el protocolo'
+                );
+                setIsStartDialogOpen(isFirstConsultation);
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingEditProtocol(false);
+                }
+            }
+        };
+
+        void loadProtocolForEdit();
+
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per protocol
+    }, [patientId, editProtocolId]);
 
     useEffect(() => {
         if (!isDirty) return;
@@ -795,6 +889,7 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     // Once the protocol is completed it is ACTIVE; saving a draft then would
     // fork a second protocol, so the button only shows for new/draft protocols.
     const canSaveAsDraft =
+        !isEditingActive &&
         !showMenuDownload &&
         (!activeProtocolId || activeProtocolId === existingDraft?.protocolId);
 
@@ -811,6 +906,16 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
     const handleStayEditing = () => {
         setShowLeaveDialog(false);
         setPendingNavigation(null);
+    };
+
+    const handleLeaveWithoutSaving = () => {
+        const href = pendingNavigation;
+        setShowLeaveDialog(false);
+        setPendingNavigation(null);
+
+        if (href) {
+            router.push(href);
+        }
     };
 
     const handleSaveDraftAndLeave = async () => {
@@ -1402,7 +1507,8 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
         isPending ||
         isPendingAllergies ||
         isPendingConditions ||
-        isPendingFoodDislikes
+        isPendingFoodDislikes ||
+        isLoadingEditProtocol
     ) {
         return <ProfileDetailsLoader />;
     }
@@ -1445,14 +1551,18 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                 <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
                     <div>
                         <h1 className='text-2xl sm:text-3xl font-bold tracking-tight text-foreground'>
-                            {isFirstConsultation
-                                ? 'Nuevo Protocolo'
-                                : 'Editar Plan Semanal'}
+                            {isEditingActive
+                                ? 'Editar Protocolo Activo'
+                                : isFirstConsultation
+                                  ? 'Nuevo Protocolo'
+                                  : 'Editar Plan Semanal'}
                         </h1>
                         <p className='text-sm text-muted-foreground mt-1'>
-                            {isFirstConsultation
-                                ? 'Diseña un plan de nutrición personalizado para tu paciente'
-                                : 'Modifica el plan de comidas semanal para esta consulta de seguimiento'}
+                            {isEditingActive
+                                ? 'Los cambios se aplican de inmediato al protocolo que sigue el paciente, sin reiniciar su semana actual'
+                                : isFirstConsultation
+                                  ? 'Diseña un plan de nutrición personalizado para tu paciente'
+                                  : 'Modifica el plan de comidas semanal para esta consulta de seguimiento'}
                         </p>
                     </div>
                 </div>
@@ -1598,9 +1708,14 @@ export default function PacienteProtocolClient({patientId}: ClientPageProps) {
                     }
                 }}
                 onStay={handleStayEditing}
-                onSaveDraft={() => {
-                    void handleSaveDraftAndLeave();
-                }}
+                onSaveDraft={
+                    canSaveAsDraft
+                        ? () => {
+                              void handleSaveDraftAndLeave();
+                          }
+                        : undefined
+                }
+                onLeaveWithoutSaving={handleLeaveWithoutSaving}
             />
         </div>
     );
