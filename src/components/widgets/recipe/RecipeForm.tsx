@@ -967,7 +967,7 @@ export function RecipeForm(props: RecipeFormProps) {
                     </Card>
 
                     {/* Ingredients Section */}
-                    <Card className='border-border bg-card/50 backdrop-blur-sm'>
+                    <Card className='border-border bg-card/50 backdrop-blur-sm relative focus-within:z-20'>
                         <CardHeader className='pb-3 border-b border-border'>
                             <div className='flex min-w-0 items-center justify-between'>
                                 <CardTitle className='text-base flex min-w-0 flex-wrap items-center gap-2'>

@@ -65,7 +65,7 @@ export function IngredientRow({
             animate={{opacity: 1, y: 0}}
             exit={{opacity: 0, x: -20}}
             transition={{duration: 0.2}}
-            className='group relative flex items-start gap-3 p-4 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors'>
+            className='group relative focus-within:z-20 flex items-start gap-3 p-4 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors'>
             <div className='flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 text-primary text-sm font-semibold shrink-0 mt-1'>
                 {index + 1}
             </div>
