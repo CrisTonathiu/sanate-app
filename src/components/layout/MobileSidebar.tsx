@@ -48,6 +48,7 @@ export default function MobileSidebar({
                         firstName={firstName}
                         lastName={lastName}
                         avatarUrl={avatarUrl}
+                        onNavigate={handleClose}
                     />
                 </div>
             </div>
