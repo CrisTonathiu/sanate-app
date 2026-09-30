@@ -43,7 +43,8 @@ function mapPortionToDbIngredient(portion: MealIngredientPortion) {
             portion.targetQuantity ??
             (unit === 'GRAM' ? portion.targetGrams : baseQuantity),
         baseGrams: portion.baseGrams,
-        targetGrams: portion.targetGrams
+        targetGrams: portion.targetGrams,
+        allowPieceFractions: portion.allowPieceFractions === true
     };
 }
 
@@ -99,6 +100,7 @@ export function mapDbIngredientsToMealPortions(
         targetQuantity: number;
         baseGrams: number;
         targetGrams: number;
+        allowPieceFractions?: boolean;
     }>,
     recipeIngredients?: Array<{
         ingredient: {
@@ -140,7 +142,9 @@ export function mapDbIngredientsToMealPortions(
             targetGrams: row.targetGrams,
             unit: row.unit,
             isDiscrete: food?.isDiscrete ?? false,
-            allowPieceFractions: food?.allowPieceFractions === true,
+            allowPieceFractions:
+                row.allowPieceFractions === true ||
+                food?.allowPieceFractions === true,
             baseCalories: kcal,
             baseProtein: food?.proteinPer100g ?? undefined,
             baseCarbs: food?.carbsPer100g ?? undefined,
@@ -231,6 +235,7 @@ export type StoredProtocolMealPortions = {
         targetQuantity: number;
         baseGrams: number;
         targetGrams: number;
+        allowPieceFractions?: boolean;
     }>;
 };
 
@@ -314,7 +319,10 @@ export function buildMealSlotFromProtocolMeal(meal: {
                             carbsPer100g:
                                 ingredient.ingredient.food?.carbsPer100g,
                             fatPer100g: ingredient.ingredient.food?.fatPer100g,
-                            density: ingredient.ingredient.food?.density
+                            density: ingredient.ingredient.food?.density,
+                            isDiscrete: ingredient.ingredient.food?.isDiscrete,
+                            allowPieceFractions:
+                                ingredient.ingredient.food?.allowPieceFractions
                         } as any
                     }
                 }))
@@ -513,6 +521,7 @@ export function mapStoredPortionsToSliderIngredients(
                 targetQuantity: row.targetQuantity,
                 isDiscrete: recipeRow?.ingredient.food?.isDiscrete ?? false,
                 allowPieceFractions:
+                    row.allowPieceFractions === true ||
                     recipeRow?.ingredient.food?.allowPieceFractions === true
             },
             recipeBase

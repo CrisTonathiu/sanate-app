@@ -131,7 +131,8 @@ async function loadActiveProtocolWeekDays(userId: string, now: Date = new Date()
                                                     baseQuantity: true,
                                                     targetQuantity: true,
                                                     baseGrams: true,
-                                                    targetGrams: true
+                                                    targetGrams: true,
+                                                    allowPieceFractions: true
                                                 }
                                             }
                                         }

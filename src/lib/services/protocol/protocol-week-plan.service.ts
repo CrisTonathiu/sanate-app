@@ -181,7 +181,8 @@ export const protocolMealWithPortionsSelect = {
                     baseQuantity: true,
                     targetQuantity: true,
                     baseGrams: true,
-                    targetGrams: true
+                    targetGrams: true,
+                    allowPieceFractions: true
                 }
             }
         }

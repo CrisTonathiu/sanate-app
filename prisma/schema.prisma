@@ -597,6 +597,9 @@ model ProtocolMealIngredient {
   baseGrams      Float
   targetGrams    Float
 
+  // Staff typed a fractional pz (1/3 aguacate); keep it when displaying.
+  allowPieceFractions Boolean @default(false)
+
   @@index([portionsId])
 }
 
