@@ -82,6 +82,32 @@ function findFoodByName(foods: Food[], name?: string) {
     return foods.find(food => food.name.toLowerCase() === query);
 }
 
+/**
+ * Fills piece flags from the food catalog. Older meals were saved without
+ * them (1/2 pz aguacate reopened as 1 pz). A saved fraction override wins.
+ */
+function withCatalogPieceFlags<
+    T extends {
+        ingredientName: string;
+        isDiscrete?: boolean;
+        allowPieceFractions?: boolean;
+    }
+>(portion: T, foods: Food[]): T {
+    const food = findFoodByName(foods, portion.ingredientName);
+    if (!food) return portion;
+
+    return {
+        ...portion,
+        isDiscrete: portion.isDiscrete === true || food.isDiscrete === true,
+        allowPieceFractions:
+            portion.allowPieceFractions === true ||
+            food.allowPieceFractions === true
+    };
+}
+
+/** Quantities typed in the editor keep kitchen fractions, even for pz. */
+const MANUAL_QUANTITY_OPTIONS = {allowFractions: true};
+
 function roundNutritionGrams(value: number) {
     return Math.round(value * 10) / 10;
 }
@@ -292,7 +318,11 @@ function resolveTargetQuantity(portion: EditablePortion) {
 
     const qty = Math.round(parsed * 1000) / 1000;
     if (isDiscreteUnit(portion.unit)) {
-        return snapQuantityForUnit(qty, portion.unit, pieceSnapOptions(portion));
+        return snapQuantityForUnit(
+            qty,
+            portion.unit,
+            MANUAL_QUANTITY_OPTIONS
+        );
     }
     if (isWholeCountUnit(portion.unit)) {
         return snapQuantityForUnit(qty, portion.unit);
@@ -370,7 +400,8 @@ export default function MealEditModal({
         setRecipeName(meal.recipeName);
         setPortionsDirty(false);
         setPortions(
-            (meal.ingredientPortions ?? []).map(p => {
+            (meal.ingredientPortions ?? []).map(saved => {
+                const p = withCatalogPieceFlags(saved, allFoods);
                 const {amount: quantityLabel} = formatMealPortionDisplay(p);
                 const parsedQuantity =
                     parseIngredientQuantity(quantityLabel) ??
@@ -399,13 +430,16 @@ export default function MealEditModal({
         setApplyToAllDays(false);
     };
 
+    const foodsLoaded = allFoods.length > 0;
+
     useEffect(() => {
         if (!open) return;
         initializeIngredients();
-        // Only re-init when the modal opens or the meal identity changes —
-        // not on every parent re-render with a new meal object reference.
+        // Only re-init when the modal opens, the meal identity changes, or
+        // the catalog arrives (piece flags) — not on every parent re-render
+        // with a new meal object reference.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, meal?.id]);
+    }, [open, meal?.id, foodsLoaded]);
 
     const isDiscrete = isDiscreteUnit;
 
@@ -728,9 +762,22 @@ export default function MealEditModal({
                 ...portion
             }) => {
                 const isGrams = unitLabel(portion.unit) === 'g';
+                const isPiece = isDiscreteUnit(portion.unit);
+                const hasPieceFraction =
+                    isPiece &&
+                    Math.abs(
+                        portion.targetQuantity -
+                            Math.round(portion.targetQuantity)
+                    ) > 0.001;
 
                 return {
                     ...portion,
+                    // A typed 1/3 pz must survive display snapping on the
+                    // card and patient views, which round pz to whole.
+                    isDiscrete: isPiece ? true : portion.isDiscrete,
+                    allowPieceFractions:
+                        portion.allowPieceFractions === true ||
+                        hasPieceFraction,
                     // Keep quantity in sync with grams for weight units so
                     // MealCell (and later reloads) always show the edited amount.
                     targetQuantity: isGrams
@@ -1052,8 +1099,7 @@ export default function MealEditModal({
                                                                 {
                                                                     isDiscrete:
                                                                         quantityIsDiscrete,
-                                                                    allowFractions:
-                                                                        discrete
+                                                                    ...MANUAL_QUANTITY_OPTIONS
                                                                 }
                                                             )
                                                         );

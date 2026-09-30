@@ -155,7 +155,8 @@ const protocolMealRecipeSelect = {
                     baseQuantity: true,
                     targetQuantity: true,
                     baseGrams: true,
-                    targetGrams: true
+                    targetGrams: true,
+                    allowPieceFractions: true
                 }
             }
         }
