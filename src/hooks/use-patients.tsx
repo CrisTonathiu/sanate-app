@@ -51,8 +51,6 @@ export function useGetPatients() {
                     gender: string | null;
                     height: number | null;
                     initWeight: number | null;
-                    isActive: boolean;
-                    lastLoginAt: string | null;
                     createdAt: string;
                     updatedAt: string;
                     user: {
@@ -62,6 +60,8 @@ export function useGetPatients() {
                         email: string;
                         phone: string | null;
                         whatsappNumber: string | null;
+                        isActive: boolean;
+                        lastLoginAt: string | null;
                         role: 'ADMIN' | 'NUTRITIONIST' | 'PATIENT';
                         createdAt: string;
                         updatedAt: string;
@@ -73,10 +73,8 @@ export function useGetPatients() {
                     gender: translateGender(row.gender),
                     height: row.height,
                     initWeight: row.initWeight,
-                    isActive: row.isActive,
                     createdAt: row.createdAt,
-                    updatedAt: row.updatedAt,
-                    lastLoginAt: row.lastLoginAt
+                    updatedAt: row.updatedAt
                 })
             ) as PatientProfileDTO[];
         }

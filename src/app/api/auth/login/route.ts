@@ -1,4 +1,5 @@
 import {createClient} from '@/lib/supabase/server';
+import {prisma} from '@/lib/prisma';
 
 export async function POST(req: Request) {
     const body = await req.json();
@@ -16,6 +17,13 @@ export async function POST(req: Request) {
             {message: 'Correo o contraseña incorrectos.'},
             {status: 401}
         );
+    }
+
+    if (data.user?.email) {
+        await prisma.user.updateMany({
+            where: {email: data.user.email.trim()},
+            data: {lastLoginAt: new Date()}
+        });
     }
 
     return Response.json({

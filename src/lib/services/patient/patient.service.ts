@@ -96,7 +96,9 @@ export async function getPatients() {
                         firstName: true,
                         lastName: true,
                         email: true,
-                        phone: true
+                        phone: true,
+                        isActive: true,
+                        lastLoginAt: true
                     }
                 },
                 birthDate: true,
