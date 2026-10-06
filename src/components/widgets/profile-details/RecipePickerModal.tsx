@@ -5,7 +5,10 @@ import {useGetRecipes, Recipe} from '@/hooks/use-recipes';
 import {useGetAppSettings} from '@/hooks/use-app-settings';
 import {getAllowedRecipeTypesForSlot} from '@/lib/utils/mix-main-meals';
 import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
-import {collectRecipeProteinFamilies, proteinVarietyRank} from '@/lib/utils/protein-family';
+import {
+    collectRecipeProteinFamilies,
+    proteinVarietyRank
+} from '@/lib/utils/protein-family';
 import {normalizeExtraIngredientNames} from '@/lib/utils/extra-ingredients';
 import {resolveFoodPortionGramsFromCatalog} from '@/lib/utils/food-portion-limits';
 import {
@@ -14,9 +17,7 @@ import {
     mealTypeLabel
 } from '@/lib/config/meal-config';
 import {MealSlot, MealIngredientPortion} from '@/lib/interface/meal-interface';
-import {
-    resolveIngredientNutritionGrams
-} from '@/lib/utils/ingredient-quantity';
+import {resolveIngredientNutritionGrams} from '@/lib/utils/ingredient-quantity';
 import {
     buildMacroAdjustmentWarnings,
     computeIngredientScalesForMacros,
@@ -42,17 +43,6 @@ import {
 } from '@/components/ui/select';
 import {Button} from '@/components/ui/button';
 import {cn} from '@/lib/utils';
-
-// Maps MealType (lowercase) to the DB MealType (uppercase) values
-const MEAL_TYPE_MAP: Record<string, string[]> = {
-    smoothie: ['SMOOTHIE'],
-    breakfast: ['BREAKFAST'],
-    snack1: ['SNACK1', 'SNACK', 'ANY'],
-    snack2: ['SNACK2', 'SNACK', 'ANY'],
-    lunch: ['LUNCH', 'ANY'],
-    dinner: ['DINNER', 'ANY'],
-    drinks: ['DRINKS', 'ANY']
-};
 
 function round1(v: number) {
     return Number(v.toFixed(1));
@@ -273,9 +263,7 @@ export default function RecipePickerModal({
     );
 
     const filtered = useMemo(() => {
-        const allowed = mixMainMeals
-            ? getAllowedRecipeTypesForSlot(mealType, true)
-            : (MEAL_TYPE_MAP[mealType] ?? []);
+        const allowed = getAllowedRecipeTypesForSlot(mealType, mixMainMeals);
         const candidates = filterRecipesByMacroFoodGroups(
             allRecipes
                 .filter(r => allowed.includes(r.mealType))
