@@ -62,6 +62,11 @@ export async function GET(request: Request) {
             },
             data: {isClaimed: true}
         });
+
+        await prisma.user.updateMany({
+            where: {email},
+            data: {lastLoginAt: new Date()}
+        });
     }
 
     return NextResponse.redirect(`${origin}${next}`);
