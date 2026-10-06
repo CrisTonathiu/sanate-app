@@ -1,12 +1,9 @@
 /**
  * Breakfast, lunch, and dinner can share recipes with each other.
- * Smoothies, snacks, and drinks stay in their own slots.
+ * Smoothie recipes can also be picked for breakfast, lunch, and dinner
+ * (see SLOT_TO_RECIPE_TYPES); snacks and drinks stay in their own slots.
  */
-export const MIXABLE_MAIN_MEAL_KEYS = [
-    'breakfast',
-    'lunch',
-    'dinner'
-] as const;
+export const MIXABLE_MAIN_MEAL_KEYS = ['breakfast', 'lunch', 'dinner'] as const;
 
 export type MixableMainMealKey = (typeof MIXABLE_MAIN_MEAL_KEYS)[number];
 
@@ -56,11 +53,11 @@ export function applyMixableMainMealsCatalog<T extends {id: string}>(
 
 const SLOT_TO_RECIPE_TYPES: Record<string, string[]> = {
     smoothie: ['SMOOTHIE'],
-    breakfast: ['BREAKFAST'],
+    breakfast: ['BREAKFAST', 'SMOOTHIE'],
     snack1: ['SNACK1', 'SNACK', 'ANY'],
     snack2: ['SNACK2', 'SNACK', 'ANY'],
-    lunch: ['LUNCH', 'ANY'],
-    dinner: ['DINNER', 'ANY'],
+    lunch: ['LUNCH', 'ANY', 'SMOOTHIE'],
+    dinner: ['DINNER', 'ANY', 'SMOOTHIE'],
     drinks: ['DRINKS', 'ANY']
 };
 
