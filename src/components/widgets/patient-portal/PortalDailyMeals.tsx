@@ -4,16 +4,19 @@ import {useMemo, useState} from 'react';
 import {CalorieProgress} from '@/components/widgets/patient-portal/CalorieProgress';
 import {MealSlider} from '@/components/widgets/patient-portal/MealSlider';
 import {WeekSelector} from '@/components/widgets/patient-portal/WeekSelector';
+import type {SwapCatalogFood} from '@/lib/patient-portal/ingredient-swaps';
 import type {WeekDayMealPlan} from '@/lib/services/patient/patient-meal-by-type.service';
 
 interface PortalDailyMealsProps {
     weekPlan: WeekDayMealPlan[];
+    swapCatalog: SwapCatalogFood[];
     weekDays: Array<{dayName: string; date: number}>;
     initialDayIndex: number;
 }
 
 export function PortalDailyMeals({
     weekPlan,
+    swapCatalog,
     weekDays,
     initialDayIndex
 }: PortalDailyMealsProps) {
@@ -87,7 +90,7 @@ export function PortalDailyMeals({
                 className='mt-8'
                 data-slider-meals={meals.length}
                 key={`${selectedIndex}-${meals.map(recipe => recipe.id).join('|')}`}>
-                <MealSlider recipes={meals} />
+                <MealSlider recipes={meals} swapCatalog={swapCatalog} />
             </section>
         </div>
     );

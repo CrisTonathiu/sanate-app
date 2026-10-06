@@ -11,6 +11,7 @@ import {
     Flame
 } from 'lucide-react';
 import {RecipeModal} from './RecipeModal';
+import type {SwapCatalogFood} from '@/lib/patient-portal/ingredient-swaps';
 import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
 import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
@@ -47,9 +48,10 @@ function chunkArray<T>(array: T[], size: number): T[][] {
 
 type MealSliderProps = {
     recipes: MealSliderRecipe[];
+    swapCatalog?: SwapCatalogFood[];
 };
 
-export function MealSlider({recipes}: MealSliderProps) {
+export function MealSlider({recipes, swapCatalog = []}: MealSliderProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [selectedRecipe, setSelectedRecipe] =
         useState<MealSliderRecipe | null>(null);
@@ -228,7 +230,9 @@ export function MealSlider({recipes}: MealSliderProps) {
             </div>
 
             <RecipeModal
+                key={selectedRecipe?.id ?? 'none'}
                 recipe={selectedRecipe}
+                swapCatalog={swapCatalog}
                 onClose={() => setSelectedRecipe(null)}
             />
         </>

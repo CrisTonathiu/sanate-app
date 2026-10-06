@@ -5,7 +5,11 @@ import {
     type StoredProtocolMealPortions
 } from '@/lib/services/protocol/protocol-meal-portions.mapper';
 import {PROTOCOL_MEAL_LABELS} from '@/lib/config/protocol-meal-times';
-import {formatIngredientQuantity} from '@/lib/utils/ingredient-quantity';
+import {
+    formatIngredientQuantity,
+    resolveIngredientNutritionGrams
+} from '@/lib/utils/ingredient-quantity';
+import type {IngredientSwapSource} from './ingredient-swaps';
 import {resolveMealExtraIngredients} from '@/lib/utils/extra-ingredients';
 
 /**
@@ -26,7 +30,8 @@ export type MealSliderRecipe = {
         name: string;
         amount: string;
         unit: string;
-        equivalents?: string[];
+        /** Catalog food behind this row; set when it can be swapped. */
+        swapSource?: IngredientSwapSource;
     }[];
     instructions: string[];
     /** Collapsed category for slider card icons. */
@@ -121,7 +126,10 @@ type ProtocolRecipeForSlider = {
         grams: number;
         quantity: number | null;
         unit: string;
-        ingredient: {name: string; food?: NutritionFood | null};
+        ingredient: {
+            name: string;
+            food?: (NutritionFood & {id?: string}) | null;
+        };
     }>;
     extraIngredients: Array<{name: string}>;
     steps: Array<{stepNumber: number; instruction: string}>;
@@ -134,6 +142,42 @@ type ProtocolMealForSlider = {
     recipe: ProtocolRecipeForSlider | null;
     portions?: StoredProtocolMealPortions | null;
 };
+
+/** One entry per ingredient row, in the same order the slider lists them. */
+function resolveSwapSources(
+    recipe: ProtocolRecipeForSlider,
+    storedPortions: StoredProtocolMealPortions | null | undefined
+): Array<IngredientSwapSource | undefined> {
+    if (storedPortions) {
+        return storedPortions.ingredients.map(row => {
+            const key = row.ingredientName.trim().toLowerCase();
+            const foodId = recipe.ingredients.find(
+                item => item.ingredient.name.trim().toLowerCase() === key
+            )?.ingredient.food?.id;
+
+            return foodId && row.targetGrams > 0
+                ? {foodId, grams: row.targetGrams}
+                : undefined;
+        });
+    }
+
+    return recipe.ingredients.map(row => {
+        const food = row.ingredient.food;
+        if (!food?.id) {
+            return undefined;
+        }
+
+        const grams = resolveIngredientNutritionGrams(
+            row.quantity,
+            row.unit,
+            row.grams,
+            food.density,
+            food.gramsPerPiece
+        );
+
+        return grams > 0 ? {foodId: food.id, grams} : undefined;
+    });
+}
 
 export function mapProtocolMealToSliderRecipe(
     meal: ProtocolMealForSlider,
@@ -172,6 +216,14 @@ export function mapProtocolMealToSliderRecipe(
                   unit
               };
           });
+
+    const swapSources = resolveSwapSources(recipe, storedPortions);
+    ingredients.forEach((ingredient, index) => {
+        const swapSource = swapSources[index];
+        if (swapSource) {
+            ingredient.swapSource = swapSource;
+        }
+    });
 
     for (const extraName of resolveMealExtraIngredients(
         meal.extraIngredients,
