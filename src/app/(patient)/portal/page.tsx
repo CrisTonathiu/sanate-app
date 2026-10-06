@@ -4,6 +4,7 @@ import {PortalDailyMeals} from '@/components/widgets/patient-portal/PortalDailyM
 import Link from 'next/link';
 import PortalHeader from '@/components/widgets/patient-portal/PortalHeader';
 import {loadWeekProtocolMeals} from '@/lib/services/patient/patient-meal-by-type.service';
+import {loadIngredientSwapCatalog} from '@/lib/services/food/ingredient-swaps.service';
 import {AffiliateProducts} from '@/components/widgets/patient-portal/AffiliateProducts';
 import {parseAffiliateLinks} from '@/lib/utils/affiliate-links';
 import {prisma} from '@/lib/prisma';
@@ -63,8 +64,11 @@ async function getPortalData() {
         return null;
     }
 
-    const {weekPlan, protocolWeekCount, activeProtocolWeekIndex} =
-        await loadWeekProtocolMeals(user.id);
+    const [{weekPlan, protocolWeekCount, activeProtocolWeekIndex}, swapCatalog] =
+        await Promise.all([
+            loadWeekProtocolMeals(user.id),
+            loadIngredientSwapCatalog(patient.id)
+        ]);
 
     if (weekPlan.length === 0) {
         return null;
@@ -87,6 +91,7 @@ async function getPortalData() {
     return {
         patient,
         weekPlan,
+        swapCatalog,
         weekDays,
         todayIndex,
         affiliateLinks,
@@ -161,6 +166,7 @@ export default async function PatientPortal() {
                         ) : null}
                         <PortalDailyMeals
                             weekPlan={data.weekPlan}
+                            swapCatalog={data.swapCatalog}
                             weekDays={data.weekDays}
                             initialDayIndex={data.todayIndex || 0}
                         />

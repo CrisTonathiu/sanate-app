@@ -23,6 +23,7 @@ const protocolMealRecipeSelect = {
                     name: true,
                     food: {
                         select: {
+                            id: true,
                             caloriesPer100g: true,
                             proteinPer100g: true,
                             carbsPer100g: true,

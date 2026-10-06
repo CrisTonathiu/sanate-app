@@ -335,6 +335,59 @@ function formatItemLine(
     };
 }
 
+/**
+ * PDF column a food group belongs to. Foods in the same column are
+ * interchangeable (e.g. papa ↔ arroz, fresa ↔ manzana).
+ */
+export function equivalenciasColumnKeyForGroup(
+    groupName: string
+): string | null {
+    const normalized = groupName.trim().toUpperCase();
+    const def = COLUMN_DEFS.find(column =>
+        column.groups.some(group => group.name === normalized)
+    );
+    return def?.key ?? null;
+}
+
+/**
+ * Household measure for a gram amount ("1/2 taza", "2 pzas") from the food's
+ * SMAE display text. Null when the food has no parseable display text.
+ */
+export function formatEquivalentHint(
+    food: Pick<
+        EquivalenciasFoodRow,
+        | 'isDiscrete'
+        | 'allowPieceFractions'
+        | 'gramsPerEquivalent'
+        | 'equivalentDisplayText'
+    >,
+    grams: number
+): string | null {
+    const text = food.equivalentDisplayText?.trim();
+    if (
+        !text ||
+        !parseDisplayQuantity(text) ||
+        food.gramsPerEquivalent == null ||
+        !(food.gramsPerEquivalent > 0) ||
+        !(grams > 0)
+    ) {
+        return null;
+    }
+
+    const row: EquivalenciasFoodRow = {
+        name: '',
+        groupName: '',
+        isFree: false,
+        ...food
+    };
+
+    return formatEquivalentAmount(
+        row,
+        grams / food.gramsPerEquivalent,
+        snapModeForFood(row, 'quarter')
+    );
+}
+
 function foodsForGroup(
     foods: EquivalenciasFoodRow[],
     groupName: string

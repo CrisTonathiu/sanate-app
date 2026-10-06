@@ -1,41 +1,83 @@
 'use client';
 
-import {useState} from 'react';
+import {useMemo, useState} from 'react';
 import {X, Clock, Flame, RefreshCw, Check, UtensilsCrossed} from 'lucide-react';
+import {
+    buildIngredientSwapOptions,
+    type IngredientSwapOption,
+    type SwapCatalogFood
+} from '@/lib/patient-portal/ingredient-swaps';
 import type {MealSliderRecipe} from '@/lib/patient-portal/protocol-meal-slider-map';
 import {getSafeRecipeImageSrc} from '@/lib/utils/recipe-image-url';
 
 interface RecipeModalProps {
     recipe: MealSliderRecipe | null;
+    swapCatalog?: SwapCatalogFood[];
     onClose: () => void;
 }
 
-export function RecipeModal({recipe, onClose}: RecipeModalProps) {
+function formatCalorieDelta(delta: number): string {
+    if (delta === 0) {
+        return '±0 kcal';
+    }
+    return `${delta > 0 ? '+' : '−'}${Math.abs(delta)} kcal`;
+}
+
+export function RecipeModal({
+    recipe,
+    swapCatalog = [],
+    onClose
+}: RecipeModalProps) {
     const [activeTab, setActiveTab] = useState<'ingredients' | 'instructions'>(
         'ingredients'
     );
+    // Keyed by ingredient index; MealSlider remounts the modal per recipe.
     const [swappedIngredients, setSwappedIngredients] = useState<
-        Record<string, string>
+        Record<number, IngredientSwapOption>
     >({});
-    const [showEquivalents, setShowEquivalents] = useState<string | null>(null);
+    const [showEquivalents, setShowEquivalents] = useState<number | null>(null);
+
+    const swapOptions = useMemo(() => {
+        const ingredients = recipe?.ingredients ?? [];
+        const mealFoodIds = new Set(
+            ingredients.flatMap(ingredient =>
+                ingredient.swapSource ? [ingredient.swapSource.foodId] : []
+            )
+        );
+
+        return ingredients.map(ingredient =>
+            ingredient.swapSource
+                ? buildIngredientSwapOptions(
+                      ingredient.swapSource,
+                      swapCatalog,
+                      mealFoodIds
+                  )
+                : []
+        );
+    }, [recipe, swapCatalog]);
 
     if (!recipe) return null;
 
     const imageSrc =
         getSafeRecipeImageSrc(recipe.image) ?? '/recipe-placeholder.svg';
 
-    const handleSwap = (ingredientName: string, equivalent: string) => {
+    const totalCalorieDelta = Object.values(swappedIngredients).reduce(
+        (sum, swap) => sum + swap.calorieDelta,
+        0
+    );
+
+    const handleSwap = (index: number, option: IngredientSwapOption) => {
         setSwappedIngredients(prev => ({
             ...prev,
-            [ingredientName]: equivalent
+            [index]: option
         }));
         setShowEquivalents(null);
     };
 
-    const resetSwap = (ingredientName: string) => {
+    const resetSwap = (index: number) => {
         setSwappedIngredients(prev => {
             const updated = {...prev};
-            delete updated[ingredientName];
+            delete updated[index];
             return updated;
         });
     };
@@ -84,7 +126,14 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                             <div className='flex items-center gap-1.5 text-white/90'>
                                 <Flame className='h-4 w-4 text-amber-400' />
                                 <span className='text-sm'>
-                                    {recipe.calories} kcal
+                                    {recipe.calories + totalCalorieDelta} kcal
+                                    {totalCalorieDelta !== 0 && (
+                                        <span className='ml-1 text-white/70'>
+                                            ({formatCalorieDelta(
+                                                totalCalorieDelta
+                                            )})
+                                        </span>
+                                    )}
                                 </span>
                             </div>
                         </div>
@@ -118,18 +167,20 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                     {activeTab === 'ingredients' && (
                         <ul className='space-y-3'>
                             {recipe.ingredients.map((ingredient, index) => {
-                                const isSwapped =
-                                    swappedIngredients[ingredient.name];
+                                const swap = swappedIngredients[index];
+                                const options = swapOptions[index] ?? [];
+                                const amount = swap
+                                    ? swap.amount
+                                    : ingredient.amount;
+                                const unit = swap ? swap.unit : ingredient.unit;
 
                                 return (
                                     <li key={index} className='relative'>
                                         <div className='flex items-center justify-between rounded-lg bg-muted/50 p-3'>
                                             <div className='flex items-center gap-3'>
-                                                {ingredient.amount ? (
+                                                {amount ? (
                                                     <div className='flex h-10 w-10 flex-shrink-0 flex-col items-center justify-center rounded-full bg-amber-400/20 text-xs font-semibold leading-tight text-amber-500'>
-                                                        <span>
-                                                            {ingredient.amount}
-                                                        </span>
+                                                        <span>{amount}</span>
                                                     </div>
                                                 ) : (
                                                     <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground'>
@@ -138,86 +189,105 @@ export function RecipeModal({recipe, onClose}: RecipeModalProps) {
                                                 )}
                                                 <div>
                                                     <p
-                                                        className={`font-medium text-card-foreground ${isSwapped ? 'line-through opacity-50' : ''}`}>
+                                                        className={`font-medium text-card-foreground ${swap ? 'line-through opacity-50' : ''}`}>
                                                         {ingredient.name}
                                                     </p>
-                                                    {isSwapped && (
+                                                    {swap && (
                                                         <p className='text-sm font-medium text-amber-500'>
-                                                            {isSwapped}
+                                                            {swap.name}
+                                                            <span className='ml-1.5 text-xs font-normal text-muted-foreground'>
+                                                                {formatCalorieDelta(
+                                                                    swap.calorieDelta
+                                                                )}
+                                                            </span>
                                                         </p>
                                                     )}
-                                                    {ingredient.unit ? (
+                                                    {unit ? (
                                                         <p className='text-sm text-muted-foreground'>
-                                                            {ingredient.unit}
+                                                            {unit}
+                                                            {swap?.hint
+                                                                ? ` · ${swap.hint}`
+                                                                : ''}
                                                         </p>
                                                     ) : null}
                                                 </div>
                                             </div>
 
-                                            {ingredient.equivalents &&
-                                                ingredient.equivalents.length >
-                                                    0 && (
-                                                    <div className='flex items-center gap-2'>
-                                                        {isSwapped && (
-                                                            <button
-                                                                onClick={() =>
-                                                                    resetSwap(
-                                                                        ingredient.name
-                                                                    )
-                                                                }
-                                                                className='flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80'>
-                                                                <X className='h-4 w-4' />
-                                                            </button>
-                                                        )}
+                                            {options.length > 0 && (
+                                                <div className='flex items-center gap-2'>
+                                                    {swap && (
                                                         <button
                                                             onClick={() =>
-                                                                setShowEquivalents(
-                                                                    showEquivalents ===
-                                                                        ingredient.name
-                                                                        ? null
-                                                                        : ingredient.name
-                                                                )
+                                                                resetSwap(index)
                                                             }
-                                                            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                                                                showEquivalents ===
-                                                                ingredient.name
-                                                                    ? 'bg-amber-400 text-white'
-                                                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                                            }`}>
-                                                            <RefreshCw className='h-4 w-4' />
+                                                            aria-label='Deshacer cambio'
+                                                            className='flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/80'>
+                                                            <X className='h-4 w-4' />
                                                         </button>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                    <button
+                                                        onClick={() =>
+                                                            setShowEquivalents(
+                                                                showEquivalents ===
+                                                                    index
+                                                                    ? null
+                                                                    : index
+                                                            )
+                                                        }
+                                                        aria-label='Cambiar ingrediente'
+                                                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                                                            showEquivalents ===
+                                                            index
+                                                                ? 'bg-amber-400 text-white'
+                                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                                        }`}>
+                                                        <RefreshCw className='h-4 w-4' />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {showEquivalents === ingredient.name &&
-                                            ingredient.equivalents && (
+                                        {showEquivalents === index &&
+                                            options.length > 0 && (
                                                 <div className='mt-2 rounded-lg border border-border bg-card p-2'>
                                                     <p className='mb-2 text-xs font-medium text-muted-foreground'>
                                                         Sustituir por:
                                                     </p>
                                                     <div className='flex flex-wrap gap-2'>
-                                                        {ingredient.equivalents.map(
-                                                            (eq, eqIndex) => (
-                                                                <button
-                                                                    key={
-                                                                        eqIndex
+                                                        {options.map(option => (
+                                                            <button
+                                                                key={
+                                                                    option.foodId
+                                                                }
+                                                                onClick={() =>
+                                                                    handleSwap(
+                                                                        index,
+                                                                        option
+                                                                    )
+                                                                }
+                                                                className='flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm text-card-foreground transition-colors hover:bg-amber-400/20 hover:text-amber-500'>
+                                                                <span>
+                                                                    {
+                                                                        option.amount
+                                                                    }{' '}
+                                                                    {
+                                                                        option.unit
+                                                                    }{' '}
+                                                                    {
+                                                                        option.name
                                                                     }
-                                                                    onClick={() =>
-                                                                        handleSwap(
-                                                                            ingredient.name,
-                                                                            eq
-                                                                        )
-                                                                    }
-                                                                    className='flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm text-card-foreground transition-colors hover:bg-amber-400/20 hover:text-amber-500'>
-                                                                    {eq}
-                                                                    {isSwapped ===
-                                                                        eq && (
-                                                                        <Check className='h-3 w-3 text-amber-500' />
+                                                                </span>
+                                                                <span className='text-xs text-muted-foreground'>
+                                                                    {formatCalorieDelta(
+                                                                        option.calorieDelta
                                                                     )}
-                                                                </button>
-                                                            )
-                                                        )}
+                                                                </span>
+                                                                {swap?.foodId ===
+                                                                    option.foodId && (
+                                                                    <Check className='h-3 w-3 text-amber-500' />
+                                                                )}
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             )}
