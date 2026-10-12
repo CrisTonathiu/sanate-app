@@ -78,6 +78,7 @@ model User {
   consultations        Consultation[]
   protocolTemplates    ProtocolTemplate[]
   videos               Video[]
+  exercises            Exercise[]
   updatedAppSettings   AppSettings[]
 
   createdAt   DateTime  @default(now())
@@ -651,6 +652,32 @@ model Video {
   size        Int    @default(0)
   storagePath String
   publicUrl   String?
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([uploadedById])
+  @@index([category])
+}
+
+enum ExerciseCategory {
+  PRINCIPIANTE
+  AVANZADO
+}
+
+// PDFs de ejercicios que el staff sube para todos los pacientes del portal.
+model Exercise {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  category    ExerciseCategory
+  fileName    String
+  size        Int     @default(0)
+  storagePath String
+  publicUrl   String
 
   uploadedById String
   uploadedBy   User   @relation(fields: [uploadedById], references: [id])

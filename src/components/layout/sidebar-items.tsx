@@ -1,5 +1,6 @@
 import {
     Apple,
+    Dumbbell,
     FileHeart,
     LayoutDashboard,
     Settings,
@@ -46,6 +47,14 @@ export const sidebarItems: SidebarItem[] = [
         items: [
             {title: 'Mis Videos', url: '/videos'},
             {title: 'Subir Video', url: '/videos/subir'}
+        ]
+    },
+    {
+        title: 'Ejercicios',
+        icon: <Dumbbell className='size-4' />,
+        items: [
+            {title: 'Mis Ejercicios', url: '/ejercicios'},
+            {title: 'Subir Ejercicio', url: '/ejercicios/subir'}
         ]
     },
     {
