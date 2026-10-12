@@ -10,6 +10,7 @@ import {
     useGetPatientAllergies,
     useGetPatientConditions,
     useGetPatientFoodDislikes,
+    useGetPatientFoodGroupDislikes,
     useGetPatientProfile
 } from '@/hooks/use-patients';
 import {useEffect, useMemo, useState} from 'react';
@@ -39,6 +40,7 @@ import {
 } from '@/lib/config/meal-config';
 import {ProtocolNavigation} from '@/components/widgets/profile-details/ProtocolNavigation';
 import RecipePickerModal from '@/components/widgets/profile-details/RecipePickerModal';
+import {buildRecipeRestrictions} from '@/lib/utils/recipe-restrictions';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
 import {
     collectRecipeIdsUsedInOtherWeeks,
@@ -181,6 +183,16 @@ export default function PacienteProtocolClient({
         useGetPatientConditions(patientId);
     const {data: foodDislikes = [], isPending: isPendingFoodDislikes} =
         useGetPatientFoodDislikes(patientId);
+    const {data: foodGroupDislikes = []} =
+        useGetPatientFoodGroupDislikes(patientId);
+    const recipeRestrictions = useMemo(
+        () =>
+            buildRecipeRestrictions([
+                ...foodDislikes.map(item => ({id: item.id, name: item.food})),
+                ...foodGroupDislikes.flatMap(group => group.foods)
+            ]),
+        [foodDislikes, foodGroupDislikes]
+    );
     const {data: previouslyAssignedRecipeIds = []} =
         useGetPreviouslyAssignedRecipeIds(patientId);
 
@@ -1653,6 +1665,7 @@ export default function PacienteProtocolClient({
                             : [])
                     ]}
                     previouslyAssignedRecipeIds={previouslyAssignedRecipeIds}
+                    restrictions={recipeRestrictions}
                     excludedProteinFamilies={collectProteinFamiliesUsedOnSameDay(
                         weekPlan,
                         selectedDayMeal.day,

@@ -294,11 +294,22 @@ export function useGetPatientFoodGroupDislikes(patientId?: string) {
                         id?: string;
                         name?: string;
                         color?: string;
+                        items?: Array<{
+                            foodId?: string;
+                            food?: {
+                                id?: string;
+                                name?: string;
+                            } | null;
+                        }>;
                     };
                 }) => ({
                     id: row.group?.id || row.groupId || '',
                     name: row.group?.name || 'Sin nombre',
                     color: row.group?.color || 'violet',
+                    foods: (row.group?.items ?? []).map(item => ({
+                        id: item.food?.id || item.foodId || '',
+                        name: item.food?.name || ''
+                    })),
                     notes: row.notes || undefined
                 })
             ) as PatientFoodGroupDislikeDTO[];
