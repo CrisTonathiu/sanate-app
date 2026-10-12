@@ -1,4 +1,4 @@
-import {User, FileText, ShoppingBag, Video} from 'lucide-react';
+import {Dumbbell, User, FileText, ShoppingBag, Video} from 'lucide-react';
 import {getCurrentUser} from '@/lib/auth/getCurrentUser';
 import {PortalDailyMeals} from '@/components/widgets/patient-portal/PortalDailyMeals';
 import Link from 'next/link';
@@ -116,6 +116,12 @@ const portalCards = [
         description: 'Accede a videos educativos sobre nutricion y bienestar',
         icon: Video,
         path: '/portal/videos'
+    },
+    {
+        title: 'Ejercicios',
+        description: 'Descarga rutinas y guias de ejercicio en PDF',
+        icon: Dumbbell,
+        path: '/portal/ejercicios'
     },
     {
         title: 'Documentos',
