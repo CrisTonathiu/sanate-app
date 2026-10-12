@@ -33,6 +33,7 @@ export interface PatientFoodGroupDislikeDTO {
     id: string;
     name: string;
     color: string;
+    foods: Array<{id: string; name: string}>;
     notes?: string;
 }
 

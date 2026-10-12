@@ -15,6 +15,10 @@ import {
     MIXABLE_MAIN_MEAL_KEYS
 } from '@/lib/utils/mix-main-meals';
 import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
+import {
+    buildRecipeRestrictions,
+    isRecipeRestricted
+} from '@/lib/utils/recipe-restrictions';
 import {collectRecipeProteinFamilies} from '@/lib/utils/protein-family';
 import {resolveFoodPortionGramsFromCatalog} from '@/lib/utils/food-portion-limits';
 import {formatDayLabelWithWeek} from '@/lib/utils/protocol-week-plan';
@@ -536,6 +540,7 @@ export async function generateProtocolPlanForPatient(
                 include: {
                     food: {
                         select: {
+                            id: true,
                             name: true
                         }
                     }
@@ -549,6 +554,7 @@ export async function generateProtocolPlanForPatient(
                                 include: {
                                     food: {
                                         select: {
+                                            id: true,
                                             name: true
                                         }
                                     }
@@ -574,39 +580,11 @@ export async function generateProtocolPlanForPatient(
     const allergyNames = new Set(
         patient.allergies.map(item => normalizeAllergenName(item.allergen.name))
     );
-    const patientFoodDislikes: Array<{food: {name: string}}> =
-        (
-            patient as {
-                foodDislikes?: Array<{food: {name: string}}>;
-            }
-        ).foodDislikes ?? [];
-    const dislikedFoodNames = new Set<string>(
-        patientFoodDislikes.map(item => normalizeAllergenName(item.food.name))
-    );
-    const patientFoodGroupDislikes: Array<{
-        group: {
-            items: Array<{food?: {name?: string} | null}>;
-        };
-    }> =
-        (
-            patient as {
-                foodGroupDislikes?: Array<{
-                    group: {
-                        items: Array<{food?: {name?: string} | null}>;
-                    };
-                }>;
-            }
-        ).foodGroupDislikes ?? [];
-    const dislikedGroupFoodNames = patientFoodGroupDislikes.flatMap(dislike =>
-        dislike.group.items
-            .map(item => item.food?.name)
-            .filter((name): name is string => Boolean(name))
-            .map(name => normalizeAllergenName(name))
-    );
-    const restrictedFoodNames = new Set<string>([
-        ...allergyNames,
-        ...dislikedFoodNames,
-        ...dislikedGroupFoodNames
+    const dislikeRestrictions = buildRecipeRestrictions([
+        ...patient.foodDislikes.map(item => item.food),
+        ...patient.foodGroupDislikes.flatMap(dislike =>
+            dislike.group.items.map(item => item.food)
+        )
     ]);
 
     const recipesFromDb = await prisma.recipe.findMany({
@@ -655,7 +633,11 @@ export async function generateProtocolPlanForPatient(
     });
 
     const allowedRecipes: RecipeSummary[] = recipesFromDb
-        .filter(recipe => isRecipeAllowed(recipe, restrictedFoodNames))
+        .filter(
+            recipe =>
+                isRecipeAllowed(recipe, allergyNames) &&
+                !isRecipeRestricted(recipe, dislikeRestrictions)
+        )
         .map(recipe => {
             const nutrition = computeRecipeNutrition(recipe);
 

@@ -6,6 +6,10 @@ import {useGetAppSettings} from '@/hooks/use-app-settings';
 import {getAllowedRecipeTypesForSlot} from '@/lib/utils/mix-main-meals';
 import {filterRecipesByMacroFoodGroups} from '@/lib/utils/recipe-food-group-filter';
 import {
+    isRecipeRestricted,
+    type RecipeRestrictions
+} from '@/lib/utils/recipe-restrictions';
+import {
     collectRecipeProteinFamilies,
     proteinVarietyRank
 } from '@/lib/utils/protein-family';
@@ -228,6 +232,8 @@ interface RecipePickerModalProps {
     previouslyAssignedRecipeIds?: string[];
     /** Protein types already used in other meals of this day (eggs, chicken, fish, …). */
     excludedProteinFamilies?: string[];
+    /** Foods the patient dislikes — recipes containing them are hidden. */
+    restrictions?: RecipeRestrictions;
     onClose: () => void;
     onSelect: (meal: MealSlot) => void;
 }
@@ -240,6 +246,7 @@ export default function RecipePickerModal({
     excludedRecipeIds = [],
     previouslyAssignedRecipeIds = [],
     excludedProteinFamilies = [],
+    restrictions,
     onClose,
     onSelect
 }: RecipePickerModalProps) {
@@ -269,6 +276,9 @@ export default function RecipePickerModal({
                 .filter(r => allowed.includes(r.mealType))
                 .filter(r => !excluded.has(r.id))
                 .filter(
+                    r => !restrictions || !isRecipeRestricted(r, restrictions)
+                )
+                .filter(
                     r =>
                         search.trim() === '' ||
                         r.title
@@ -296,6 +306,7 @@ export default function RecipePickerModal({
         search,
         excluded,
         excludedProteins,
+        restrictions,
         mixMainMeals,
         macroTarget
     ]);
