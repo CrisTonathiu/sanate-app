@@ -7,7 +7,8 @@ import {
     Image,
     Svg,
     Path,
-    Circle
+    Circle,
+    Link
 } from '@react-pdf/renderer';
 import type {AffiliateLink} from '@/components/widgets/profile-details/AffiliateLinksCard';
 import type {
@@ -123,6 +124,13 @@ const styles = StyleSheet.create({
     },
     affiliateLink: {
         marginBottom: 4
+    },
+    affiliateLinkUrl: {
+        fontSize: BODY_FONT_SIZE,
+        fontFamily: 'Helvetica',
+        color: '#1a5fd0',
+        textDecoration: 'underline',
+        lineHeight: LINE_HEIGHT
     },
     sectionPage: {
         position: 'relative'
@@ -443,6 +451,21 @@ function getValidAffiliateLinks(links: AffiliateLink[]): AffiliateLink[] {
     );
 }
 
+const AFFILIATE_URL_MAX_CHARS = 45;
+
+function toAbsoluteUrl(url: string): string {
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+/** Short display label for an affiliate URL: host + path, truncated. */
+function shortenUrlForDisplay(url: string): string {
+    let display = url.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+    display = display.replace(/[?#].*$/, '').replace(/\/$/, '');
+    return display.length > AFFILIATE_URL_MAX_CHARS
+        ? `${display.slice(0, AFFILIATE_URL_MAX_CHARS - 1)}…`
+        : display;
+}
+
 function normalizeRecommendationText(text: string): string {
     return text
         .replace(/\r\n/g, '\n')
@@ -745,9 +768,12 @@ function PlanRecommendationsPage({
                                 <Text style={styles.bodyText}>
                                     {link.name.trim()}
                                 </Text>
-                                <Text style={styles.bodyText}>
-                                    {link.url.trim()}
-                                </Text>
+                                <Link
+                                    src={toAbsoluteUrl(link.url.trim())}
+                                    style={styles.affiliateLinkUrl}
+                                >
+                                    {shortenUrlForDisplay(link.url.trim())}
+                                </Link>
                             </View>
                         ))}
                     </View>
