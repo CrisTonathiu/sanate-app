@@ -1,18 +1,17 @@
 import type {WhatsAppWebhookMedia} from '@/lib/webhooks/parse-whatsapp-webhook';
 
-function twilioBasicAuthHeader(): string {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
-    const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-    if (!accountSid || !authToken) {
-        throw new Error(
-            'TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN must be configured'
-        );
+const GRAPH_API_VERSION = 'v21.0';
+
+function whatsappAccessToken(): string {
+    const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+    if (!token) {
+        throw new Error('WHATSAPP_ACCESS_TOKEN must be configured');
     }
 
-    return `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;
+    return token;
 }
 
-/** Downloads a Twilio WhatsApp image and returns a data URL for OpenAI vision. */
+/** Downloads a WhatsApp Cloud API image and returns a data URL for OpenAI vision. */
 export async function fetchWhatsAppImageAsDataUrl(
     media: WhatsAppWebhookMedia
 ): Promise<string> {
@@ -20,8 +19,23 @@ export async function fetchWhatsAppImageAsDataUrl(
         throw new Error('Media is not an image');
     }
 
-    const response = await fetch(media.id, {
-        headers: {Authorization: twilioBasicAuthHeader()}
+    const accessToken = whatsappAccessToken();
+
+    const mediaResponse = await fetch(
+        `https://graph.facebook.com/${GRAPH_API_VERSION}/${media.id}`,
+        {headers: {Authorization: `Bearer ${accessToken}`}}
+    );
+    if (!mediaResponse.ok) {
+        throw new Error(`Failed to resolve WhatsApp media URL (${mediaResponse.status})`);
+    }
+
+    const mediaInfo = (await mediaResponse.json()) as {url?: string};
+    if (!mediaInfo.url) {
+        throw new Error('WhatsApp media response did not include a url');
+    }
+
+    const response = await fetch(mediaInfo.url, {
+        headers: {Authorization: `Bearer ${accessToken}`}
     });
     if (!response.ok) {
         throw new Error(`Failed to download WhatsApp image (${response.status})`);

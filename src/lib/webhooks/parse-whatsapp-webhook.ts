@@ -15,85 +15,93 @@ export type ParsedWhatsAppMessage = {
     timestamp: string;
 };
 
-function inferTwilioMediaType(
-    contentType: string
-): WhatsAppWebhookMedia['type'] {
-    if (contentType.startsWith('image/')) {
-        return 'image';
-    }
-    if (contentType.startsWith('video/')) {
-        return 'video';
-    }
-    if (contentType.startsWith('audio/')) {
-        return 'audio';
-    }
-    if (contentType.includes('sticker')) {
-        return 'sticker';
-    }
+type CloudApiMediaField = {
+    id: string;
+    mime_type?: string;
+    sha256?: string;
+    caption?: string;
+    filename?: string;
+};
 
-    return 'document';
-}
+type CloudApiMessage = {
+    id: string;
+    from: string;
+    timestamp: string;
+    type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | string;
+    text?: {body: string};
+    image?: CloudApiMediaField;
+    video?: CloudApiMediaField;
+    audio?: CloudApiMediaField;
+    document?: CloudApiMediaField;
+    sticker?: CloudApiMediaField;
+};
 
-function twilioPhoneNumber(params: URLSearchParams): string | null {
-    const waId = params.get('WaId')?.trim();
-    if (waId) {
-        return waId;
-    }
-
-    const from = params.get('From')?.trim();
-    if (!from) {
+function mediaFromCloudApiMessage(
+    message: CloudApiMessage
+): WhatsAppWebhookMedia | null {
+    const type = message.type;
+    if (
+        type !== 'image' &&
+        type !== 'video' &&
+        type !== 'audio' &&
+        type !== 'document' &&
+        type !== 'sticker'
+    ) {
         return null;
     }
 
-    return from.replace(/^whatsapp:/i, '').replace(/^\+/, '') || null;
+    const field = message[type];
+    if (!field) {
+        return null;
+    }
+
+    return {
+        type,
+        id: field.id,
+        mimeType: field.mime_type ?? null,
+        sha256: field.sha256 ?? null,
+        caption: field.caption ?? null,
+        filename: field.filename ?? null
+    };
 }
 
-/** Twilio WhatsApp sends application/x-www-form-urlencoded. */
-export function parseTwilioWhatsAppWebhook(
-    params: URLSearchParams
-): ParsedWhatsAppMessage[] {
-    const smsStatus = params.get('SmsStatus');
-    if (smsStatus && smsStatus !== 'received') {
+/** WhatsApp Cloud API sends a JSON payload with entry[].changes[].value.messages[]. */
+export function parseWhatsAppCloudWebhook(body: unknown): ParsedWhatsAppMessage[] {
+    const entries = (body as {entry?: unknown[]})?.entry;
+    if (!Array.isArray(entries)) {
         return [];
     }
 
-    const phoneNumber = twilioPhoneNumber(params);
-    const messageId =
-        params.get('MessageSid')?.trim() ||
-        params.get('SmsMessageSid')?.trim() ||
-        '';
+    const parsed: ParsedWhatsAppMessage[] = [];
 
-    if (!phoneNumber || !messageId) {
-        return [];
-    }
+    for (const entry of entries) {
+        const changes = (entry as {changes?: unknown[]})?.changes;
+        if (!Array.isArray(changes)) {
+            continue;
+        }
 
-    const body = params.get('Body')?.trim() || null;
-    const numMedia = Number.parseInt(params.get('NumMedia') ?? '0', 10);
+        for (const change of changes) {
+            const messages = (change as {value?: {messages?: CloudApiMessage[]}})
+                ?.value?.messages;
+            if (!Array.isArray(messages)) {
+                continue;
+            }
 
-    let media: WhatsAppWebhookMedia | null = null;
-    if (numMedia > 0) {
-        const mimeType = params.get('MediaContentType0')?.trim() ?? '';
-        const mediaUrl = params.get('MediaUrl0')?.trim() ?? '';
+            for (const message of messages) {
+                if (!message?.from || !message?.id) {
+                    continue;
+                }
 
-        if (mediaUrl) {
-            media = {
-                type: inferTwilioMediaType(mimeType),
-                id: mediaUrl,
-                mimeType: mimeType || null,
-                sha256: null,
-                caption: body,
-                filename: null
-            };
+                parsed.push({
+                    phoneNumber: message.from.trim(),
+                    message: message.text?.body?.trim() || null,
+                    media: mediaFromCloudApiMessage(message),
+                    messageId: message.id,
+                    timestamp: message.timestamp ?? ''
+                });
+            }
         }
     }
 
-    return [
-        {
-            phoneNumber,
-            message: body,
-            media,
-            messageId,
-            timestamp: ''
-        }
-    ];
+    return parsed;
 }
