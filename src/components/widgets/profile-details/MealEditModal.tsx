@@ -318,11 +318,7 @@ function resolveTargetQuantity(portion: EditablePortion) {
 
     const qty = Math.round(parsed * 1000) / 1000;
     if (isDiscreteUnit(portion.unit)) {
-        return snapQuantityForUnit(
-            qty,
-            portion.unit,
-            MANUAL_QUANTITY_OPTIONS
-        );
+        return snapQuantityForUnit(qty, portion.unit, MANUAL_QUANTITY_OPTIONS);
     }
     if (isWholeCountUnit(portion.unit)) {
         return snapQuantityForUnit(qty, portion.unit);
@@ -506,9 +502,7 @@ export default function MealEditModal({
                 if (value === 'GRAM' && unitLabel(p.unit) !== 'g') {
                     const grams = Math.max(
                         1,
-                        Math.round(
-                            Number(p._grams) || p.targetGrams || 100
-                        )
+                        Math.round(Number(p._grams) || p.targetGrams || 100)
                     );
 
                     return {
@@ -824,8 +818,8 @@ export default function MealEditModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpen}>
-            <DialogContent className='max-w-2xl max-h-[85vh] overflow-hidden flex flex-col'>
-                <DialogHeader>
+            <DialogContent className='max-w-2xl max-h-[90dvh] overflow-hidden flex flex-col'>
+                <DialogHeader className='shrink-0'>
                     <DialogTitle className='flex items-center gap-2'>
                         <Pencil className='h-5 w-5 text-primary' />
                         Editar receta
@@ -837,394 +831,414 @@ export default function MealEditModal({
                     ) : null}
                 </DialogHeader>
 
-                {/* Recipe Name */}
-                <div className='space-y-2 mt-2'>
-                    <Label className='text-sm font-medium'>
-                        Nombre de la receta
-                    </Label>
-                    <Input
-                        value={recipeName}
-                        onChange={e => setRecipeName(e.target.value)}
-                        className='bg-background'
-                    />
-                </div>
-
-                {/* Total Macros Summary */}
-                <div className='grid grid-cols-4 gap-3 p-4 rounded-xl bg-secondary/30 border border-border mt-4'>
-                    <div className='text-center'>
-                        <div className='flex items-center justify-center gap-1.5 mb-1'>
-                            <Flame className='h-4 w-4 text-orange-500' />
-                            <span className='text-xs text-muted-foreground'>
-                                Calorías
-                            </span>
-                        </div>
-                        <span className='text-lg font-bold text-foreground'>
-                            {Math.round(displayTotals.calories)}
-                        </span>
-                        <span className='text-xs text-muted-foreground ml-1'>
-                            kcal
-                        </span>
-                    </div>
-                    <div className='text-center'>
-                        <div className='flex items-center justify-center gap-1.5 mb-1'>
-                            <Beef className='h-4 w-4 text-red-500' />
-                            <span className='text-xs text-muted-foreground'>
-                                Proteína
-                            </span>
-                        </div>
-                        <span className='text-lg font-bold text-foreground'>
-                            {round1(displayTotals.protein)}
-                        </span>
-                        <span className='text-xs text-muted-foreground ml-1'>
-                            g
-                        </span>
-                    </div>
-                    <div className='text-center'>
-                        <div className='flex items-center justify-center gap-1.5 mb-1'>
-                            <Wheat className='h-4 w-4 text-amber-500' />
-                            <span className='text-xs text-muted-foreground'>
-                                Carbos
-                            </span>
-                        </div>
-                        <span className='text-lg font-bold text-foreground'>
-                            {round1(displayTotals.carbs)}
-                        </span>
-                        <span className='text-xs text-muted-foreground ml-1'>
-                            g
-                        </span>
-                    </div>
-                    <div className='text-center'>
-                        <div className='flex items-center justify-center gap-1.5 mb-1'>
-                            <Droplets className='h-4 w-4 text-blue-500' />
-                            <span className='text-xs text-muted-foreground'>
-                                Grasas
-                            </span>
-                        </div>
-                        <span className='text-lg font-bold text-foreground'>
-                            {round1(displayTotals.fat)}
-                        </span>
-                        <span className='text-xs text-muted-foreground ml-1'>
-                            g
-                        </span>
-                    </div>
-                </div>
-
-                {/* Ingredients List */}
-                <div className='flex-1 overflow-y-auto mt-4 space-y-3 pr-1'>
-                    <div className='flex items-center justify-between gap-3'>
+                {/* Scrollable body: name, macros, ingredients and extras scroll
+                    together so the ingredient list never collapses on short
+                    viewports (e.g. Windows laptops with display scaling). */}
+                <div className='flex-1 min-h-0 overflow-y-auto -mx-1 px-1 pb-1'>
+                    {/* Recipe Name */}
+                    <div className='space-y-2 mt-2'>
                         <Label className='text-sm font-medium'>
-                            Ingredientes ({portions.length})
+                            Nombre de la receta
                         </Label>
-                        <Button
-                            type='button'
-                            variant='outline'
-                            size='sm'
-                            onClick={addIngredient}
-                            className='h-8'>
-                            <Plus className='h-4 w-4 mr-1.5' />
-                            Agregar ingrediente
-                        </Button>
+                        <Input
+                            value={recipeName}
+                            onChange={e => setRecipeName(e.target.value)}
+                            className='bg-background'
+                        />
                     </div>
 
-                    <AnimatePresence mode='popLayout'>
-                        {portions.map((portion, idx) => {
-                            const discrete = isDiscrete(portion.unit);
-                            const label = unitLabel(portion.unit);
-                            const isGrams = label === 'g';
-                            const quantityIsDiscrete =
-                                discrete || portion.isDiscrete === true;
-                            const suggestions = getFilteredSuggestions(
-                                portion.ingredientName
-                            );
-                            const showSuggestions =
-                                activeSuggestionIdx === idx &&
-                                suggestions.length > 0;
+                    {/* Total Macros Summary */}
+                    <div className='grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-secondary/30 border border-border mt-4'>
+                        <div className='text-center'>
+                            <div className='flex items-center justify-center gap-1.5 mb-1'>
+                                <Flame className='h-4 w-4 text-orange-500' />
+                                <span className='text-xs text-muted-foreground'>
+                                    Calorías
+                                </span>
+                            </div>
+                            <span className='text-lg font-bold text-foreground'>
+                                {Math.round(displayTotals.calories)}
+                            </span>
+                            <span className='text-xs text-muted-foreground ml-1'>
+                                kcal
+                            </span>
+                        </div>
+                        <div className='text-center'>
+                            <div className='flex items-center justify-center gap-1.5 mb-1'>
+                                <Beef className='h-4 w-4 text-red-500' />
+                                <span className='text-xs text-muted-foreground'>
+                                    Proteína
+                                </span>
+                            </div>
+                            <span className='text-lg font-bold text-foreground'>
+                                {round1(displayTotals.protein)}
+                            </span>
+                            <span className='text-xs text-muted-foreground ml-1'>
+                                g
+                            </span>
+                        </div>
+                        <div className='text-center'>
+                            <div className='flex items-center justify-center gap-1.5 mb-1'>
+                                <Wheat className='h-4 w-4 text-amber-500' />
+                                <span className='text-xs text-muted-foreground'>
+                                    Carbos
+                                </span>
+                            </div>
+                            <span className='text-lg font-bold text-foreground'>
+                                {round1(displayTotals.carbs)}
+                            </span>
+                            <span className='text-xs text-muted-foreground ml-1'>
+                                g
+                            </span>
+                        </div>
+                        <div className='text-center'>
+                            <div className='flex items-center justify-center gap-1.5 mb-1'>
+                                <Droplets className='h-4 w-4 text-blue-500' />
+                                <span className='text-xs text-muted-foreground'>
+                                    Grasas
+                                </span>
+                            </div>
+                            <span className='text-lg font-bold text-foreground'>
+                                {round1(displayTotals.fat)}
+                            </span>
+                            <span className='text-xs text-muted-foreground ml-1'>
+                                g
+                            </span>
+                        </div>
+                    </div>
 
-                            return (
+                    {/* Ingredients List */}
+                    <div className='mt-4 space-y-3'>
+                        <div className='flex items-center justify-between gap-3'>
+                            <Label className='text-sm font-medium'>
+                                Ingredientes ({portions.length})
+                            </Label>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={addIngredient}
+                                className='h-8'>
+                                <Plus className='h-4 w-4 mr-1.5' />
+                                Agregar ingrediente
+                            </Button>
+                        </div>
+
+                        <AnimatePresence mode='popLayout'>
+                            {portions.map((portion, idx) => {
+                                const discrete = isDiscrete(portion.unit);
+                                const label = unitLabel(portion.unit);
+                                const isGrams = label === 'g';
+                                const quantityIsDiscrete =
+                                    discrete || portion.isDiscrete === true;
+                                const suggestions = getFilteredSuggestions(
+                                    portion.ingredientName
+                                );
+                                const showSuggestions =
+                                    activeSuggestionIdx === idx &&
+                                    suggestions.length > 0;
+
+                                return (
+                                    <motion.div
+                                        key={portion._key}
+                                        initial={{opacity: 0, height: 0}}
+                                        animate={{opacity: 1, height: 'auto'}}
+                                        exit={{opacity: 0, height: 0}}
+                                        className='p-3 rounded-lg border border-border bg-card space-y-3'>
+                                        {/* Name + Remove */}
+                                        <div className='flex items-start gap-2'>
+                                            <div className='relative flex-1'>
+                                                {portion._isNew ? (
+                                                    <>
+                                                        <Label className='text-xs text-muted-foreground mb-1 block'>
+                                                            Ingrediente
+                                                        </Label>
+                                                        <Input
+                                                            value={
+                                                                portion.ingredientName
+                                                            }
+                                                            onChange={e =>
+                                                                updateIngredientName(
+                                                                    idx,
+                                                                    e.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            onFocus={() =>
+                                                                setActiveSuggestionIdx(
+                                                                    idx
+                                                                )
+                                                            }
+                                                            onBlur={() =>
+                                                                setTimeout(
+                                                                    () =>
+                                                                        setActiveSuggestionIdx(
+                                                                            current =>
+                                                                                current ===
+                                                                                idx
+                                                                                    ? null
+                                                                                    : current
+                                                                        ),
+                                                                    150
+                                                                )
+                                                            }
+                                                            placeholder='Buscar alimento...'
+                                                            className='h-9 bg-background'
+                                                        />
+                                                        <AnimatePresence>
+                                                            {showSuggestions && (
+                                                                <motion.div
+                                                                    initial={{
+                                                                        opacity: 0,
+                                                                        y: -5
+                                                                    }}
+                                                                    animate={{
+                                                                        opacity: 1,
+                                                                        y: 0
+                                                                    }}
+                                                                    exit={{
+                                                                        opacity: 0,
+                                                                        y: -5
+                                                                    }}
+                                                                    className='absolute z-10 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden'>
+                                                                    {suggestions.map(
+                                                                        food => (
+                                                                            <button
+                                                                                key={
+                                                                                    food.id
+                                                                                }
+                                                                                type='button'
+                                                                                onMouseDown={() =>
+                                                                                    selectFood(
+                                                                                        idx,
+                                                                                        food
+                                                                                    )
+                                                                                }
+                                                                                className='w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors'>
+                                                                                {
+                                                                                    food.name
+                                                                                }
+                                                                            </button>
+                                                                        )
+                                                                    )}
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </>
+                                                ) : (
+                                                    <span className='block pt-1 text-sm font-medium text-foreground truncate'>
+                                                        {portion.ingredientName}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <Button
+                                                variant='ghost'
+                                                size='sm'
+                                                onClick={() =>
+                                                    removeIngredient(idx)
+                                                }
+                                                className='h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0'>
+                                                <Trash2 className='h-4 w-4' />
+                                            </Button>
+                                        </div>
+
+                                        {/* Quantity + Unit */}
+                                        <div className='flex items-end gap-3'>
+                                            <div className='flex-1'>
+                                                <Label className='text-xs text-muted-foreground mb-1 block'>
+                                                    {discrete
+                                                        ? 'Cantidad'
+                                                        : isGrams
+                                                          ? 'Gramos'
+                                                          : 'Cantidad'}
+                                                </Label>
+                                                <Input
+                                                    type='text'
+                                                    inputMode={
+                                                        discrete
+                                                            ? 'text'
+                                                            : 'decimal'
+                                                    }
+                                                    value={
+                                                        discrete || !isGrams
+                                                            ? portion._quantity
+                                                            : portion._grams
+                                                    }
+                                                    onChange={e => {
+                                                        if (
+                                                            discrete ||
+                                                            !isGrams
+                                                        ) {
+                                                            updateQuantity(
+                                                                idx,
+                                                                e.target.value
+                                                            );
+                                                        } else {
+                                                            updateGrams(
+                                                                idx,
+                                                                e.target.value
+                                                            );
+                                                        }
+                                                    }}
+                                                    onBlur={e => {
+                                                        if (
+                                                            !discrete &&
+                                                            isGrams
+                                                        ) {
+                                                            return;
+                                                        }
+
+                                                        const parsed =
+                                                            parseIngredientQuantity(
+                                                                e.target.value
+                                                            );
+                                                        if (
+                                                            parsed != null &&
+                                                            parsed >= 0
+                                                        ) {
+                                                            updateQuantity(
+                                                                idx,
+                                                                formatIngredientQuantityInput(
+                                                                    parsed,
+                                                                    portion.unit,
+                                                                    {
+                                                                        isDiscrete:
+                                                                            quantityIsDiscrete,
+                                                                        ...MANUAL_QUANTITY_OPTIONS
+                                                                    }
+                                                                )
+                                                            );
+                                                        }
+                                                    }}
+                                                    placeholder={
+                                                        discrete
+                                                            ? '1/2 o 1'
+                                                            : portion.unit ===
+                                                                'TBSP'
+                                                              ? '1, 2 o 3'
+                                                              : '1/3 o 0.33'
+                                                    }
+                                                    className='h-9 bg-background'
+                                                />
+                                            </div>
+                                            <div className='w-28'>
+                                                <Label className='text-xs text-muted-foreground mb-1 block'>
+                                                    Unidad
+                                                </Label>
+                                                <Select
+                                                    value={
+                                                        portion.unit?.toUpperCase() ??
+                                                        'GRAM'
+                                                    }
+                                                    onValueChange={value =>
+                                                        updateUnit(idx, value)
+                                                    }>
+                                                    <SelectTrigger className='h-9 bg-background'>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {UNIT_OPTIONS.map(
+                                                            opt => (
+                                                                <SelectItem
+                                                                    key={
+                                                                        opt.value
+                                                                    }
+                                                                    value={
+                                                                        opt.value
+                                                                    }>
+                                                                    {opt.label}
+                                                                </SelectItem>
+                                                            )
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
+
+                        {portions.length === 0 && (
+                            <div className='text-center py-8 text-muted-foreground'>
+                                <UtensilsCrossed className='h-8 w-8 mx-auto mb-2 opacity-50' />
+                                <p className='text-sm'>Sin ingredientes</p>
+                            </div>
+                        )}
+
+                        <div className='flex items-center justify-between gap-3 pt-2'>
+                            <div>
+                                <Label className='text-sm font-medium'>
+                                    Extras ({extras.length})
+                                </Label>
+                                <p className='text-[11px] text-muted-foreground'>
+                                    No afectan calorías ni macros
+                                </p>
+                            </div>
+                            <Button
+                                type='button'
+                                variant='outline'
+                                size='sm'
+                                onClick={() =>
+                                    setExtras(prev => [
+                                        ...prev,
+                                        {_key: crypto.randomUUID(), name: ''}
+                                    ])
+                                }
+                                className='h-8'>
+                                <Plus className='h-4 w-4 mr-1.5' />
+                                Agregar extra
+                            </Button>
+                        </div>
+
+                        <AnimatePresence mode='popLayout'>
+                            {extras.map((extra, idx) => (
                                 <motion.div
-                                    key={portion._key}
+                                    key={extra._key}
                                     initial={{opacity: 0, height: 0}}
                                     animate={{opacity: 1, height: 'auto'}}
                                     exit={{opacity: 0, height: 0}}
-                                    className='p-3 rounded-lg border border-border bg-card space-y-3'>
-                                    {/* Name + Remove */}
-                                    <div className='flex items-start gap-2'>
-                                        <div className='relative flex-1'>
-                                            {portion._isNew ? (
-                                                <>
-                                                    <Label className='text-xs text-muted-foreground mb-1 block'>
-                                                        Ingrediente
-                                                    </Label>
-                                                    <Input
-                                                        value={
-                                                            portion.ingredientName
-                                                        }
-                                                        onChange={e =>
-                                                            updateIngredientName(
-                                                                idx,
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                        onFocus={() =>
-                                                            setActiveSuggestionIdx(
-                                                                idx
-                                                            )
-                                                        }
-                                                        onBlur={() =>
-                                                            setTimeout(
-                                                                () =>
-                                                                    setActiveSuggestionIdx(
-                                                                        current =>
-                                                                            current ===
-                                                                            idx
-                                                                                ? null
-                                                                                : current
-                                                                    ),
-                                                                150
-                                                            )
-                                                        }
-                                                        placeholder='Buscar alimento...'
-                                                        className='h-9 bg-background'
-                                                    />
-                                                    <AnimatePresence>
-                                                        {showSuggestions && (
-                                                            <motion.div
-                                                                initial={{
-                                                                    opacity: 0,
-                                                                    y: -5
-                                                                }}
-                                                                animate={{
-                                                                    opacity: 1,
-                                                                    y: 0
-                                                                }}
-                                                                exit={{
-                                                                    opacity: 0,
-                                                                    y: -5
-                                                                }}
-                                                                className='absolute z-10 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden'>
-                                                                {suggestions.map(
-                                                                    food => (
-                                                                        <button
-                                                                            key={
-                                                                                food.id
-                                                                            }
-                                                                            type='button'
-                                                                            onMouseDown={() =>
-                                                                                selectFood(
-                                                                                    idx,
-                                                                                    food
-                                                                                )
-                                                                            }
-                                                                            className='w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors'>
-                                                                            {
-                                                                                food.name
-                                                                            }
-                                                                        </button>
-                                                                    )
-                                                                )}
-                                                            </motion.div>
-                                                        )}
-                                                    </AnimatePresence>
-                                                </>
-                                            ) : (
-                                                <span className='block pt-1 text-sm font-medium text-foreground truncate'>
-                                                    {portion.ingredientName}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <Button
-                                            variant='ghost'
-                                            size='sm'
-                                            onClick={() =>
-                                                removeIngredient(idx)
-                                            }
-                                            className='h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0'>
-                                            <Trash2 className='h-4 w-4' />
-                                        </Button>
-                                    </div>
-
-                                    {/* Quantity + Unit */}
-                                    <div className='flex items-end gap-3'>
-                                        <div className='flex-1'>
-                                            <Label className='text-xs text-muted-foreground mb-1 block'>
-                                                {discrete
-                                                    ? 'Cantidad'
-                                                    : isGrams
-                                                      ? 'Gramos'
-                                                      : 'Cantidad'}
-                                            </Label>
-                                            <Input
-                                                type='text'
-                                                inputMode={
-                                                    discrete
-                                                        ? 'text'
-                                                        : 'decimal'
-                                                }
-                                                value={
-                                                    discrete || !isGrams
-                                                        ? portion._quantity
-                                                        : portion._grams
-                                                }
-                                                onChange={e => {
-                                                    if (discrete || !isGrams) {
-                                                        updateQuantity(
-                                                            idx,
-                                                            e.target.value
-                                                        );
-                                                    } else {
-                                                        updateGrams(
-                                                            idx,
-                                                            e.target.value
-                                                        );
-                                                    }
-                                                }}
-                                                onBlur={e => {
-                                                    if (!discrete && isGrams) {
-                                                        return;
-                                                    }
-
-                                                    const parsed =
-                                                        parseIngredientQuantity(
-                                                            e.target.value
-                                                        );
-                                                    if (
-                                                        parsed != null &&
-                                                        parsed >= 0
-                                                    ) {
-                                                        updateQuantity(
-                                                            idx,
-                                                            formatIngredientQuantityInput(
-                                                                parsed,
-                                                                portion.unit,
-                                                                {
-                                                                    isDiscrete:
-                                                                        quantityIsDiscrete,
-                                                                    ...MANUAL_QUANTITY_OPTIONS
-                                                                }
-                                                            )
-                                                        );
-                                                    }
-                                                }}
-                                                placeholder={
-                                                    discrete
-                                                        ? '1/2 o 1'
-                                                        : portion.unit ===
-                                                            'TBSP'
-                                                          ? '1, 2 o 3'
-                                                          : '1/3 o 0.33'
-                                                }
-                                                className='h-9 bg-background'
-                                            />
-                                        </div>
-                                        <div className='w-28'>
-                                            <Label className='text-xs text-muted-foreground mb-1 block'>
-                                                Unidad
-                                            </Label>
-                                            <Select
-                                                value={
-                                                    portion.unit?.toUpperCase() ??
-                                                    'GRAM'
-                                                }
-                                                onValueChange={value =>
-                                                    updateUnit(idx, value)
-                                                }>
-                                                <SelectTrigger className='h-9 bg-background'>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {UNIT_OPTIONS.map(opt => (
-                                                        <SelectItem
-                                                            key={opt.value}
-                                                            value={opt.value}>
-                                                            {opt.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
+                                    className='flex items-center gap-2 p-3 rounded-lg border border-border bg-card'>
+                                    <Input
+                                        value={extra.name}
+                                        onChange={e =>
+                                            setExtras(prev =>
+                                                prev.map((item, itemIdx) =>
+                                                    itemIdx === idx
+                                                        ? {
+                                                              ...item,
+                                                              name: e.target
+                                                                  .value
+                                                          }
+                                                        : item
+                                                )
+                                            )
+                                        }
+                                        placeholder='ej. Sal, pimienta, cilantro...'
+                                        className='h-9 bg-background'
+                                    />
+                                    <Button
+                                        variant='ghost'
+                                        size='sm'
+                                        onClick={() =>
+                                            setExtras(prev =>
+                                                prev.filter(
+                                                    (_, itemIdx) =>
+                                                        itemIdx !== idx
+                                                )
+                                            )
+                                        }
+                                        className='h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0'>
+                                        <Trash2 className='h-4 w-4' />
+                                    </Button>
                                 </motion.div>
-                            );
-                        })}
-                    </AnimatePresence>
-
-                    {portions.length === 0 && (
-                        <div className='text-center py-8 text-muted-foreground'>
-                            <UtensilsCrossed className='h-8 w-8 mx-auto mb-2 opacity-50' />
-                            <p className='text-sm'>Sin ingredientes</p>
-                        </div>
-                    )}
-
-                    <div className='flex items-center justify-between gap-3 pt-2'>
-                        <div>
-                            <Label className='text-sm font-medium'>
-                                Extras ({extras.length})
-                            </Label>
-                            <p className='text-[11px] text-muted-foreground'>
-                                No afectan calorías ni macros
-                            </p>
-                        </div>
-                        <Button
-                            type='button'
-                            variant='outline'
-                            size='sm'
-                            onClick={() =>
-                                setExtras(prev => [
-                                    ...prev,
-                                    {_key: crypto.randomUUID(), name: ''}
-                                ])
-                            }
-                            className='h-8'>
-                            <Plus className='h-4 w-4 mr-1.5' />
-                            Agregar extra
-                        </Button>
+                            ))}
+                        </AnimatePresence>
                     </div>
-
-                    <AnimatePresence mode='popLayout'>
-                        {extras.map((extra, idx) => (
-                            <motion.div
-                                key={extra._key}
-                                initial={{opacity: 0, height: 0}}
-                                animate={{opacity: 1, height: 'auto'}}
-                                exit={{opacity: 0, height: 0}}
-                                className='flex items-center gap-2 p-3 rounded-lg border border-border bg-card'>
-                                <Input
-                                    value={extra.name}
-                                    onChange={e =>
-                                        setExtras(prev =>
-                                            prev.map((item, itemIdx) =>
-                                                itemIdx === idx
-                                                    ? {
-                                                          ...item,
-                                                          name: e.target.value
-                                                      }
-                                                    : item
-                                            )
-                                        )
-                                    }
-                                    placeholder='ej. Sal, pimienta, cilantro...'
-                                    className='h-9 bg-background'
-                                />
-                                <Button
-                                    variant='ghost'
-                                    size='sm'
-                                    onClick={() =>
-                                        setExtras(prev =>
-                                            prev.filter(
-                                                (_, itemIdx) => itemIdx !== idx
-                                            )
-                                        )
-                                    }
-                                    className='h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0'>
-                                    <Trash2 className='h-4 w-4' />
-                                </Button>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
                 </div>
 
                 {/* Footer */}
-                <div className='flex flex-col gap-3 pt-4 mt-4 border-t border-border'>
+                <div className='shrink-0 flex flex-col gap-3 pt-4 mt-4 border-t border-border'>
                     <label className='flex items-start gap-2 cursor-pointer'>
                         <input
                             type='checkbox'
