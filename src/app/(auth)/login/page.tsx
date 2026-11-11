@@ -10,6 +10,7 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {cn} from '@/lib/utils';
+import {BUSINESS, PRIVACY_POLICY_PATH} from '@/lib/legal';
 import {useMutation} from '@tanstack/react-query';
 
 // Floating orb component for background
@@ -393,6 +394,23 @@ export default function LoginPage() {
                         </motion.div>
                     </motion.form>
                 </div>
+
+                {/* Legal footer */}
+                <motion.p
+                    initial={{opacity: 0}}
+                    animate={{opacity: 1}}
+                    transition={{delay: 0.9}}
+                    className='mt-6 text-center text-xs text-muted-foreground'>
+                    Operado por {BUSINESS.legalName}
+                    <span className='mx-2' aria-hidden='true'>
+                        ·
+                    </span>
+                    <Link
+                        href={PRIVACY_POLICY_PATH}
+                        className='underline underline-offset-4 transition-colors hover:text-foreground'>
+                        Política de privacidad
+                    </Link>
+                </motion.p>
             </motion.div>
         </div>
     );
