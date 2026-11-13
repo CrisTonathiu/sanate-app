@@ -267,16 +267,20 @@ export function RecipeModal({
                                                                 }
                                                                 className='flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-sm text-card-foreground transition-colors hover:bg-amber-400/20 hover:text-amber-500'>
                                                                 <span>
-                                                                    {
-                                                                        option.amount
-                                                                    }{' '}
-                                                                    {
-                                                                        option.unit
-                                                                    }{' '}
-                                                                    {
-                                                                        option.name
-                                                                    }
+                                                                    {option.hint
+                                                                        ? `${option.hint} ${option.name}`
+                                                                        : `${option.amount} ${option.unit} ${option.name}`}
                                                                 </span>
+                                                                {option.hint && (
+                                                                    <span className='text-xs text-muted-foreground'>
+                                                                        {
+                                                                            option.amount
+                                                                        }{' '}
+                                                                        {
+                                                                            option.unit
+                                                                        }
+                                                                    </span>
+                                                                )}
                                                                 <span className='text-xs text-muted-foreground'>
                                                                     {formatCalorieDelta(
                                                                         option.calorieDelta

@@ -14,6 +14,9 @@ export type AssignedMenuPortion = {
     grams: number;
 };
 
+/** Catalog foods and grams of one protocol meal (one day's slot). */
+export type AssignedMenuMeal = AssignedMenuPortion[];
+
 export type EquivalenciasLine =
     | {kind: 'note'; text: string}
     | {kind: 'subheader'; text: string}
@@ -110,67 +113,50 @@ function formatGrams(grams: number): string {
     return `${rounded} g`;
 }
 
-type AmountSnap = 'whole' | 'quarter' | 'discrete';
+/** Denominators a household measure may use (1/2, 1/3, 2/3, 3/4, 1/8 ...). */
+const MEASURE_DENOMINATORS = [2, 3, 4, 6, 8];
 
-const WHOLE_NUMBER_COLUMN_KEYS = new Set([
-    'proteinas',
-    'carbohidratos',
-    'carbohidratos-complejos'
-]);
-
-function snapModeForColumn(columnKey: string): AmountSnap {
-    return WHOLE_NUMBER_COLUMN_KEYS.has(columnKey) ? 'whole' : 'quarter';
-}
-
-function snapModeForFood(
-    food: EquivalenciasFoodRow,
-    columnMode: AmountSnap
-): AmountSnap {
-    return food.isDiscrete && !food.allowPieceFractions ? 'discrete' : columnMode;
-}
-
-function snapAmount(quantity: number, mode: AmountSnap): number {
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-        return 0;
-    }
-
-    // Discrete foods are bought/eaten in whole pieces: never show fractions,
-    // and never drop below one piece.
-    if (mode === 'discrete') {
-        return Math.max(1, Math.round(quantity));
-    }
-
-    // Below 1 unit, rounding up to a whole would overstate a portion whose
-    // single equivalencia is itself a fraction (e.g. avena = 1/2 taza).
-    // Snap to quarters instead so the fraction survives.
-    if (mode === 'whole' && quantity >= 1) {
-        return Math.round(quantity);
-    }
-
-    const snapped = Math.round(quantity * 4) / 4;
-    return snapped === 0 ? 0.25 : snapped;
-}
-
-function formatSnappedQuantity(quantity: number, mode: AmountSnap): string {
-    const snapped = snapAmount(quantity, mode);
-
-    if (mode === 'discrete' || (mode === 'whole' && quantity >= 1)) {
-        return String(snapped);
-    }
-
-    const whole = Math.floor(snapped + 1e-9);
-    const fourths = Math.round((snapped - whole) * 4);
-
-    if (fourths === 4) {
-        return String(whole + 1);
-    }
-    if (fourths === 0) {
+/** "1", "2/3", "1 1/2"; amounts that fit no denominator snap to quarters. */
+function formatMeasureQuantity(quantity: number): string {
+    const whole = Math.floor(quantity + 1e-6);
+    const rest = quantity - whole;
+    if (rest < 1e-6) {
         return String(whole);
     }
 
-    const fractionLabel =
-        fourths === 1 ? '1/4' : fourths === 2 ? '1/2' : '3/4';
-    return whole > 0 ? `${whole} ${fractionLabel}` : fractionLabel;
+    for (const denominator of MEASURE_DENOMINATORS) {
+        const numerator = Math.round(rest * denominator);
+        if (
+            numerator > 0 &&
+            numerator < denominator &&
+            Math.abs(numerator / denominator - rest) < 1e-6
+        ) {
+            const fraction = `${numerator}/${denominator}`;
+            return whole > 0 ? `${whole} ${fraction}` : fraction;
+        }
+    }
+
+    return formatMeasureQuantity(Math.max(0.25, Math.round(quantity * 4) / 4));
+}
+
+/**
+ * Rounds a number of SMAE equivalents the way the plan hands them out
+ * (see docs/equivalencias.md): down to the whole or half below it, except
+ * within 0.10 of the next whole, which rounds up.
+ * 3.2 → 3, 3.6 → 3.5, 3.75 → 3.5, 3.9 → 4. Never below 1/2 equivalent.
+ */
+export function roundEquivalents(equivalents: number): number {
+    if (!Number.isFinite(equivalents) || equivalents <= 0) {
+        return 0;
+    }
+
+    const whole = Math.floor(equivalents);
+    const rest = equivalents - whole;
+    // Epsilon: 3.9 - 3 is 0.8999… in floating point.
+    const rounded =
+        rest >= 0.9 - 1e-9 ? whole + 1 : rest >= 0.5 - 1e-9 ? whole + 0.5 : whole;
+
+    return Math.max(0.5, rounded);
 }
 
 const UNIT_FORMS: Record<string, {one: string; other: string}> = {
@@ -242,96 +228,30 @@ function parseDisplayQuantity(
     return {quantity, unit: match[2].trim()};
 }
 
-type ColumnScale = {
-    factor: number;
-    sourceName: string;
-    sourceGrams: number;
-};
-
-function resolveColumnScale(
-    columnFoods: EquivalenciasFoodRow[],
-    assignedPortions: AssignedMenuPortion[]
-): ColumnScale | null {
-    if (assignedPortions.length === 0) {
-        return null;
-    }
-
-    const foodsByName = new Map(
-        columnFoods.map(food => [food.name.trim().toLowerCase(), food])
-    );
-
-    let best: ColumnScale | null = null;
-
-    for (const portion of assignedPortions) {
-        const food = foodsByName.get(portion.name.trim().toLowerCase());
-        if (!food || food.isFree) {
-            continue;
-        }
-        if (
-            food.gramsPerEquivalent == null ||
-            !Number.isFinite(food.gramsPerEquivalent) ||
-            food.gramsPerEquivalent <= 0
-        ) {
-            continue;
-        }
-        if (!Number.isFinite(portion.grams) || portion.grams <= 0) {
-            continue;
-        }
-
-        const factor = portion.grams / food.gramsPerEquivalent;
-        if (!best || factor > best.factor) {
-            best = {
-                factor,
-                sourceName: food.name,
-                sourceGrams: portion.grams
-            };
-        }
-    }
-
-    return best;
-}
-
-function formatEquivalentAmount(
-    food: EquivalenciasFoodRow,
-    factor = 1,
-    snapMode: AmountSnap = 'whole'
-): string | null {
-    const text = food.equivalentDisplayText?.trim();
-    if (text) {
-        const parsed = parseDisplayQuantity(text);
-        if (!parsed) {
-            return toPdfSafeText(text);
-        }
-
-        const scaledQuantity = parsed.quantity * factor;
-        const snappedQuantity = snapAmount(scaledQuantity, snapMode);
-        const quantityLabel = formatSnappedQuantity(scaledQuantity, snapMode);
-
-        return `${quantityLabel} ${formatUnitLabel(snappedQuantity, parsed.unit)}`;
-    }
-
-    if (
-        food.gramsPerEquivalent == null ||
-        !Number.isFinite(food.gramsPerEquivalent)
-    ) {
-        return null;
-    }
-
-    return formatGrams(food.gramsPerEquivalent * factor);
-}
-
+/**
+ * Amount of `equivalents` SMAE equivalents of a food: its household measure
+ * times the count ("1/3 lata" × 3 = "1 lata"), or grams when it has none.
+ */
 function formatItemLine(
     food: EquivalenciasFoodRow,
-    factor = 1,
-    snapMode: AmountSnap = 'whole'
+    equivalents: number
 ): {name: string; amount: string | null} {
     if (food.isFree) {
         return {name: food.name, amount: null};
     }
 
+    const measure = formatEquivalentsMeasure(food, equivalents);
+    if (measure) {
+        return {name: food.name, amount: measure};
+    }
+
+    const grams = food.gramsPerEquivalent;
     return {
         name: food.name,
-        amount: formatEquivalentAmount(food, factor, snapMode)
+        amount:
+            grams != null && Number.isFinite(grams) && grams > 0
+                ? formatGrams(grams * equivalents)
+                : null
     };
 }
 
@@ -350,41 +270,111 @@ export function equivalenciasColumnKeyForGroup(
 }
 
 /**
- * Household measure for a gram amount ("1/2 taza", "2 pzas") from the food's
- * SMAE display text. Null when the food has no parseable display text.
+ * Equivalents actually served of a food. Whole-piece foods (huevo) can't be
+ * split, so their pieces round with the same rule as equivalents (only the
+ * last 0.10 rounds up; 3.5 pzas → 3) and never below one piece.
  */
-export function formatEquivalentHint(
+export function equivalentsForFood(
     food: Pick<
         EquivalenciasFoodRow,
-        | 'isDiscrete'
-        | 'allowPieceFractions'
-        | 'gramsPerEquivalent'
-        | 'equivalentDisplayText'
+        'equivalentDisplayText' | 'isDiscrete' | 'allowPieceFractions'
     >,
-    grams: number
+    equivalents: number
+): number {
+    if (!food.isDiscrete || food.allowPieceFractions) {
+        return equivalents;
+    }
+
+    const parsed = parseDisplayQuantity(food.equivalentDisplayText ?? '');
+    if (!parsed || UNIT_FORMS[parsed.unit.toLowerCase()]?.one !== 'pza') {
+        return equivalents;
+    }
+
+    const pieces = Math.max(
+        1,
+        Math.floor(parsed.quantity * equivalents + 0.1 + 1e-9)
+    );
+    return pieces / parsed.quantity;
+}
+
+/**
+ * Household measure of `equivalents` SMAE equivalents: exactly that many
+ * times the food's line in the equivalencias PDF (3 × "1/3 lata" = "1 lata").
+ * Null when the food has no display text to scale.
+ */
+export function formatEquivalentsMeasure(
+    food: Pick<
+        EquivalenciasFoodRow,
+        'equivalentDisplayText' | 'isDiscrete' | 'allowPieceFractions'
+    >,
+    equivalents: number
 ): string | null {
     const text = food.equivalentDisplayText?.trim();
-    if (
-        !text ||
-        !parseDisplayQuantity(text) ||
-        food.gramsPerEquivalent == null ||
-        !(food.gramsPerEquivalent > 0) ||
-        !(grams > 0)
-    ) {
+    if (!text || !(equivalents > 0)) {
         return null;
     }
 
-    const row: EquivalenciasFoodRow = {
-        name: '',
-        groupName: '',
-        isFree: false,
-        ...food
-    };
+    const parsed = parseDisplayQuantity(text);
+    if (!parsed) {
+        return equivalents === 1 ? toPdfSafeText(text) : null;
+    }
 
-    return formatEquivalentAmount(
-        row,
-        grams / food.gramsPerEquivalent,
-        snapModeForFood(row, 'quarter')
+    const quantity = parsed.quantity * equivalentsForFood(food, equivalents);
+    return `${formatMeasureQuantity(quantity)} ${formatUnitLabel(quantity, parsed.unit)}`;
+}
+
+function hasGramsPerEquivalent(
+    food: EquivalenciasFoodRow
+): food is EquivalenciasFoodRow & {gramsPerEquivalent: number} {
+    return (
+        food.gramsPerEquivalent != null &&
+        Number.isFinite(food.gramsPerEquivalent) &&
+        food.gramsPerEquivalent > 0
+    );
+}
+
+/**
+ * Mean SMAE equivalents per meal for a column across the whole protocol.
+ * Meals with no food from the column are left out so they don't pull the
+ * mean down. Null when the plan never serves the column.
+ */
+function meanColumnEquivalents(
+    columnFoods: EquivalenciasFoodRow[],
+    assignedMeals: AssignedMenuMeal[]
+): number | null {
+    const foodsByName = new Map(
+        columnFoods.map(food => [food.name.trim().toLowerCase(), food])
+    );
+
+    const mealEquivalents: number[] = [];
+
+    for (const meal of assignedMeals) {
+        let equivalents = 0;
+
+        for (const portion of meal) {
+            const food = foodsByName.get(portion.name.trim().toLowerCase());
+            if (!food || food.isFree || !hasGramsPerEquivalent(food)) {
+                continue;
+            }
+            if (!Number.isFinite(portion.grams) || portion.grams <= 0) {
+                continue;
+            }
+
+            equivalents += portion.grams / food.gramsPerEquivalent;
+        }
+
+        if (equivalents > 0) {
+            mealEquivalents.push(equivalents);
+        }
+    }
+
+    if (mealEquivalents.length === 0) {
+        return null;
+    }
+
+    return (
+        mealEquivalents.reduce((sum, value) => sum + value, 0) /
+        mealEquivalents.length
     );
 }
 
@@ -417,9 +407,15 @@ function hasEquivalenceData(food: EquivalenciasFoodRow): boolean {
     );
 }
 
+/**
+ * Every food in a column gets the same number of SMAE equivalents: the
+ * plan's mean per meal for that column, rounded with roundEquivalents. So
+ * every line in a column is interchangeable. Without plan meals each food
+ * shows a single equivalent. See docs/equivalencias.md.
+ */
 export function buildEquivalenciasColumns(
     allFoods: EquivalenciasFoodRow[],
-    assignedPortions: AssignedMenuPortion[] = []
+    assignedMeals: AssignedMenuMeal[] = []
 ): EquivalenciasColumn[] {
     const foods = allFoods.filter(hasEquivalenceData);
 
@@ -433,16 +429,8 @@ export function buildEquivalenciasColumns(
             return [];
         }
 
-        const scale = resolveColumnScale(columnFoods, assignedPortions);
-        const factor = scale?.factor ?? 1;
-        const snapMode = snapModeForColumn(def.key);
-
-        if (scale) {
-            lines.push({
-                kind: 'note',
-                text: `Base: ${formatGrams(scale.sourceGrams)} ${scale.sourceName}`
-            });
-        }
+        const mean = meanColumnEquivalents(columnFoods, assignedMeals);
+        const equivalents = mean != null ? roundEquivalents(mean) : 1;
 
         const headerNote = def.headerNote?.(columnFoods) ?? null;
         if (headerNote) {
@@ -478,11 +466,7 @@ export function buildEquivalenciasColumns(
             for (const food of groupFoods) {
                 lines.push({
                     kind: 'item',
-                    ...formatItemLine(
-                        food,
-                        food.isFree ? 1 : factor,
-                        snapModeForFood(food, snapMode)
-                    )
+                    ...formatItemLine(food, equivalents)
                 });
             }
         }

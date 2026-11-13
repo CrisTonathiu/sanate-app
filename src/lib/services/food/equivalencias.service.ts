@@ -1,15 +1,16 @@
 import {prisma} from '@/lib/prisma';
 import {
     buildEquivalenciasColumns,
+    type AssignedMenuMeal,
     type AssignedMenuPortion,
     type EquivalenciasColumn,
     type EquivalenciasFoodRow
 } from '@/lib/patient-portal/equivalencias';
 
-export type {AssignedMenuPortion, EquivalenciasColumn};
+export type {AssignedMenuMeal, AssignedMenuPortion, EquivalenciasColumn};
 
 export async function loadEquivalenciasColumns(
-    assignedPortions: AssignedMenuPortion[] = []
+    assignedMeals: AssignedMenuMeal[] = []
 ): Promise<EquivalenciasColumn[]> {
     const foods = await prisma.food.findMany({
         select: {
@@ -39,5 +40,5 @@ export async function loadEquivalenciasColumns(
         equivalentDisplayText: food.equivalentDisplayText
     }));
 
-    return buildEquivalenciasColumns(rows, assignedPortions);
+    return buildEquivalenciasColumns(rows, assignedMeals);
 }
