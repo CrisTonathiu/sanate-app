@@ -14,6 +14,9 @@ export type AssignedMenuPortion = {
     grams: number;
 };
 
+/** Catalog foods and grams of one protocol meal (one day's slot). */
+export type AssignedMenuMeal = AssignedMenuPortion[];
+
 export type EquivalenciasLine =
     | {kind: 'note'; text: string}
     | {kind: 'subheader'; text: string}
@@ -243,52 +246,105 @@ function parseDisplayQuantity(
 }
 
 type ColumnScale = {
-    factor: number;
-    sourceName: string;
-    sourceGrams: number;
+    /** Mean equivalents per meal that serves this column. */
+    meanEquivalents: number;
+    /** Most frequent column food in the plan, shown in the "Base" note. */
+    referenceFood: EquivalenciasFoodRow;
 };
 
+function hasGramsPerEquivalent(
+    food: EquivalenciasFoodRow
+): food is EquivalenciasFoodRow & {gramsPerEquivalent: number} {
+    return (
+        food.gramsPerEquivalent != null &&
+        Number.isFinite(food.gramsPerEquivalent) &&
+        food.gramsPerEquivalent > 0
+    );
+}
+
+/**
+ * Column base = mean of the column's equivalents per meal across the whole
+ * protocol. Meals with no food from the column are left out so they don't
+ * pull the mean down; one oversized meal no longer sets the base for all.
+ */
 function resolveColumnScale(
     columnFoods: EquivalenciasFoodRow[],
-    assignedPortions: AssignedMenuPortion[]
+    assignedMeals: AssignedMenuMeal[]
 ): ColumnScale | null {
-    if (assignedPortions.length === 0) {
-        return null;
-    }
-
     const foodsByName = new Map(
         columnFoods.map(food => [food.name.trim().toLowerCase(), food])
     );
 
-    let best: ColumnScale | null = null;
+    const mealEquivalents: number[] = [];
+    const appearances = new Map<EquivalenciasFoodRow, number>();
 
-    for (const portion of assignedPortions) {
-        const food = foodsByName.get(portion.name.trim().toLowerCase());
-        if (!food || food.isFree) {
-            continue;
-        }
-        if (
-            food.gramsPerEquivalent == null ||
-            !Number.isFinite(food.gramsPerEquivalent) ||
-            food.gramsPerEquivalent <= 0
-        ) {
-            continue;
-        }
-        if (!Number.isFinite(portion.grams) || portion.grams <= 0) {
-            continue;
+    for (const meal of assignedMeals) {
+        let equivalents = 0;
+
+        for (const portion of meal) {
+            const food = foodsByName.get(portion.name.trim().toLowerCase());
+            if (!food || food.isFree || !hasGramsPerEquivalent(food)) {
+                continue;
+            }
+            if (!Number.isFinite(portion.grams) || portion.grams <= 0) {
+                continue;
+            }
+
+            equivalents += portion.grams / food.gramsPerEquivalent;
+            appearances.set(food, (appearances.get(food) ?? 0) + 1);
         }
 
-        const factor = portion.grams / food.gramsPerEquivalent;
-        if (!best || factor > best.factor) {
-            best = {
-                factor,
-                sourceName: food.name,
-                sourceGrams: portion.grams
-            };
+        if (equivalents > 0) {
+            mealEquivalents.push(equivalents);
         }
     }
 
-    return best;
+    if (mealEquivalents.length === 0) {
+        return null;
+    }
+
+    let referenceFood: EquivalenciasFoodRow | null = null;
+    let referenceCount = 0;
+    for (const [food, count] of appearances) {
+        if (count > referenceCount) {
+            referenceFood = food;
+            referenceCount = count;
+        }
+    }
+    if (!referenceFood) {
+        return null;
+    }
+
+    const meanEquivalents =
+        mealEquivalents.reduce((sum, value) => sum + value, 0) /
+        mealEquivalents.length;
+
+    return {meanEquivalents, referenceFood};
+}
+
+/** Base grams of a food for the column mean, floored to whole grams. */
+function baseGramsForFood(
+    food: EquivalenciasFoodRow & {gramsPerEquivalent: number},
+    meanEquivalents: number
+): number {
+    return Math.floor(meanEquivalents * food.gramsPerEquivalent);
+}
+
+/** Scale applied to a food's 1-equivalencia amount for this column. */
+function factorForFood(
+    food: EquivalenciasFoodRow,
+    scale: ColumnScale | null
+): number {
+    if (!scale || food.isFree) {
+        return 1;
+    }
+    if (!hasGramsPerEquivalent(food)) {
+        return scale.meanEquivalents;
+    }
+    return (
+        baseGramsForFood(food, scale.meanEquivalents) /
+        food.gramsPerEquivalent
+    );
 }
 
 function formatEquivalentAmount(
@@ -419,7 +475,7 @@ function hasEquivalenceData(food: EquivalenciasFoodRow): boolean {
 
 export function buildEquivalenciasColumns(
     allFoods: EquivalenciasFoodRow[],
-    assignedPortions: AssignedMenuPortion[] = []
+    assignedMeals: AssignedMenuMeal[] = []
 ): EquivalenciasColumn[] {
     const foods = allFoods.filter(hasEquivalenceData);
 
@@ -433,14 +489,17 @@ export function buildEquivalenciasColumns(
             return [];
         }
 
-        const scale = resolveColumnScale(columnFoods, assignedPortions);
-        const factor = scale?.factor ?? 1;
+        const scale = resolveColumnScale(columnFoods, assignedMeals);
         const snapMode = snapModeForColumn(def.key);
 
-        if (scale) {
+        if (scale && hasGramsPerEquivalent(scale.referenceFood)) {
+            const baseGrams = baseGramsForFood(
+                scale.referenceFood,
+                scale.meanEquivalents
+            );
             lines.push({
                 kind: 'note',
-                text: `Base: ${formatGrams(scale.sourceGrams)} ${scale.sourceName}`
+                text: `Base (promedio por comida): ${formatGrams(baseGrams)} ${scale.referenceFood.name}`
             });
         }
 
@@ -480,7 +539,7 @@ export function buildEquivalenciasColumns(
                     kind: 'item',
                     ...formatItemLine(
                         food,
-                        food.isFree ? 1 : factor,
+                        factorForFood(food, scale),
                         snapModeForFood(food, snapMode)
                     )
                 });
