@@ -115,7 +115,8 @@ export async function createFood(input: CreateFoodInput) {
                 gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
                 equivalentDisplayText:
                     validatedInput.equivalentDisplayText ?? null,
-                isFreePortion: validatedInput.isFreePortion ?? false
+                isFreePortion: validatedInput.isFreePortion ?? false,
+                swapCategory: validatedInput.swapCategory ?? null
             },
             include: foodInclude
         });
@@ -231,7 +232,8 @@ export async function updateFood(foodId: FoodIdInput, input: UpdateFoodInput) {
                 gramsPerEquivalent: validatedInput.gramsPerEquivalent ?? null,
                 equivalentDisplayText:
                     validatedInput.equivalentDisplayText ?? null,
-                isFreePortion: validatedInput.isFreePortion ?? false
+                isFreePortion: validatedInput.isFreePortion ?? false,
+                swapCategory: validatedInput.swapCategory ?? null
             },
             include: foodInclude
         });

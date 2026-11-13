@@ -33,6 +33,7 @@ interface FoodApiResponse {
         gramsPerEquivalent: number | null;
         equivalentDisplayText: string | null;
         isFreePortion: boolean;
+        swapCategory: FoodFormData['swapCategory'];
     };
 }
 
@@ -79,7 +80,8 @@ export default function ClientPage({foodId}: {foodId: string}) {
                     maxPortionGrams: body.data.maxPortionGrams,
                     gramsPerEquivalent: body.data.gramsPerEquivalent,
                     equivalentDisplayText: body.data.equivalentDisplayText,
-                    isFreePortion: body.data.isFreePortion
+                    isFreePortion: body.data.isFreePortion,
+                    swapCategory: body.data.swapCategory ?? null
                 });
             } catch (error) {
                 alert(

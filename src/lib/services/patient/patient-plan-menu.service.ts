@@ -11,6 +11,7 @@ import {
 } from '@/lib/patient-portal/protocol-meal-slider-map';
 import {
     loadEquivalenciasColumns,
+    type AssignedMenuMeal,
     type AssignedMenuPortion
 } from '@/lib/services/food/equivalencias.service';
 import {
@@ -190,33 +191,40 @@ function catalogNameForIngredient(
     return match?.ingredient.food?.name?.trim() || ingredientName.trim();
 }
 
-function collectAssignedMenuPortions(
+/**
+ * One entry per protocol meal (every day's slot counts, so a recipe eaten
+ * five times weighs five times in the equivalencias mean). Grams of the same
+ * food within a meal are added together.
+ */
+function collectAssignedMenuMeals(
     protocol: ProtocolWeeksForMenu
-): AssignedMenuPortion[] {
-    const byKey = new Map<string, AssignedMenuPortion>();
-
-    const remember = (name: string, grams: number) => {
-        const trimmed = name.trim();
-        if (!trimmed || !Number.isFinite(grams) || grams <= 0) {
-            return;
-        }
-
-        const key = trimmed.toLowerCase();
-        const previous = byKey.get(key);
-        if (!previous || grams > previous.grams) {
-            byKey.set(key, {name: trimmed, grams});
-        }
-    };
+): AssignedMenuMeal[] {
+    const meals: AssignedMenuMeal[] = [];
 
     for (const week of protocol.weeksPlan) {
         for (const day of week.days) {
             for (const meal of day.meals) {
                 const recipeIngredients = meal.recipe?.ingredients ?? [];
                 const portionRows = meal.portions?.ingredients ?? [];
+                const byKey = new Map<string, AssignedMenuPortion>();
+
+                const add = (name: string, grams: number) => {
+                    const trimmed = name.trim();
+                    if (!trimmed || !Number.isFinite(grams) || grams <= 0) {
+                        return;
+                    }
+
+                    const key = trimmed.toLowerCase();
+                    const previous = byKey.get(key);
+                    byKey.set(key, {
+                        name: trimmed,
+                        grams: (previous?.grams ?? 0) + grams
+                    });
+                };
 
                 if (portionRows.length > 0) {
                     for (const row of portionRows) {
-                        remember(
+                        add(
                             catalogNameForIngredient(
                                 row.ingredientName,
                                 recipeIngredients
@@ -224,21 +232,24 @@ function collectAssignedMenuPortions(
                             row.targetGrams
                         );
                     }
-                    continue;
+                } else {
+                    for (const row of recipeIngredients) {
+                        add(
+                            row.ingredient.food?.name?.trim() ||
+                                row.ingredient.name,
+                            row.grams
+                        );
+                    }
                 }
 
-                for (const row of recipeIngredients) {
-                    remember(
-                        row.ingredient.food?.name?.trim() ||
-                            row.ingredient.name,
-                        row.grams
-                    );
+                if (byKey.size > 0) {
+                    meals.push([...byKey.values()]);
                 }
             }
         }
     }
 
-    return [...byKey.values()];
+    return meals;
 }
 
 type ProtocolWeeksForMenu = {
@@ -427,12 +438,12 @@ export async function loadProtocolPlanMenuByProtocolId(
         loadPlanShoppingListByProtocolId(protocolId)
     ]);
 
-    const assignedPortions = protocol
-        ? collectAssignedMenuPortions(
+    const assignedMeals = protocol
+        ? collectAssignedMenuMeals(
               protocol as unknown as ProtocolWeeksForMenu
           )
         : [];
-    const equivalencias = await loadEquivalenciasColumns(assignedPortions);
+    const equivalencias = await loadEquivalenciasColumns(assignedMeals);
 
     if (!protocol) {
         return {...EMPTY_PLAN_MENU, equivalencias};
@@ -482,7 +493,7 @@ export async function loadProtocolPlanMenuForUser(
     const [menu, shoppingList, equivalencias] = await Promise.all([
         Promise.resolve(buildPlanMenuFromProtocol(typedProtocol)),
         loadPlanShoppingListByProtocolId(protocol.id),
-        loadEquivalenciasColumns(collectAssignedMenuPortions(typedProtocol))
+        loadEquivalenciasColumns(collectAssignedMenuMeals(typedProtocol))
     ]);
 
     return {

@@ -22,6 +22,10 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import {FoodGroup, useGetFoodGroups} from '@/hooks/use-foods';
+import {
+    FOOD_SWAP_CATEGORY_OPTIONS,
+    type FoodSwapCategory
+} from '@/lib/food/swap-categories';
 import {AnimatePresence, motion} from 'framer-motion';
 import {Loader2, Save, Trash2} from 'lucide-react';
 import {FormEvent, useEffect, useMemo, useState} from 'react';
@@ -60,6 +64,7 @@ export type FoodFormData = {
     gramsPerEquivalent?: number | null;
     equivalentDisplayText?: string | null;
     isFreePortion?: boolean;
+    swapCategory?: FoodSwapCategory | null;
 };
 
 type FoodFormProps = {
@@ -225,6 +230,9 @@ export function FoodForm({
     const [gramsPerEquivalent, setGramsPerEquivalent] = useState('');
     const [equivalentDisplayText, setEquivalentDisplayText] = useState('');
     const [isFreePortion, setIsFreePortion] = useState(false);
+    const [swapCategory, setSwapCategory] = useState<FoodSwapCategory | ''>(
+        ''
+    );
 
     useEffect(() => {
         if (!initialData) return;
@@ -282,6 +290,7 @@ export function FoodForm({
         setGramsPerEquivalent(formatNumberField(initialData.gramsPerEquivalent));
         setEquivalentDisplayText(initialData.equivalentDisplayText ?? '');
         setIsFreePortion(initialData.isFreePortion ?? false);
+        setSwapCategory(initialData.swapCategory ?? '');
     }, [initialData]);
 
     useEffect(() => {
@@ -415,7 +424,8 @@ export function FoodForm({
                 gramsPerPiece: isDiscrete ? parsedGramsPerPiece : null,
                 gramsPerEquivalent: parseOptionalNumber(gramsPerEquivalent),
                 equivalentDisplayText: equivalentDisplayText.trim() || null,
-                isFreePortion
+                isFreePortion,
+                swapCategory: swapCategory || null
             });
         } catch (submitError) {
             setError(
@@ -768,6 +778,48 @@ export function FoodForm({
                             <Label htmlFor='isFreePortion' className='text-sm'>
                                 Porción libre (no cuenta como equivalencia)
                             </Label>
+                        </div>
+                        <div className='sm:col-span-2'>
+                            <Label className='text-xs text-muted-foreground mb-1.5 block'>
+                                Categoría de sustitución
+                            </Label>
+                            <Select
+                                value={swapCategory || 'NONE'}
+                                onValueChange={value => {
+                                    // Radix's hidden native <select> emits '' when the
+                                    // value is set before its options register (form
+                                    // mounts, then initialData loads). Ignore it so the
+                                    // saved category isn't wiped; 'NONE' clears it.
+                                    if (!value) return;
+                                    setSwapCategory(
+                                        value === 'NONE'
+                                            ? ''
+                                            : (value as FoodSwapCategory)
+                                    );
+                                }}
+                                disabled={isFreePortion}>
+                                <SelectTrigger className='h-10 bg-background/50'>
+                                    <SelectValue placeholder='Sin categoría' />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value='NONE'>
+                                        Sin categoría
+                                    </SelectItem>
+                                    {FOOD_SWAP_CATEGORY_OPTIONS.map(option => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className='text-xs text-muted-foreground mt-1.5'>
+                                En el portal, este alimento solo se puede
+                                cambiar por otros de la misma categoría (pan ↔
+                                pan, tortilla ↔ tostada). Sin categoría se usa
+                                su grupo.
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
