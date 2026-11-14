@@ -492,15 +492,21 @@ export function buildEquivalenciasColumns(
         const scale = resolveColumnScale(columnFoods, assignedMeals);
         const snapMode = snapModeForColumn(def.key);
 
-        if (scale && hasGramsPerEquivalent(scale.referenceFood)) {
-            const baseGrams = baseGramsForFood(
-                scale.referenceFood,
-                scale.meanEquivalents
+        if (scale) {
+            // Same amount as the reference food's own line (e.g. "3 pzas"),
+            // so the note never reads as the weight of a single piece.
+            const reference = scale.referenceFood;
+            const amount = formatEquivalentAmount(
+                reference,
+                factorForFood(reference, scale),
+                snapModeForFood(reference, snapMode)
             );
-            lines.push({
-                kind: 'note',
-                text: `Base (promedio por comida): ${formatGrams(baseGrams)} ${scale.referenceFood.name}`
-            });
+            if (amount) {
+                lines.push({
+                    kind: 'note',
+                    text: `Porción promedio por comida: ${amount} de ${reference.name}`
+                });
+            }
         }
 
         const headerNote = def.headerNote?.(columnFoods) ?? null;
