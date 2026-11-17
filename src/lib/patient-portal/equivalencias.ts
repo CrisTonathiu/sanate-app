@@ -248,8 +248,8 @@ function parseDisplayQuantity(
 type ColumnScale = {
     /** Mean equivalents per meal that serves this column. */
     meanEquivalents: number;
-    /** Most frequent column food in the plan, shown in the "Base" note. */
-    referenceFood: EquivalenciasFoodRow;
+    /** Mean grams per meal of the column's foods, shown in the header note. */
+    meanGrams: number;
 };
 
 function hasGramsPerEquivalent(
@@ -276,10 +276,11 @@ function resolveColumnScale(
     );
 
     const mealEquivalents: number[] = [];
-    const appearances = new Map<EquivalenciasFoodRow, number>();
+    const mealGrams: number[] = [];
 
     for (const meal of assignedMeals) {
         let equivalents = 0;
+        let grams = 0;
 
         for (const portion of meal) {
             const food = foodsByName.get(portion.name.trim().toLowerCase());
@@ -291,11 +292,12 @@ function resolveColumnScale(
             }
 
             equivalents += portion.grams / food.gramsPerEquivalent;
-            appearances.set(food, (appearances.get(food) ?? 0) + 1);
+            grams += portion.grams;
         }
 
         if (equivalents > 0) {
             mealEquivalents.push(equivalents);
+            mealGrams.push(grams);
         }
     }
 
@@ -303,23 +305,14 @@ function resolveColumnScale(
         return null;
     }
 
-    let referenceFood: EquivalenciasFoodRow | null = null;
-    let referenceCount = 0;
-    for (const [food, count] of appearances) {
-        if (count > referenceCount) {
-            referenceFood = food;
-            referenceCount = count;
-        }
-    }
-    if (!referenceFood) {
-        return null;
-    }
-
     const meanEquivalents =
         mealEquivalents.reduce((sum, value) => sum + value, 0) /
         mealEquivalents.length;
 
-    return {meanEquivalents, referenceFood};
+    const meanGrams =
+        mealGrams.reduce((sum, value) => sum + value, 0) / mealGrams.length;
+
+    return {meanEquivalents, meanGrams};
 }
 
 /** Base grams of a food for the column mean, floored to whole grams. */
@@ -493,18 +486,11 @@ export function buildEquivalenciasColumns(
         const snapMode = snapModeForColumn(def.key);
 
         if (scale) {
-            // Same amount as the reference food's own line (e.g. "3 pzas"),
-            // so the note never reads as the weight of a single piece.
-            const reference = scale.referenceFood;
-            const amount = formatEquivalentAmount(
-                reference,
-                factorForFood(reference, scale),
-                snapModeForFood(reference, snapMode)
-            );
-            if (amount) {
+            const grams = Math.round(scale.meanGrams);
+            if (grams > 0) {
                 lines.push({
                     kind: 'note',
-                    text: `Porción promedio por comida: ${amount} de ${reference.name}`
+                    text: `Porción promedio por comida: ${grams} g`
                 });
             }
         }
