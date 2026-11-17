@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {FOOD_SWAP_CATEGORY_VALUES} from '@/lib/food/swap-categories';
 
 const optionalMacro = z
     .union([z.number().min(0), z.null()])
@@ -65,7 +66,11 @@ export const createFoodSchema = z
                 if (value === null || value === '') return null;
                 return value;
             }),
-        isFreePortion: z.boolean().optional()
+        isFreePortion: z.boolean().optional(),
+        swapCategory: z
+            .union([z.enum(FOOD_SWAP_CATEGORY_VALUES), z.null()])
+            .optional()
+            .transform(value => (value === undefined ? undefined : value))
     })
     .superRefine((data, ctx) => {
         if (data.isDiscrete && (data.gramsPerPiece == null || data.gramsPerPiece <= 0)) {

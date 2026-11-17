@@ -291,6 +291,30 @@ export const SMAE_EQUIVALENTS_BY_NAME: Record<string, SmaeEquivalentPatch> = {
 };
 
 import type {PrismaClient} from '@prisma/client';
+import {normalizeFoodName} from '@/lib/food/swap-categories';
+
+const SMAE_BY_NORMALIZED_NAME = new Map(
+    Object.entries(SMAE_EQUIVALENTS_BY_NAME).map(([name, patch]) => [
+        normalizeFoodName(name),
+        patch
+    ])
+);
+
+/**
+ * SMAE patch for a catalog name. Accent/case-insensitive, and ignores a
+ * trailing note in parentheses ("Pan integral (Tapa)" → "Pan integral").
+ */
+export function findSmaeEquivalent(
+    foodName: string
+): SmaeEquivalentPatch | undefined {
+    const normalized = normalizeFoodName(foodName);
+    return (
+        SMAE_BY_NORMALIZED_NAME.get(normalized) ??
+        SMAE_BY_NORMALIZED_NAME.get(
+            normalized.replace(/\s*\([^)]*\)\s*$/, '').trim()
+        )
+    );
+}
 
 export async function applySmaeEquivalentsToExistingFoods(
     prisma: PrismaClient
@@ -308,7 +332,7 @@ export async function applySmaeEquivalentsToExistingFoods(
     const unmatched: Array<{name: string; group: string}> = [];
 
     for (const food of foods) {
-        const patch = SMAE_EQUIVALENTS_BY_NAME[food.name];
+        const patch = findSmaeEquivalent(food.name);
         if (!patch) {
             unmatched.push({name: food.name, group: food.group.name});
             continue;

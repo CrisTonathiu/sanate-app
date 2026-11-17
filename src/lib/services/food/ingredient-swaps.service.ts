@@ -1,6 +1,9 @@
 import {prisma} from '@/lib/prisma';
 import {equivalenciasColumnKeyForGroup} from '@/lib/patient-portal/equivalencias';
-import type {SwapCatalogFood} from '@/lib/patient-portal/ingredient-swaps';
+import {
+    dominantMacroFromPer100g,
+    type SwapCatalogFood
+} from '@/lib/patient-portal/ingredient-swaps';
 
 function caloriesPer100g(food: {
     caloriesPer100g: number | null;
@@ -41,6 +44,8 @@ export async function loadIngredientSwapCatalog(
                 gramsPerPiece: true,
                 gramsPerEquivalent: true,
                 equivalentDisplayText: true,
+                maxPortionGrams: true,
+                swapCategory: true,
                 group: {select: {name: true}}
             }
         }),
@@ -73,12 +78,16 @@ export async function loadIngredientSwapCatalog(
                 id: food.id,
                 name: food.name,
                 columnKey,
+                groupName: food.group.name.trim().toUpperCase(),
+                swapCategory: food.swapCategory,
+                dominantMacro: dominantMacroFromPer100g(food),
                 caloriesPer100g: kcal,
                 isDiscrete: food.isDiscrete,
                 allowPieceFractions: food.allowPieceFractions,
                 gramsPerPiece: food.gramsPerPiece,
                 gramsPerEquivalent: food.gramsPerEquivalent,
                 equivalentDisplayText: food.equivalentDisplayText,
+                maxPortionGrams: food.maxPortionGrams,
                 disliked: dislikedFoodIds.has(food.id)
             }
         ];

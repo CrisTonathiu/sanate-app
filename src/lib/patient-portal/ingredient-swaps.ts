@@ -1,9 +1,12 @@
+import type {FoodSwapCategory} from '@prisma/client';
 import {formatEquivalentHint} from '@/lib/patient-portal/equivalencias';
 import {
     formatIngredientQuantity,
     snapFriendlyQuantityForUnit,
     snapQuantityForUnit
 } from '@/lib/utils/ingredient-quantity';
+
+export type DominantMacro = 'PROTEIN' | 'CARBS' | 'FAT';
 
 /**
  * Catalog food that can take part in a portal swap. Built server-side with
@@ -12,14 +15,22 @@ import {
 export type SwapCatalogFood = {
     id: string;
     name: string;
-    /** Equivalencias PDF column; swaps stay inside one column. */
+    /** Equivalencias PDF column; only foods with a column can be swapped. */
     columnKey: string;
+    /** FoodGroup name, upper-cased. Fallback when there is no category. */
+    groupName: string;
+    /** Family of interchangeable foods (pan ↔ pan). */
+    swapCategory: FoodSwapCategory | null;
+    /** Macro that gives most of the calories; null without macro data. */
+    dominantMacro: DominantMacro | null;
     caloriesPer100g: number;
     isDiscrete: boolean;
     allowPieceFractions: boolean;
     gramsPerPiece: number | null;
     gramsPerEquivalent: number | null;
     equivalentDisplayText: string | null;
+    /** Largest portion allowed for this food, in grams. */
+    maxPortionGrams: number | null;
     /** Patient dislikes the food (or an ingredient group containing it). */
     disliked: boolean;
 };
@@ -46,10 +57,79 @@ export type IngredientSwapOption = {
 
 /**
  * Options too far from the original after rounding to a buyable amount
- * (e.g. 1 whole tortilla for a 20 kcal portion) are hidden.
+ * (e.g. 1 whole tortilla for a 20 kcal portion) are hidden. This also hides
+ * foods whose calorie data is clearly wrong.
  */
 const MAX_CALORIE_DELTA_RATIO = 0.5;
 const MIN_CALORIE_DELTA_TOLERANCE = 30;
+const MAX_SWAP_OPTIONS = 8;
+
+export function dominantMacroFromPer100g(food: {
+    proteinPer100g: number | null;
+    carbsPer100g: number | null;
+    fatPer100g: number | null;
+}): DominantMacro | null {
+    const kcal: Array<[DominantMacro, number]> = [
+        ['PROTEIN', (food.proteinPer100g ?? 0) * 4],
+        ['CARBS', (food.carbsPer100g ?? 0) * 4],
+        ['FAT', (food.fatPer100g ?? 0) * 9]
+    ];
+    const total = kcal.reduce((sum, [, value]) => sum + value, 0);
+    if (!(total > 0)) {
+        return null;
+    }
+
+    return kcal.reduce((best, entry) => (entry[1] > best[1] ? entry : best))[0];
+}
+
+/**
+ * A categorised food only swaps within its category. Without a category,
+ * fall back to the same FoodGroup and require the same dominant macro, so a
+ * misfiled food (edamame in CARBOHIDRATOS) is not offered for bread.
+ */
+function isSimilarFood(
+    source: SwapCatalogFood,
+    candidate: SwapCatalogFood
+): boolean {
+    if (source.swapCategory) {
+        return candidate.swapCategory === source.swapCategory;
+    }
+
+    if (candidate.groupName !== source.groupName) {
+        return false;
+    }
+
+    return (
+        !source.dominantMacro ||
+        !candidate.dominantMacro ||
+        source.dominantMacro === candidate.dominantMacro
+    );
+}
+
+function gramsPerEquivalentOf(food: SwapCatalogFood): number | null {
+    return food.gramsPerEquivalent != null && food.gramsPerEquivalent > 0
+        ? food.gramsPerEquivalent
+        : null;
+}
+
+/**
+ * Replacement grams before rounding. SMAE equivalents when both foods have
+ * them (1 eq pan = 1 eq tortilla); calories only as a fallback.
+ */
+function targetGramsFor(
+    sourceFood: SwapCatalogFood,
+    sourceGrams: number,
+    sourceCalories: number,
+    food: SwapCatalogFood
+): number {
+    const sourceGpe = gramsPerEquivalentOf(sourceFood);
+    const targetGpe = gramsPerEquivalentOf(food);
+    if (sourceGpe && targetGpe) {
+        return (sourceGrams / sourceGpe) * targetGpe;
+    }
+
+    return (sourceCalories / food.caloriesPer100g) * 100;
+}
 
 function snapReplacementAmount(
     food: SwapCatalogFood,
@@ -108,14 +188,24 @@ export function buildIngredientSwapOptions(
     return catalog
         .filter(
             food =>
-                food.columnKey === sourceFood.columnKey &&
+                food.id !== sourceFood.id &&
                 !food.disliked &&
-                !mealFoodIds.has(food.id)
+                !mealFoodIds.has(food.id) &&
+                isSimilarFood(sourceFood, food)
         )
         .flatMap(food => {
-            const targetGrams = (sourceCalories / food.caloriesPer100g) * 100;
-            const snapped = snapReplacementAmount(food, targetGrams);
+            const snapped = snapReplacementAmount(
+                food,
+                targetGramsFor(sourceFood, source.grams, sourceCalories, food)
+            );
             if (!snapped) {
+                return [];
+            }
+            if (
+                food.maxPortionGrams != null &&
+                food.maxPortionGrams > 0 &&
+                snapped.grams > food.maxPortionGrams
+            ) {
                 return [];
             }
 
@@ -141,5 +231,10 @@ export function buildIngredientSwapOptions(
                 }
             ];
         })
-        .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+        .sort(
+            (a, b) =>
+                Math.abs(a.calorieDelta) - Math.abs(b.calorieDelta) ||
+                a.name.localeCompare(b.name, 'es')
+        )
+        .slice(0, MAX_SWAP_OPTIONS);
 }

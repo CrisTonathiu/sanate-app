@@ -29,6 +29,7 @@ export interface Food {
     gramsPerEquivalent?: number | null;
     equivalentDisplayText?: string | null;
     isFreePortion?: boolean;
+    swapCategory?: string | null;
     createdAt?: string;
 }
 

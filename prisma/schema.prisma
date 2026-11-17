@@ -473,6 +473,10 @@ model Food {
   equivalentDisplayText String?
   isFreePortion Boolean @default(false) // no cuenta como equivalencia (algunas frutas/verduras)
 
+  // Familia de sustitución en el portal: solo se ofrecen alimentos de la misma categoría.
+  // null = se usa el grupo del alimento como respaldo.
+  swapCategory FoodSwapCategory?
+
   equivalents FoodEquivalent[]
   equivalentIn FoodEquivalent[] @relation("EquivalentFood")
   dislikedBy   PatientFoodDislike[]
@@ -504,6 +508,35 @@ model FoodEquivalent {
 }
 
 // This would be like "Vegetales", "Frutas", "Cereales", etc. to categorizar los alimentos y facilitar la búsqueda.
+/// Families of interchangeable foods for portal ingredient swaps
+/// (pan ↔ pan, tortilla ↔ tostada), narrower than FoodGroup.
+enum FoodSwapCategory {
+  // Carbohidratos
+  PAN
+  TORTILLA
+  GRANO
+  PASTA
+  CEREAL_DESAYUNO
+  SNACK_CEREAL
+  TUBERCULO
+  LEGUMINOSA
+  FRUTA
+  FRUTA_DESHIDRATADA
+  // Proteínas
+  AVE
+  CARNE_ROJA
+  PESCADO_MARISCO
+  HUEVO
+  QUESO
+  LACTEO
+  PROTEINA_VEGETAL
+  // Grasas
+  ACEITE
+  AGUACATE
+  FRUTO_SECO
+  SEMILLA
+}
+
 model FoodGroup {
   id   String @id @default(cuid())
   name String
