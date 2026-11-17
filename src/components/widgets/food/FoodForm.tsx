@@ -785,13 +785,18 @@ export function FoodForm({
                             </Label>
                             <Select
                                 value={swapCategory || 'NONE'}
-                                onValueChange={value =>
+                                onValueChange={value => {
+                                    // Radix's hidden native <select> emits '' when the
+                                    // value is set before its options register (form
+                                    // mounts, then initialData loads). Ignore it so the
+                                    // saved category isn't wiped; 'NONE' clears it.
+                                    if (!value) return;
                                     setSwapCategory(
                                         value === 'NONE'
                                             ? ''
                                             : (value as FoodSwapCategory)
-                                    )
-                                }
+                                    );
+                                }}
                                 disabled={isFreePortion}>
                                 <SelectTrigger className='h-10 bg-background/50'>
                                     <SelectValue placeholder='Sin categoría' />
