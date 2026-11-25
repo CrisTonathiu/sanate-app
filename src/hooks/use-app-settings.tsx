@@ -5,10 +5,15 @@ import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 export type AppSettings = {
     id: string;
     mixMainMeals: boolean;
+    autoGenerateRecipeInstructions: boolean;
     updatedById: string | null;
     createdAt: string;
     updatedAt: string;
 };
+
+export type UpdateAppSettingsInput = Partial<
+    Pick<AppSettings, 'mixMainMeals' | 'autoGenerateRecipeInstructions'>
+>;
 
 export const APP_SETTINGS_QUERY_KEY = ['app-settings'] as const;
 
@@ -35,7 +40,7 @@ export function useUpdateAppSettings() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (input: {mixMainMeals: boolean}) => {
+        mutationFn: async (input: UpdateAppSettingsInput) => {
             const res = await fetch('/api/settings', {
                 method: 'PATCH',
                 credentials: 'include',

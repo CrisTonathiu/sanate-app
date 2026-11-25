@@ -669,6 +669,11 @@ model AppSettings {
   // slots. Smoothies, snacks, and drinks always stay in their own slots.
   mixMainMeals Boolean @default(false)
 
+  // When true, the protocol preview step asks OpenAI to (re)write each
+  // recipe's preparation steps. When false, the saved steps are shown for
+  // manual editing.
+  autoGenerateRecipeInstructions Boolean @default(true)
+
   updatedById String?
   updatedBy   User?   @relation(fields: [updatedById], references: [id])
 

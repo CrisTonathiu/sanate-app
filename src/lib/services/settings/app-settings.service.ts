@@ -9,6 +9,7 @@ import {ZodError} from 'zod';
 const settingsSelect = {
     id: true,
     mixMainMeals: true,
+    autoGenerateRecipeInstructions: true,
     updatedById: true,
     createdAt: true,
     updatedAt: true
@@ -17,6 +18,7 @@ const settingsSelect = {
 export type AppSettingsDTO = {
     id: string;
     mixMainMeals: boolean;
+    autoGenerateRecipeInstructions: boolean;
     updatedById: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -26,8 +28,7 @@ export async function getAppSettings(): Promise<AppSettingsDTO> {
     return prisma.appSettings.upsert({
         where: {id: APP_SETTINGS_ID},
         create: {
-            id: APP_SETTINGS_ID,
-            mixMainMeals: false
+            id: APP_SETTINGS_ID
         },
         update: {},
         select: settingsSelect
@@ -45,11 +46,11 @@ export async function updateAppSettings(
             where: {id: APP_SETTINGS_ID},
             create: {
                 id: APP_SETTINGS_ID,
-                mixMainMeals: validatedInput.mixMainMeals,
+                ...validatedInput,
                 updatedById: updatedById ?? null
             },
             update: {
-                mixMainMeals: validatedInput.mixMainMeals,
+                ...validatedInput,
                 updatedById: updatedById ?? null
             },
             select: settingsSelect
