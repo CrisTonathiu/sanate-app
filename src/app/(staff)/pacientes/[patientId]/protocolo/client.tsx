@@ -48,6 +48,7 @@ import {
     collectProteinFamiliesUsedOnSameDay
 } from '@/lib/services/protocol/protocol-week-recipe-schedule';
 import {useGetPreviouslyAssignedRecipeIds} from '@/hooks/use-patient-protocols';
+import {useGetAppSettings} from '@/hooks/use-app-settings';
 import type {
     PatientProtocolDetail,
     ProtocolDraftSnapshot
@@ -307,6 +308,11 @@ export default function PacienteProtocolClient({
     const [showMenuDownload, setShowMenuDownload] = useState<boolean>(false);
     const [aiInstructionsGenerated, setAiInstructionsGenerated] =
         useState(false);
+    const {data: appSettings} = useGetAppSettings();
+    // Only generate once settings have loaded, so a disabled toggle never
+    // triggers a request (and never overwrites saved steps) while pending.
+    const autoGenerateRecipeInstructions =
+        appSettings?.autoGenerateRecipeInstructions === true;
     const [existingDraft, setExistingDraft] =
         useState<StoredProtocolDraft | null>(null);
     const [baselineFormState, setBaselineFormState] = useState<string | null>(
@@ -1322,6 +1328,7 @@ export default function PacienteProtocolClient({
                                 handleRecipeInstructionsUpdate
                             }
                             shouldGenerateAiInstructions={
+                                autoGenerateRecipeInstructions &&
                                 !aiInstructionsGenerated
                             }
                             onAiInstructionsGenerated={() =>
